@@ -1,27 +1,32 @@
-struct Registers {
-    a: u8, // Accumulators
-    b: u8, // Flags
-    c: u8,
-    d: u8,
-    e: u8,
-    f: u8,
-    h: u8,
-    l: u8,
-  }
+mod registers;
+mod instructions;
+mod tests;
 
-impl Registers {
-    pub fn new() -> Registers {
-        Registers { a: 0b0, b: 0b0, c: 0b0, d: 0b0, e: 0b0, f: 0b0, h: 0b0, l: 0b0 }
-    }
-}
+use registers::Registers;
+use instructions::{Instruction, ArithmeticTarget};
 pub struct CPU {
     regs: Registers,
+    flags: u8,
     sp: u16,
     pc: u16
 }
 
 impl CPU {
     pub fn new() -> CPU {
-        CPU { regs: Registers::new(), sp: 0b0, pc: 0b0 }
+        CPU { regs: Registers::new(), flags: 0b0, sp: 0b0, pc: 0b0 }
     }
+
+    fn execute(&mut self, instruction: Instruction) {
+        match instruction {
+          Instruction::ADD8(target) => {
+            match target {
+              ArithmeticTarget::C => {
+                // TODO: implement ADD on register C
+              }
+              _ => { /* TODO: support more targets */ }
+            }
+          }
+          _ => { /* TODO: support more instructions */ }
+        }
+      }
 }
