@@ -1,10 +1,52 @@
 #[cfg(test)]
-use super::CPU;
+use crate::cpu::CPU;
+use crate::cpu::instructions::Instruction::*;
+use crate::cpu::instructions::ArithmeticTarget::*;
 
 #[test]
-fn it_works() {
-    let cpu = CPU::new();
+fn add8_without_carry() {
+    let mut cpu = CPU::new();
 
-    assert_eq!(4, 4);
+    cpu.regs.a = 0b00000001;
+    cpu.regs.b = 0b00000001;
+
+    cpu.execute(ADD(B));
+
+    assert_eq!(cpu.regs.a, 0b00000010);
+    assert_eq!(cpu.regs.f.subtract, false);
+    assert_eq!(cpu.regs.f.carry, false);
+    assert_eq!(cpu.regs.f.zero, false);
+    assert_eq!(cpu.regs.f.half_carry, false);
+}
+
+#[test]
+fn add8_with_half_carry() {
+    let mut cpu = CPU::new();
+
+    cpu.regs.a = 0b00001111;
+    cpu.regs.b = 0b00000001;
+
+    cpu.execute(ADD(B));
+
+    assert_eq!(cpu.regs.a, 0b00010000);
+    assert_eq!(cpu.regs.f.subtract, false);
+    assert_eq!(cpu.regs.f.carry, false);
+    assert_eq!(cpu.regs.f.zero, false);
+    assert_eq!(cpu.regs.f.half_carry, true);
+}
+#[test]
+fn add8_with_carry() {
+    let mut cpu = CPU::new();
+
+    cpu.regs.a = 0b11111111;
+    cpu.regs.b = 0b1;
+
+    cpu.execute(ADD(B));
+
+    assert_eq!(cpu.regs.a, 0b0);
+    assert_eq!(cpu.regs.f.subtract, false);
+    assert_eq!(cpu.regs.f.zero, true);
+    assert_eq!(cpu.regs.f.carry, true);
+    assert_eq!(cpu.regs.f.half_carry, true);
 }
 
