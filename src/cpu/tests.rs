@@ -54,3 +54,10 @@ fn add8_with_carry() {
     assert_eq!(cpu.regs.f.half_carry, true);
 }
 
+#[test]
+fn exec_boot_room() {
+    let boot = ROM::dmg();
+    let mut cpu = CPU::new(boot);
+
+    cpu.step();
+}

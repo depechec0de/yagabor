@@ -29,8 +29,8 @@ impl Cartridge {
         let end = TITLE_END_ADDR;
 
         let t = std::str::from_utf8(&buffer[start..end])
-                        .expect("invalid utf-8 sequence")
-                        .to_string();
+                          .expect("invalid utf-8 sequence")
+                          .to_string();
 
         Ok(Cartridge { data: ROM::new(buffer), title: t })
     }

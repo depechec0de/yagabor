@@ -30,17 +30,17 @@ fn main() -> Result<(), Error> {
     let args = Cli::parse();
 
     let cartridge = Cartridge::new(args.cartridge)?;
-    let mut brom: ROM = ROM::empty();
+    let brom;
 
     match args.bootsource {
         BootROMSource::File => { 
             match args.bootfile {
-                Some(path) => { brom = ROM::from_file(path)? }
-                _ => { Error::new(ErrorKind::Other,"No boot ROM file provided."); }
+                Some(path) => { brom = ROM::from_file(path)?; }
+                _ => { return Err(Error::new(ErrorKind::Other,"No boot ROM file provided.")) }
             }
         },
-        BootROMSource::Empty => { brom = ROM::empty() },
-        BootROMSource::DMG => { brom = ROM::dmg() },            
+        BootROMSource::Empty => { brom = ROM::empty(); },
+        BootROMSource::DMG => { brom = ROM::dmg(); },            
     }
 
     let gb = GameBoy::new(brom, cartridge);
