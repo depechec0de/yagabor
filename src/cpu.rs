@@ -2,6 +2,7 @@ mod registers;
 mod instructions;
 mod tests;
 
+use crate::rom::ROM;
 use instructions::{Instruction, ArithmeticTarget};
 
 type ProgramCounter = u16;
@@ -36,16 +37,30 @@ struct MemoryBus {
 
 impl MemoryBus {
     pub fn new() -> MemoryBus {
-        MemoryBus { memory: [0; 0xFFFF] }
+        let data = [0; 0xFFFF];
+
+        MemoryBus { memory: data }
     }
+
     fn read_byte(&self, address: u16) -> u8 {
         self.memory[address as usize]
+    }
+
+    fn write_byte(&mut self, address: u16, byte: u8) {
+        self.memory[address as usize] = byte;
     }
 }
 
 impl CPU {
-    pub fn new() -> CPU {
-        CPU { regs: Registers::new(), sp: 0b0, pc: 0b0, bus: MemoryBus::new() }
+    pub fn new(boot: ROM) -> CPU {
+        let mut membus = MemoryBus::new();
+
+        // Loading the boot ROM data into memory
+        for addr in 0..boot.size() {
+            membus.write_byte(addr, boot.read_byte(addr))
+        } 
+
+        CPU { regs: Registers::new(), sp: 0b0, pc: 0b0, bus: membus }
     }
 
     fn step(&mut self) {
