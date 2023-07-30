@@ -67,66 +67,29 @@ impl CPU {
     fn step(&mut self) {
         let mut instruction_byte = self.bus.read_byte(self.pc);
         let prefixed = instruction_byte == 0xCB;
-    if prefixed {
-        instruction_byte = self.bus.read_byte(self.pc + 1);
-    }
+        if prefixed {
+            instruction_byte = self.bus.read_byte(self.pc + 1);
+        }
 
-    let next_pc = if let Some(instruction) = Instruction::from_byte(instruction_byte, prefixed) {
-        self.execute(instruction)
-    } else {
-        let description = format!("0x{}{:x}", if prefixed { "cb" } else { "" }, instruction_byte);
-        panic!("Unkown instruction found for: {}", description)
-    };
+        let next_pc = if let Some(instruction) = Instruction::from_byte(instruction_byte, prefixed) {
+            self.execute(instruction)
+        } else {
+            let description = format!("0x{}{:x}", if prefixed { "cb" } else { "" }, instruction_byte);
+            panic!("Unkown instruction found for: {}", description)
+        };
 
-    self.pc = next_pc;
+        self.pc = next_pc;
     }
 
     // Returns the next PC to execute
     fn execute(&mut self, instruction: Instruction) -> ProgramCounter {
         match instruction {
-            Instruction::ADD(target) => {
-                match target {
-                    ArithmeticTarget::B => {
-                        let value = self.regs.b;
-                        let new_value = self.add(value);
-                        self.regs.a = new_value;
-                        self.pc.wrapping_add(1)
-                    }
-                    _ => { /* TODO: support more targets */ self.pc }
-                }
-            },
-            Instruction::LD(load_type) => {
-                match load_type {
-                  LoadType::Byte(target, source) => {
-                    let source_value = match source {
-                      LoadByteSource::A => self.regs.a,
-                      LoadByteSource::D8 => self.read_next_byte(),
-                      LoadByteSource::HLI => self.bus.read_byte(self.regs.get_hl()),
-                      _ => { panic!("TODO: implement other sources") }
-                    };
-                    match target {
-                      LoadByteTarget::A => self.regs.a = source_value,
-                      LoadByteTarget::HLI => self.bus.write_byte(self.regs.get_hl(), source_value),
-                      _ => { panic!("TODO: implement other targets") }
-                    };
-                    match source {
-                      LoadByteSource::D8  => self.pc.wrapping_add(2),
-                      _                   => self.pc.wrapping_add(1),
-                    }
-                  }
-                  _ => { panic!("TODO: implement other load types") }
-                }
-            },
-            Instruction::JP(test) => {
-                let jump_condition = match test {
-                    JumpTest::NotZero => !self.regs.f.zero,
-                    JumpTest::NotCarry => !self.regs.f.carry,
-                    JumpTest::Zero => self.regs.f.zero,
-                    JumpTest::Carry => self.regs.f.carry,
-                    JumpTest::Always => true
-                };
-                self.jump(jump_condition)
-            }
+            Instruction::NOP => self.nop(),
+            Instruction::ADD(target) => self.add(target),
+            Instruction::INC(target) => self.inc(target),
+            Instruction::DEC(target) => self.dec(target),
+            Instruction::LD(load_type) => self.load(load_type),
+            Instruction::JP(test) => self.jump(test),
             _ => { /* TODO: support more instructions */ self.pc }
         }
 
@@ -138,7 +101,38 @@ impl CPU {
         self.bus.read_byte(self.pc+1)
     }
 
-    fn jump(&self, should_jump: bool) -> Address {
+    fn load(&mut self, load_type: LoadType) -> ProgramCounter {
+        match load_type {
+          LoadType::Byte(target, source) => {
+            let source_value = match source {
+              LoadByteSource::A => self.regs.a,
+              LoadByteSource::D8 => self.read_next_byte(),
+              LoadByteSource::HLI => self.bus.read_byte(self.regs.get_hl()),
+              _ => { panic!("TODO: implement other sources") }
+            };
+            match target {
+              LoadByteTarget::A => self.regs.a = source_value,
+              LoadByteTarget::HLI => self.bus.write_byte(self.regs.get_hl(), source_value),
+              _ => { panic!("TODO: implement other targets") }
+            };
+            match source {
+              LoadByteSource::D8  => self.pc.wrapping_add(2),
+              _                   => self.pc.wrapping_add(1),
+            }
+          }
+          _ => { panic!("TODO: implement other load types") }
+        }
+    }
+
+    fn jump(&self, test: JumpTest) -> ProgramCounter {
+        let should_jump = match test {
+            JumpTest::NotZero => !self.regs.f.zero,
+            JumpTest::NotCarry => !self.regs.f.carry,
+            JumpTest::Zero => self.regs.f.zero,
+            JumpTest::Carry => self.regs.f.carry,
+            JumpTest::Always => true
+        };
+     
         if should_jump {
             // Gameboy is little endian so read pc + 2 as most significant bit
             // and pc + 1 as least significant bit
@@ -153,7 +147,21 @@ impl CPU {
         }
     }
 
-    fn add(&mut self, value: u8) -> u8 {
+    fn nop(&self) -> ProgramCounter {
+        self.pc.wrapping_add(1)
+    }
+
+    fn add(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+        let value = match target {
+            ArithmeticTarget::A => self.regs.a,
+            ArithmeticTarget::B => self.regs.b,
+            ArithmeticTarget::C => self.regs.c,
+            ArithmeticTarget::D => self.regs.d,
+            ArithmeticTarget::E => self.regs.e,
+            ArithmeticTarget::H => self.regs.h,
+            ArithmeticTarget::L => self.regs.l,
+        };
+
         let (new_value, did_overflow) = self.regs.a.overflowing_add(value);
         self.regs.f.zero = new_value == 0;
         self.regs.f.subtract = false;
@@ -162,6 +170,28 @@ impl CPU {
         // together result in a value bigger than 0xF. If the result is larger than 0xF
         // than the addition caused a carry from the lower nibble to the upper nibble.
         self.regs.f.half_carry = (self.regs.a & 0xF) + (value & 0xF) > 0xF;
-        new_value
+        self.regs.a = new_value;
+        self.pc.wrapping_add(1)
     }
+
+    fn inc(&mut self, target: IncDecTarget) -> ProgramCounter {
+        let value = match target {
+            IncDecTarget::BC => self.regs.set_bc(self.regs.get_bc().wrapping_add(1)),
+            IncDecTarget::DE => self.regs.set_de(self.regs.get_de().wrapping_add(1)),
+            IncDecTarget::HL => self.regs.set_hl(self.regs.get_hl().wrapping_add(1)),
+            IncDecTarget::SP => self.sp = self.sp.wrapping_add(1),
+        };
+        self.pc.wrapping_add(1)
+    }
+
+    fn dec(&mut self, target: IncDecTarget) -> ProgramCounter {
+        let value = match target {
+            IncDecTarget::BC => self.regs.set_bc(self.regs.get_bc().wrapping_sub(1)),
+            IncDecTarget::DE => self.regs.set_de(self.regs.get_de().wrapping_sub(1)),
+            IncDecTarget::HL => self.regs.set_hl(self.regs.get_hl().wrapping_sub(1)),
+            IncDecTarget::SP => self.sp = self.sp.wrapping_sub(1),
+        };
+        self.pc.wrapping_add(1)
+    }
+
 }
