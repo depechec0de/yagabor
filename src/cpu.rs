@@ -159,7 +159,7 @@ impl CPU {
     }
 
     fn add(&mut self, target: ArithmeticTarget) -> ProgramCounter {
-        let value = self.get_arithmetic_target_val(target);
+        let value = self.get_arithmetic_target_val(&target);
 
         let (new_value, did_overflow) = self.regs.a.overflowing_add(value);
         self.regs.flags.zero = new_value == 0;
@@ -170,11 +170,12 @@ impl CPU {
         // than the addition caused a carry from the lower nibble to the upper nibble.
         self.regs.flags.half_carry = (self.regs.a & 0xF) + (value & 0xF) > 0xF;
         self.regs.a = new_value;
-        self.pc.wrapping_add(1)
+
+        self.arithmetic_pc_increment(&target)
     }
 
     fn adc(&mut self, target: ArithmeticTarget) -> ProgramCounter {
-        let value = self.get_arithmetic_target_val(target);
+        let value = self.get_arithmetic_target_val(&target);
 
         let (new_value1, did_overflow1) = self.regs.a.overflowing_add(value);
 
@@ -185,11 +186,12 @@ impl CPU {
         self.regs.flags.half_carry = ((self.regs.a & 0xF) + (value & 0xF) > 0xF) || ((new_value1 & 0xF) + (self.regs.flags.carry as u8) > 0xF);
         self.regs.flags.carry = did_overflow1 || did_overflow2;      
         self.regs.a = new_value2;
-        self.pc.wrapping_add(1)
+
+        self.arithmetic_pc_increment(&target)
     }
 
     fn sub(&mut self, target: ArithmeticTarget) -> ProgramCounter {
-        let value = self.get_arithmetic_target_val(target);
+        let value = self.get_arithmetic_target_val(&target);
 
         let (new_value, did_overflow) = self.regs.a.overflowing_sub(value);
         self.regs.flags.zero = new_value == 0;
@@ -198,11 +200,12 @@ impl CPU {
         let (new_value_low, _) = (self.regs.a & 0xF).overflowing_sub(value & 0xF);
         self.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
         self.regs.a = new_value;
-        self.pc.wrapping_add(1)
+
+        self.arithmetic_pc_increment(&target)
     }
 
     fn sbc(&mut self, target: ArithmeticTarget) -> ProgramCounter {
-        let value = self.get_arithmetic_target_val(target);
+        let value = self.get_arithmetic_target_val(&target);
 
         let (new_value1, did_overflow1) = self.regs.a.overflowing_sub(self.regs.flags.carry as u8);
         let (new_value2, did_overflow2) = new_value1.overflowing_sub(value);
@@ -213,11 +216,12 @@ impl CPU {
         let (new_value_low, _) = (new_value2 & 0xF).overflowing_sub(value & 0xF);
         self.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
         self.regs.a = new_value2;
-        self.pc.wrapping_add(1)
+
+        self.arithmetic_pc_increment(&target)
     }
 
     fn and(&mut self, target: ArithmeticTarget) -> ProgramCounter {
-        let value = self.get_arithmetic_target_val(target);
+        let value = self.get_arithmetic_target_val(&target);
 
         self.regs.a = self.regs.a & value;
         self.regs.flags.zero = self.regs.a == 0;
@@ -225,11 +229,11 @@ impl CPU {
         self.regs.flags.half_carry = true;
         self.regs.flags.carry = false;
 
-        self.pc.wrapping_add(1)
+        self.arithmetic_pc_increment(&target)
     }
 
     fn xor(&mut self, target: ArithmeticTarget) -> ProgramCounter {
-        let value = self.get_arithmetic_target_val(target);
+        let value = self.get_arithmetic_target_val(&target);
 
         self.regs.a = self.regs.a ^ value;
         self.regs.flags.zero = self.regs.a == 0;
@@ -237,11 +241,11 @@ impl CPU {
         self.regs.flags.half_carry = false;
         self.regs.flags.carry = false;
 
-        self.pc.wrapping_add(1)
+        self.arithmetic_pc_increment(&target)
     }
 
     fn or(&mut self, target: ArithmeticTarget) -> ProgramCounter {
-        let value = self.get_arithmetic_target_val(target);
+        let value = self.get_arithmetic_target_val(&target);
 
         self.regs.a = self.regs.a | value;
         self.regs.flags.zero = self.regs.a == 0;
@@ -249,11 +253,11 @@ impl CPU {
         self.regs.flags.half_carry = false;
         self.regs.flags.carry = false;
 
-        self.pc.wrapping_add(1)
+        self.arithmetic_pc_increment(&target)
     }
 
     fn cp(&mut self, target: ArithmeticTarget) -> ProgramCounter {
-        let value = self.get_arithmetic_target_val(target);
+        let value = self.get_arithmetic_target_val(&target);
 
         let (result, did_overflow) = self.regs.a.overflowing_sub(value);
         self.regs.flags.zero = result == 0;
@@ -262,10 +266,18 @@ impl CPU {
         self.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
         self.regs.flags.carry = did_overflow;
 
-        self.pc.wrapping_add(1)
+        self.arithmetic_pc_increment(&target)
     }
 
-    fn get_arithmetic_target_val(&self, target: ArithmeticTarget) -> u8 {
+    fn arithmetic_pc_increment(&self, target: &ArithmeticTarget) -> ProgramCounter {
+        let is_d8: ProgramCounter = match target {
+            ArithmeticTarget::D8 => 1,
+            _ => 0
+        }; 
+        self.pc.wrapping_add(1+is_d8)
+    }
+
+    fn get_arithmetic_target_val(&self, target: &ArithmeticTarget) -> u8 {
         match target {
             ArithmeticTarget::A => self.regs.a,
             ArithmeticTarget::B => self.regs.b,
@@ -275,6 +287,7 @@ impl CPU {
             ArithmeticTarget::H => self.regs.h,
             ArithmeticTarget::L => self.regs.l,
             ArithmeticTarget::HLI => self.bus.read_byte(self.regs.get_hl()),
+            ArithmeticTarget::D8 => self.read_next_byte()
         }
     }
 

@@ -30,8 +30,9 @@ pub enum JumpTest {
     Always
 }
 
+#[derive(Clone)]
 pub enum ArithmeticTarget {
-    A, B, C, D, E, H, L, HLI
+    A, B, C, D, E, H, L, HLI, D8
 }
 
 pub enum PrefixTarget {
@@ -230,6 +231,16 @@ impl Instruction {
             0xBD => Some(Instruction::CP(ArithmeticTarget::L)),
             0xBE => Some(Instruction::CP(ArithmeticTarget::HLI)),
             0xBF => Some(Instruction::CP(ArithmeticTarget::A)),
+
+            0xC6 => Some(Instruction::ADD(ArithmeticTarget::D8)),
+            0xD6 => Some(Instruction::SUB(ArithmeticTarget::D8)),
+            0xE6 => Some(Instruction::AND(ArithmeticTarget::D8)),
+            0xF6 => Some(Instruction::OR(ArithmeticTarget::D8)),
+
+            0xCE => Some(Instruction::ADC(ArithmeticTarget::D8)),
+            0xDE => Some(Instruction::SBC(ArithmeticTarget::D8)),
+            0xEE => Some(Instruction::XOR(ArithmeticTarget::D8)),
+            0xFE => Some(Instruction::CP(ArithmeticTarget::D8)),
 
             
             _ => /* TODO: Add mapping for rest of instructions */ None
