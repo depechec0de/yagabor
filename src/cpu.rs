@@ -90,6 +90,11 @@ impl CPU {
             Instruction::INC(target) => self.inc(target),
             Instruction::DEC(target) => self.dec(target),
             Instruction::SUB(target) => self.sub(target),
+            Instruction::SBC(target) => self.sbc(target),
+            Instruction::AND(target) => self.and(target),
+            Instruction::XOR(target) => self.xor(target),
+            Instruction::OR(target) => self.or(target),
+            Instruction::CP(target) => self.cp(target),
             Instruction::LD(load_type) => self.load(load_type),
             Instruction::JP(test) => self.jump(test),
             _ => { /* TODO: support more instructions */ self.pc }
@@ -169,10 +174,18 @@ impl CPU {
     }
 
     fn adc(&mut self, target: ArithmeticTarget) -> ProgramCounter {
-        let (new_value, did_overflow) = self.regs.a.overflowing_add(self.regs.flags.carry as u8);
-        self.regs.a = new_value;
-        
-        self.add(target)
+        let value = self.get_arithmetic_target_val(target);
+
+        let (new_value1, did_overflow1) = self.regs.a.overflowing_add(value);
+
+        let (new_value2, did_overflow2) = new_value1.overflowing_add(self.regs.flags.carry as u8);
+
+        self.regs.flags.zero = new_value2 == 0;
+        self.regs.flags.subtract = false;
+        self.regs.flags.half_carry = ((self.regs.a & 0xF) + (value & 0xF) > 0xF) || ((new_value1 & 0xF) + (self.regs.flags.carry as u8) > 0xF);
+        self.regs.flags.carry = did_overflow1 || did_overflow2;      
+        self.regs.a = new_value2;
+        self.pc.wrapping_add(1)
     }
 
     fn sub(&mut self, target: ArithmeticTarget) -> ProgramCounter {
@@ -185,6 +198,70 @@ impl CPU {
         let (new_value_low, _) = (self.regs.a & 0xF).overflowing_sub(value & 0xF);
         self.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
         self.regs.a = new_value;
+        self.pc.wrapping_add(1)
+    }
+
+    fn sbc(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+        let value = self.get_arithmetic_target_val(target);
+
+        let (new_value1, did_overflow1) = self.regs.a.overflowing_sub(self.regs.flags.carry as u8);
+        let (new_value2, did_overflow2) = new_value1.overflowing_sub(value);
+
+        self.regs.flags.zero = new_value2 == 0;
+        self.regs.flags.subtract = true;
+        self.regs.flags.carry = did_overflow1 || did_overflow2;
+        let (new_value_low, _) = (new_value2 & 0xF).overflowing_sub(value & 0xF);
+        self.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
+        self.regs.a = new_value2;
+        self.pc.wrapping_add(1)
+    }
+
+    fn and(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+        let value = self.get_arithmetic_target_val(target);
+
+        self.regs.a = self.regs.a & value;
+        self.regs.flags.zero = self.regs.a == 0;
+        self.regs.flags.subtract = false;
+        self.regs.flags.half_carry = true;
+        self.regs.flags.carry = false;
+
+        self.pc.wrapping_add(1)
+    }
+
+    fn xor(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+        let value = self.get_arithmetic_target_val(target);
+
+        self.regs.a = self.regs.a ^ value;
+        self.regs.flags.zero = self.regs.a == 0;
+        self.regs.flags.subtract = false;
+        self.regs.flags.half_carry = false;
+        self.regs.flags.carry = false;
+
+        self.pc.wrapping_add(1)
+    }
+
+    fn or(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+        let value = self.get_arithmetic_target_val(target);
+
+        self.regs.a = self.regs.a | value;
+        self.regs.flags.zero = self.regs.a == 0;
+        self.regs.flags.subtract = false;
+        self.regs.flags.half_carry = false;
+        self.regs.flags.carry = false;
+
+        self.pc.wrapping_add(1)
+    }
+
+    fn cp(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+        let value = self.get_arithmetic_target_val(target);
+
+        let (result, did_overflow) = self.regs.a.overflowing_sub(value);
+        self.regs.flags.zero = result == 0;
+        self.regs.flags.subtract = true;
+        let (new_value_low, _) = (self.regs.a & 0xF).overflowing_sub(value & 0xF);
+        self.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
+        self.regs.flags.carry = did_overflow;
+
         self.pc.wrapping_add(1)
     }
 

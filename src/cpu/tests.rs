@@ -125,6 +125,25 @@ fn sub_with_half_carry() {
 }
 
 #[test]
+fn sbc_with_carry() {
+    let boot = ROM::empty();
+    let mut cpu = CPU::new(boot);
+
+    cpu.regs.a = 0b00001111;
+    cpu.regs.b = 0b01111111;
+
+    cpu.regs.flags.carry = true;
+
+    cpu.execute(SBC(B));
+
+    assert_eq!(cpu.regs.a, 0b10001111);
+    assert_eq!(cpu.regs.flags.subtract, true);
+    assert_eq!(cpu.regs.flags.zero, false);
+    assert_eq!(cpu.regs.flags.carry, true);
+    assert_eq!(cpu.regs.flags.half_carry, false);
+}
+
+#[test]
 fn exec_boot_room() {
     let boot = ROM::dmg();
     let mut cpu = CPU::new(boot);
