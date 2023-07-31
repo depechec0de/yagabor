@@ -21,7 +21,7 @@ pub struct Registers {
     c: u8,
     d: u8,
     e: u8,
-    f: FlagsRegister,
+    flags: FlagsRegister,
     h: u8,
     l: u8,
 }
@@ -86,8 +86,10 @@ impl CPU {
         match instruction {
             Instruction::NOP => self.nop(),
             Instruction::ADD(target) => self.add(target),
+            Instruction::ADC(target) => self.adc(target),
             Instruction::INC(target) => self.inc(target),
             Instruction::DEC(target) => self.dec(target),
+            Instruction::SUB(target) => self.sub(target),
             Instruction::LD(load_type) => self.load(load_type),
             Instruction::JP(test) => self.jump(test),
             _ => { /* TODO: support more instructions */ self.pc }
@@ -126,10 +128,10 @@ impl CPU {
 
     fn jump(&self, test: JumpTest) -> ProgramCounter {
         let should_jump = match test {
-            JumpTest::NotZero => !self.regs.f.zero,
-            JumpTest::NotCarry => !self.regs.f.carry,
-            JumpTest::Zero => self.regs.f.zero,
-            JumpTest::Carry => self.regs.f.carry,
+            JumpTest::NotZero => !self.regs.flags.zero,
+            JumpTest::NotCarry => !self.regs.flags.carry,
+            JumpTest::Zero => self.regs.flags.zero,
+            JumpTest::Carry => self.regs.flags.carry,
             JumpTest::Always => true
         };
      
@@ -152,7 +154,42 @@ impl CPU {
     }
 
     fn add(&mut self, target: ArithmeticTarget) -> ProgramCounter {
-        let value = match target {
+        let value = self.get_arithmetic_target_val(target);
+
+        let (new_value, did_overflow) = self.regs.a.overflowing_add(value);
+        self.regs.flags.zero = new_value == 0;
+        self.regs.flags.subtract = false;
+        self.regs.flags.carry = did_overflow;
+        // Half Carry is set if adding the lower nibbles of the value and register A
+        // together result in a value bigger than 0xF. If the result is larger than 0xF
+        // than the addition caused a carry from the lower nibble to the upper nibble.
+        self.regs.flags.half_carry = (self.regs.a & 0xF) + (value & 0xF) > 0xF;
+        self.regs.a = new_value;
+        self.pc.wrapping_add(1)
+    }
+
+    fn adc(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+        let (new_value, did_overflow) = self.regs.a.overflowing_add(self.regs.flags.carry as u8);
+        self.regs.a = new_value;
+        
+        self.add(target)
+    }
+
+    fn sub(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+        let value = self.get_arithmetic_target_val(target);
+
+        let (new_value, did_overflow) = self.regs.a.overflowing_sub(value);
+        self.regs.flags.zero = new_value == 0;
+        self.regs.flags.subtract = true;
+        self.regs.flags.carry = did_overflow;
+        let (new_value_low, _) = (self.regs.a & 0xF).overflowing_sub(value & 0xF);
+        self.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
+        self.regs.a = new_value;
+        self.pc.wrapping_add(1)
+    }
+
+    fn get_arithmetic_target_val(&self, target: ArithmeticTarget) -> u8 {
+        match target {
             ArithmeticTarget::A => self.regs.a,
             ArithmeticTarget::B => self.regs.b,
             ArithmeticTarget::C => self.regs.c,
@@ -160,18 +197,8 @@ impl CPU {
             ArithmeticTarget::E => self.regs.e,
             ArithmeticTarget::H => self.regs.h,
             ArithmeticTarget::L => self.regs.l,
-        };
-
-        let (new_value, did_overflow) = self.regs.a.overflowing_add(value);
-        self.regs.f.zero = new_value == 0;
-        self.regs.f.subtract = false;
-        self.regs.f.carry = did_overflow;
-        // Half Carry is set if adding the lower nibbles of the value and register A
-        // together result in a value bigger than 0xF. If the result is larger than 0xF
-        // than the addition caused a carry from the lower nibble to the upper nibble.
-        self.regs.f.half_carry = (self.regs.a & 0xF) + (value & 0xF) > 0xF;
-        self.regs.a = new_value;
-        self.pc.wrapping_add(1)
+            ArithmeticTarget::HLI => self.bus.read_byte(self.regs.get_hl()),
+        }
     }
 
     fn inc(&mut self, target: IncDecTarget) -> ProgramCounter {

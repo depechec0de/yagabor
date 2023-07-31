@@ -7,7 +7,7 @@ impl Registers {
                     c: 0b0, 
                     d: 0b0, 
                     e: 0b0, 
-                    f: FlagsRegister {  zero: false, 
+                    flags: FlagsRegister {  zero: false, 
                                         subtract: false, 
                                         half_carry: false, 
                                         carry: false }, 
