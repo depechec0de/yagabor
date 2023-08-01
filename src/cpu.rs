@@ -89,6 +89,8 @@ impl CPU {
             Instruction::ADC(target) => self.adc(target),
             Instruction::INC(target) => self.inc(target),
             Instruction::DEC(target) => self.dec(target),
+            Instruction::INC16(target) => self.inc16(target),
+            Instruction::DEC16(target) => self.dec16(target),
             Instruction::SUB(target) => self.sub(target),
             Instruction::SBC(target) => self.sbc(target),
             Instruction::AND(target) => self.and(target),
@@ -113,21 +115,31 @@ impl CPU {
           LoadType::Byte(target, source) => {
             let source_value = match source {
               LoadByteSource::A => self.regs.a,
+              LoadByteSource::B => self.regs.b,
+              LoadByteSource::C => self.regs.c,
+              LoadByteSource::D => self.regs.d,
+              LoadByteSource::E => self.regs.e,
+              LoadByteSource::H => self.regs.h,
+              LoadByteSource::L => self.regs.l,
               LoadByteSource::D8 => self.read_next_byte(),
-              LoadByteSource::HLI => self.bus.read_byte(self.regs.get_hl()),
-              _ => { panic!("TODO: implement other sources") }
+              LoadByteSource::HLI => self.bus.read_byte(self.regs.get_hl())
             };
             match target {
               LoadByteTarget::A => self.regs.a = source_value,
-              LoadByteTarget::HLI => self.bus.write_byte(self.regs.get_hl(), source_value),
-              _ => { panic!("TODO: implement other targets") }
+              LoadByteTarget::B => self.regs.b = source_value,
+              LoadByteTarget::C => self.regs.c = source_value,
+              LoadByteTarget::D => self.regs.d = source_value,
+              LoadByteTarget::E => self.regs.e = source_value,
+              LoadByteTarget::H => self.regs.h = source_value,
+              LoadByteTarget::L => self.regs.l = source_value,
+              LoadByteTarget::HLI => self.bus.write_byte(self.regs.get_hl(), source_value)
             };
             match source {
               LoadByteSource::D8  => self.pc.wrapping_add(2),
               _                   => self.pc.wrapping_add(1),
             }
-          }
-          _ => { panic!("TODO: implement other load types") }
+          },
+          _ => { todo!("todo") }
         }
     }
 
@@ -293,20 +305,54 @@ impl CPU {
 
     fn inc(&mut self, target: IncDecTarget) -> ProgramCounter {
         let value = match target {
-            IncDecTarget::BC => self.regs.set_bc(self.regs.get_bc().wrapping_add(1)),
-            IncDecTarget::DE => self.regs.set_de(self.regs.get_de().wrapping_add(1)),
-            IncDecTarget::HL => self.regs.set_hl(self.regs.get_hl().wrapping_add(1)),
-            IncDecTarget::SP => self.sp = self.sp.wrapping_add(1),
+            IncDecTarget::A => self.regs.a = self.regs.a.wrapping_add(1),
+            IncDecTarget::B => self.regs.b = self.regs.b.wrapping_add(1),
+            IncDecTarget::C => self.regs.c = self.regs.c.wrapping_add(1),
+            IncDecTarget::D => self.regs.d = self.regs.d.wrapping_add(1),
+            IncDecTarget::E => self.regs.e = self.regs.e.wrapping_add(1),
+            IncDecTarget::H => self.regs.h = self.regs.h.wrapping_add(1),
+            IncDecTarget::L => self.regs.l = self.regs.l.wrapping_add(1),
+            IncDecTarget::HLI => {
+                let new_val = self.bus.read_byte(self.regs.get_hl()).wrapping_add(1);
+                self.bus.write_byte(self.regs.get_hl(), new_val);
+            }
         };
         self.pc.wrapping_add(1)
     }
 
     fn dec(&mut self, target: IncDecTarget) -> ProgramCounter {
         let value = match target {
-            IncDecTarget::BC => self.regs.set_bc(self.regs.get_bc().wrapping_sub(1)),
-            IncDecTarget::DE => self.regs.set_de(self.regs.get_de().wrapping_sub(1)),
-            IncDecTarget::HL => self.regs.set_hl(self.regs.get_hl().wrapping_sub(1)),
-            IncDecTarget::SP => self.sp = self.sp.wrapping_sub(1),
+            IncDecTarget::A => self.regs.a = self.regs.a.wrapping_sub(1),
+            IncDecTarget::B => self.regs.b = self.regs.b.wrapping_sub(1),
+            IncDecTarget::C => self.regs.c = self.regs.c.wrapping_sub(1),
+            IncDecTarget::D => self.regs.d = self.regs.d.wrapping_sub(1),
+            IncDecTarget::E => self.regs.e = self.regs.e.wrapping_sub(1),
+            IncDecTarget::H => self.regs.h = self.regs.h.wrapping_sub(1),
+            IncDecTarget::L => self.regs.l = self.regs.l.wrapping_sub(1),
+            IncDecTarget::HLI => {
+                let new_val = self.bus.read_byte(self.regs.get_hl()).wrapping_sub(1);
+                self.bus.write_byte(self.regs.get_hl(), new_val);
+            }
+        };
+        self.pc.wrapping_add(1)
+    }
+
+    fn inc16(&mut self, target: WordRegister) -> ProgramCounter {
+        let value = match target {
+            WordRegister::BC => self.regs.set_bc(self.regs.get_bc().wrapping_add(1)),
+            WordRegister::DE => self.regs.set_de(self.regs.get_de().wrapping_add(1)),
+            WordRegister::HL => self.regs.set_hl(self.regs.get_hl().wrapping_add(1)),
+            WordRegister::SP => self.sp = self.sp.wrapping_add(1),
+        };
+        self.pc.wrapping_add(1)
+    }
+
+    fn dec16(&mut self, target: WordRegister) -> ProgramCounter {
+        let value = match target {
+            WordRegister::BC => self.regs.set_bc(self.regs.get_bc().wrapping_sub(1)),
+            WordRegister::DE => self.regs.set_de(self.regs.get_de().wrapping_sub(1)),
+            WordRegister::HL => self.regs.set_hl(self.regs.get_hl().wrapping_sub(1)),
+            WordRegister::SP => self.sp = self.sp.wrapping_sub(1),
         };
         self.pc.wrapping_add(1)
     }
