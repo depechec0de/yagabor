@@ -1,7 +1,11 @@
-pub enum Instruction {
+pub(super) enum Instruction {
     NOP,
     HALT,
     STOP,
+    SCF,
+    DAA,
+    CCF,
+    CPL,
     // 8-bit arithmetic and logical instructions
     ADD(ArithmeticTarget),
     ADC(ArithmeticTarget),
@@ -13,18 +17,29 @@ pub enum Instruction {
     XOR(ArithmeticTarget),
     INC(IncDecTarget),
     DEC(IncDecTarget),
+    ADDSP8,
     // 16-bit Arithmetic/Logic instructions
+    ADD16(WordRegister),
     INC16(WordRegister),
     DEC16(WordRegister),
     // 8-bit load instructions
     LD(LoadType),
-    // Jump instructions
+    // Control flow instructions
     JP(JumpTest),
+    JR(JumpTest),
+    JPHL,
+    CALL(JumpTest),
+    RET(JumpTest),
+    RST(RestartTarget),
+    RETI,
+    // Stack instructions
+    PUSH(StackTarget),
+    POP(StackTarget),
     // Prefix instructions
     RLC(PrefixTarget)
 }
 
-pub enum JumpTest {
+pub(super) enum JumpTest {
     NotZero,
     Zero,
     NotCarry,
@@ -33,41 +48,49 @@ pub enum JumpTest {
 }
 
 #[derive(Clone)]
-pub enum ArithmeticTarget {
+pub(super) enum ArithmeticTarget {
     A, B, C, D, E, H, L, HLI, D8
 }
 
-pub enum IncDecTarget {
+pub(super) enum IncDecTarget {
     A, B, C, D, E, H, L, HLI
 }
 
-pub enum PrefixTarget {
+pub(super) enum PrefixTarget {
     A, B, C, D, E, H, L,
 }
 
-pub enum WordRegister {
+pub(super) enum WordRegister {
     BC, DE, HL, SP
 }
 
-pub enum AFromIndirectSource {
+pub(super) enum StackTarget {
+    BC, DE, HL, AF
+}
+
+pub(super) enum AFromIndirectSource {
     BC, DE, HLInc, HLDec
 }
 
-pub enum LoadByteTarget {
+pub(super) enum LoadByteTarget {
     A, B, C, D, E, H, L, HLI
 }
-pub enum LoadByteSource {
+pub(super) enum LoadByteSource {
     A, B, C, D, E, H, L, D8, HLI
 }
-pub enum LoadType {
+pub(super) enum LoadType {
     Byte(LoadByteTarget, LoadByteSource),
     Word(WordRegister),
     AFromIndirect(AFromIndirectSource),
-    IndirectFromA(WordRegister),
+    IndirectFromA(AFromIndirectSource),
+}
+
+pub(super) enum RestartTarget {
+    Zero, One, Two, Three, Four, Five, Six, Seven
 }
 
 impl Instruction {
-    pub fn from_byte(byte: u8, prefixed: bool) -> Option<Instruction> {
+    pub(super) fn from_byte(byte: u8, prefixed: bool) -> Option<Instruction> {
         if prefixed {
             Instruction::from_byte_prefixed(byte)
         } else {
@@ -95,10 +118,10 @@ impl Instruction {
             0x00 => Some(Instruction::NOP),
             0x76 => Some(Instruction::HALT),
             0x10 => Some(Instruction::STOP),
-            0x27 => todo!(),
-            0x37 => todo!(),
-            0x2F => todo!(),
-            0x3F => todo!(),
+            0x27 => Some(Instruction::DAA),
+            0x37 => Some(Instruction::SCF),
+            0x2F => Some(Instruction::CPL),
+            0x3F => Some(Instruction::CCF),
             0xF3 => todo!(),
             0xFB => todo!(),
 
@@ -109,59 +132,61 @@ impl Instruction {
             0x1F => todo!(),
 
             // Stack instructions
-            0xC1 => todo!(),
-            0xD1 => todo!(),
-            0xE1 => todo!(),
-            0xF1 => todo!(),
-            0xC5 => todo!(),
-            0xD5 => todo!(),
-            0xE5 => todo!(),
-            0xF5 => todo!(),
-
-            // Control flow instructions
-            0x18 => todo!(),
-            0x28 => todo!(),
-            0x38 => todo!(),
-            0xC0 => todo!(),
-            0xD0 => todo!(),
-            0xC2 => todo!(),
-            0xD2 => todo!(),
-            0xC3 => todo!(),
-            0xC4 => todo!(),
-            0xD4 => todo!(),
-            0xC7 => todo!(),
-            0xD7 => todo!(),
-            0xE7 => todo!(),
-            0xF7 => todo!(),
-            0xC8 => todo!(),
-            0xD8 => todo!(),
-            0xC9 => todo!(),
-            0xD9 => todo!(),
-            0xE9 => todo!(),
-            0xCA => todo!(),
-            0xDA => todo!(),
-            0xCC => todo!(),
-            0xDC => todo!(),
-            0xCD => todo!(),
-            0xCF => todo!(),
-            0xDF => todo!(),
-            0xEF => todo!(),
-            0xFF => todo!(),
-
-            // 16-bit load instructions
-            0x01 => todo!(),
-            0x08 => todo!(),
-            0x11 => todo!(),
-            0x21 => todo!(),
-            0x31 => todo!(),
+            0xC1 => Some(Instruction::POP(StackTarget::BC)),
+            0xD1 => Some(Instruction::POP(StackTarget::DE)),
+            0xE1 => Some(Instruction::POP(StackTarget::HL)),
+            0xF1 => Some(Instruction::POP(StackTarget::AF)),
+            0xC5 => Some(Instruction::PUSH(StackTarget::BC)),
+            0xD5 => Some(Instruction::PUSH(StackTarget::DE)),
+            0xE5 => Some(Instruction::PUSH(StackTarget::HL)),
+            0xF5 => Some(Instruction::PUSH(StackTarget::AF)),
             0xF8 => todo!(),
             0xF9 => todo!(),
+            0x08 => todo!(),
+
+            // Control flow instructions
+            0x18 => Some(Instruction::JR(JumpTest::Always)),
+            0x28 => Some(Instruction::JR(JumpTest::Zero)),
+            0x38 => Some(Instruction::JR(JumpTest::Carry)),
+            0xC0 => Some(Instruction::RET(JumpTest::NotZero)),
+            0xD0 => Some(Instruction::CALL(JumpTest::NotCarry)),
+            0xC2 => Some(Instruction::JP(JumpTest::NotZero)),
+            0xD2 => Some(Instruction::JP(JumpTest::NotCarry)),
+            0xC3 => Some(Instruction::JP(JumpTest::Always)),
+            0xC4 => Some(Instruction::CALL(JumpTest::NotZero)),
+            0xD4 => Some(Instruction::CALL(JumpTest::NotCarry)),
+            0xC7 => Some(Instruction::RST(RestartTarget::Zero)),
+            0xD7 => Some(Instruction::RST(RestartTarget::Two)),
+            0xE7 => Some(Instruction::RST(RestartTarget::Four)),
+            0xF7 => Some(Instruction::RST(RestartTarget::Six)),
+            0xC8 => Some(Instruction::CALL(JumpTest::Zero)),
+            0xD8 => Some(Instruction::CALL(JumpTest::Carry)),
+            0xC9 => Some(Instruction::CALL(JumpTest::Always)),
+            0xD9 => Some(Instruction::RETI),
+            0xE9 => Some(Instruction::JPHL),
+            0xCA => Some(Instruction::JP(JumpTest::Zero)),
+            0xDA => Some(Instruction::JP(JumpTest::Carry)),
+            0xCC => Some(Instruction::CALL(JumpTest::Zero)),
+            0xDC => Some(Instruction::CALL(JumpTest::Carry)),
+            0xCD => Some(Instruction::CALL(JumpTest::Always)),
+            0xCF => Some(Instruction::RST(RestartTarget::One)),
+            0xDF => Some(Instruction::RST(RestartTarget::Three)),
+            0xEF => Some(Instruction::RST(RestartTarget::Five)),
+            0xFF => Some(Instruction::RST(RestartTarget::Seven)),
+            0x20 => Some(Instruction::JR(JumpTest::NotZero)),
+            0x30 => Some(Instruction::JR(JumpTest::NotCarry)),
+
+            // 16-bit load instructions
+            0x01 => Some(Instruction::LD(LoadType::Word(WordRegister::BC))),
+            0x11 => Some(Instruction::LD(LoadType::Word(WordRegister::DE))),
+            0x21 => Some(Instruction::LD(LoadType::Word(WordRegister::HL))),
+            0x31 => Some(Instruction::LD(LoadType::Word(WordRegister::SP))),
 
             // 16-bit Arithmetic/Logic instructions
-            0x09 => todo!(),
-            0x19 => todo!(),
-            0x29 => todo!(),
-            0x39 => todo!(),
+            0x09 => Some(Instruction::ADD16(WordRegister::BC)),
+            0x19 => Some(Instruction::ADD16(WordRegister::DE)),
+            0x29 => Some(Instruction::ADD16(WordRegister::HL)),
+            0x39 => Some(Instruction::ADD16(WordRegister::SP)),
             0x03 => Some(Instruction::INC16(WordRegister::BC)),
             0x13 => Some(Instruction::INC16(WordRegister::DE)),
             0x23 => Some(Instruction::INC16(WordRegister::HL)),
@@ -170,8 +195,13 @@ impl Instruction {
             0x1B => Some(Instruction::DEC16(WordRegister::DE)),
             0x2B => Some(Instruction::DEC16(WordRegister::HL)),
             0x3B => Some(Instruction::DEC16(WordRegister::SP)),
+            0xE8 => Some(Instruction::ADDSP8),
             
             // 8-bit load instructions
+            0x02 => Some(Instruction::LD(LoadType::IndirectFromA(AFromIndirectSource::BC))),
+            0x12 => Some(Instruction::LD(LoadType::IndirectFromA(AFromIndirectSource::DE))),
+            0x22 => Some(Instruction::LD(LoadType::IndirectFromA(AFromIndirectSource::HLInc))),
+            0x32 => Some(Instruction::LD(LoadType::IndirectFromA(AFromIndirectSource::HLDec))),
             0x40 => Some(Instruction::LD(LoadType::Byte(LoadByteTarget::B, LoadByteSource::B))),
             0x41 => Some(Instruction::LD(LoadType::Byte(LoadByteTarget::B, LoadByteSource::C))),
             0x42 => Some(Instruction::LD(LoadType::Byte(LoadByteTarget::B, LoadByteSource::D))),
@@ -252,6 +282,12 @@ impl Instruction {
             0x1A => Some(Instruction::LD(LoadType::AFromIndirect(AFromIndirectSource::DE))),
             0x2A => Some(Instruction::LD(LoadType::AFromIndirect(AFromIndirectSource::HLInc))),
             0x3A => Some(Instruction::LD(LoadType::AFromIndirect(AFromIndirectSource::HLDec))),
+            0xE0 => todo!(),
+            0xF0 => todo!(),
+            0xE2 => todo!(),
+            0xF2 => todo!(),
+            0xEA => todo!(),
+            0xFA => todo!(),
 
             // 8-bit arithmetic and logical instructions
             0x04 => Some(Instruction::INC(IncDecTarget::B)),

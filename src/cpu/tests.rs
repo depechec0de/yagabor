@@ -144,9 +144,57 @@ fn sbc_with_carry() {
 }
 
 #[test]
+fn get_af() {
+    let boot = ROM::dmg();
+    let mut cpu = CPU::new(boot);
+
+    cpu.regs.a = 0b01010101;
+    cpu.regs.flags.zero = false;
+    cpu.regs.flags.subtract = true;
+    cpu.regs.flags.half_carry = false;
+    cpu.regs.flags.carry = true;
+    
+    assert_eq!(cpu.regs.get_af(), 0b0101010101010000);
+}
+
+#[test]
+fn set_af() {
+    let boot = ROM::dmg();
+    let mut cpu = CPU::new(boot);
+
+    cpu.regs.set_af(0b0101010101010000);
+
+    assert_eq!(cpu.regs.a, 0b01010101);
+    assert_eq!(cpu.regs.flags.subtract, true);
+    assert_eq!(cpu.regs.flags.zero, false);
+    assert_eq!(cpu.regs.flags.carry, true);
+    assert_eq!(cpu.regs.flags.half_carry, false);
+}
+
+#[test]
+fn stack_push_pop() {
+    let boot = ROM::dmg();
+    let mut cpu = CPU::new(boot);
+    cpu.sp = 0xFF;
+
+    let test_value: u16 = 0b0101010101010000;
+
+    cpu.regs.set_bc(test_value);
+
+    cpu.push(crate::cpu::instructions::StackTarget::BC);
+    cpu.pop(crate::cpu::instructions::StackTarget::HL);
+
+    assert_eq!(cpu.regs.get_hl(), cpu.regs.get_bc());
+}
+
+#[test]
 fn exec_boot_room() {
     let boot = ROM::dmg();
     let mut cpu = CPU::new(boot);
 
-    //cpu.step();
+    cpu.step();
+    cpu.step();
+    cpu.step();
+    cpu.step();
+    cpu.step();
 }
