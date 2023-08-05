@@ -15,14 +15,14 @@ fn empty_tile() -> Tile {
     [[TilePixelValue::Zero; 8]; 8]
 }
 
-pub struct GPU{
+pub(super) struct PPU{
     vram: [u8; VRAM_SIZE],
     tile_set: [Tile; 384],
 }
 
-impl GPU {
-    pub(super) fn new() -> GPU {
-        GPU{ vram: [0x0; VRAM_SIZE], tile_set: [[[TilePixelValue::Zero; 8]; 8]; 384] }
+impl PPU {
+    pub(super) fn new() -> PPU {
+        PPU{ vram: [0x0; VRAM_SIZE], tile_set: [[[TilePixelValue::Zero; 8]; 8]; 384] }
     }
 
     pub(super) fn read_vram(&self, address: usize) -> u8 {

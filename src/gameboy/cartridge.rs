@@ -1,7 +1,5 @@
 use std::path::PathBuf;
 
-use crate::gameboy::rom::ROM;
-
 const ENTRY_START_ADDR: usize = 0x0100;
 const ENTRY_END_ADDR: usize = 0x0103;
 const ENTRY_SIZE: usize = ENTRY_END_ADDR-ENTRY_START_ADDR;
@@ -17,7 +15,7 @@ const LICENSEE_ADDR: usize = 0x0144;
 
 
 pub struct Cartridge {
-    data: ROM,
+    data: Vec<u8>,
     title: String
 }
 
@@ -32,7 +30,7 @@ impl Cartridge {
                           .expect("invalid utf-8 sequence")
                           .to_string();
 
-        Ok(Cartridge { data: ROM::new(buffer), title: t })
+        Ok(Cartridge { data: buffer, title: t })
     }
 
     pub fn title(&self) -> String {

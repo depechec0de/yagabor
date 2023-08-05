@@ -1,6 +1,7 @@
-mod tests;
-
 use std::path::PathBuf;
+
+pub(super) const BOOT_BEGIN: usize = 0x0000;
+pub(super) const BOOT_END: usize = 0x0100;
 
 // 16-bit address ROM
 pub struct ROM {
@@ -42,8 +43,8 @@ impl ROM {
         self.data.len() as u16
     }
 
-    pub fn read_byte(&self, address: u16) -> u8 {
-        self.data[address as usize].clone()
+    pub fn read_byte(&self, address: usize) -> u8 {
+        self.data[address].clone()
     }
 
 }

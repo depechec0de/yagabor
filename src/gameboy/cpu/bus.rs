@@ -1,23 +1,30 @@
 use crate::gameboy::cpu::*;
-use crate::gameboy::cpu::gpu::*;
+use crate::gameboy::cpu::ppu::*;
+
+use super::rom::*;
 
 const MEM_SIZE: usize = 0xFFFF;
 
 pub(super) struct MemoryBus {
     memory: [u8; MEM_SIZE],
-    gpu: GPU
+    is_boot_rom_mapped: bool,
+    bootrom: ROM,
+    gpu: PPU
 }
 
 impl MemoryBus {
     pub fn new() -> MemoryBus {
         let data = [0; MEM_SIZE];
 
-        MemoryBus { memory: data, gpu: gpu::GPU::new() }
+        MemoryBus { memory: data, is_boot_rom_mapped: true, gpu: ppu::PPU::new(), bootrom: ROM::dmg() }
     }
 
     pub(super) fn read_byte(&self, address: u16) -> u8 {
         let address = address as usize;
         match address {
+            BOOT_BEGIN ..= BOOT_END => {
+                self.bootrom.read_byte(address)
+            },
             VRAM_BEGIN ..= VRAM_END => {
                 self.gpu.read_vram(address - VRAM_BEGIN)
             },

@@ -1,29 +1,24 @@
 
 pub(crate) mod cartridge;
 mod cpu;
-mod rom;
 mod screen;
 mod keypad;
 
 use self::cartridge::Cartridge;
 use self::cpu::CPU;
-use self::keypad::KeyPad;
-use self::rom::ROM;
+use self::keypad::Joypad;
 use self::screen::Screen;
 
 pub struct GameBoy {
     cpu: CPU,
-    bootrom: ROM,
     cartridge: Cartridge,
     screen: Screen,
-    controller: KeyPad
+    controller: Joypad
 }
 
 impl GameBoy {
     pub fn new(c: Cartridge) -> GameBoy {
-        let brom = ROM::dmg();
-
-        GameBoy { cpu: CPU::new(), cartridge: c, bootrom: brom, screen: Screen::new(), controller: KeyPad::new() }
+        GameBoy { cpu: CPU::new(), cartridge: c, screen: Screen::new(), controller: Joypad::new() }
     }
 
     pub fn start(&self) {
@@ -31,5 +26,6 @@ impl GameBoy {
     }
 
     pub fn step(&mut self) {
+        self.cpu.step();
     }
 }

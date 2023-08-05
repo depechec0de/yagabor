@@ -1,9 +1,9 @@
-pub(super) struct KeyPad {
+pub(super) struct Joypad {
 
 }
 
-impl KeyPad {
-    pub(super) fn new() -> KeyPad {
-        KeyPad {  }
+impl Joypad {
+    pub(super) fn new() -> Joypad {
+        Joypad {  }
     }
 }

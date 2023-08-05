@@ -1,12 +1,12 @@
 mod alu;
 mod bus;
-mod gpu;
+mod ppu;
+mod rom;
 mod instructions;
 mod tests;
 
 use core::panic;
 
-use crate::gameboy::rom::ROM;
 use instructions::*;
 
 use self::bus::MemoryBus;
@@ -43,20 +43,18 @@ struct FlagsRegister {
 
 impl CPU {
     pub fn new() -> CPU {
-        let mut membus = MemoryBus::new();
+        let membus = MemoryBus::new();
 
-        CPU { regs: Registers::new(), sp: 0b0, pc: 0b0, bus: membus, is_halted: false }
+        CPU { 
+            regs: Registers::new(), 
+            sp: 0b0, 
+            pc: 0b0, 
+            bus: membus, 
+            is_halted: false 
+        }
     }
 
-    fn load_boot(&mut self, boot: ROM){
-        // TODO: map instead of copy
-        // Loading the boot ROM data into memory
-        for addr in 0..boot.size() {
-            self.bus.write_byte(addr, boot.read_byte(addr))
-        } 
-    }
-
-    fn step(&mut self) {
+    pub(super) fn step(&mut self) {
         let mut instruction_byte = self.bus.read_byte(self.pc);
         let prefixed = instruction_byte == 0xCB;
         if prefixed {
