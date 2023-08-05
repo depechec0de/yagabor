@@ -1,4 +1,40 @@
-use crate::cpu::*;
+use crate::gameboy::cpu::*;
+use crate::gameboy::cpu::gpu::*;
+
+const MEM_SIZE: usize = 0xFFFF;
+
+pub(super) struct MemoryBus {
+    memory: [u8; MEM_SIZE],
+    gpu: GPU
+}
+
+impl MemoryBus {
+    pub fn new() -> MemoryBus {
+        let data = [0; MEM_SIZE];
+
+        MemoryBus { memory: data, gpu: gpu::GPU::new() }
+    }
+
+    pub(super) fn read_byte(&self, address: u16) -> u8 {
+        let address = address as usize;
+        match address {
+            VRAM_BEGIN ..= VRAM_END => {
+                self.gpu.read_vram(address - VRAM_BEGIN)
+            },
+            _ => self.memory[address as usize]
+        }
+    }
+
+    pub(super) fn write_byte(&mut self, address: u16, value: u8) {
+        let address = address as usize;
+        match address {
+            VRAM_BEGIN ..= VRAM_END => {
+                self.gpu.write_vram(address - VRAM_BEGIN, value)
+            },
+            addr => self.memory[addr as usize] = value
+        }
+    }
+}
 
 impl CPU {
 

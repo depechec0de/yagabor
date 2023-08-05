@@ -1,13 +1,15 @@
 mod alu;
 mod bus;
-mod registers;
+mod gpu;
 mod instructions;
 mod tests;
 
 use core::panic;
 
-use crate::rom::ROM;
+use crate::gameboy::rom::ROM;
 use instructions::*;
+
+use self::bus::MemoryBus;
 
 type ProgramCounter = u16;
 type StackPointer = u16;
@@ -39,36 +41,19 @@ struct FlagsRegister {
     carry: bool
 }
 
-struct MemoryBus {
-    memory: [u8; 0xFFFF]
-}
-
-impl MemoryBus {
-    pub fn new() -> MemoryBus {
-        let data = [0; 0xFFFF];
-
-        MemoryBus { memory: data }
-    }
-
-    fn read_byte(&self, address: Address) -> u8 {
-        self.memory[address as usize]
-    }
-
-    fn write_byte(&mut self, address: Address, byte: u8) {
-        self.memory[address as usize] = byte;
-    }
-}
-
 impl CPU {
-    pub fn new(boot: ROM) -> CPU {
+    pub fn new() -> CPU {
         let mut membus = MemoryBus::new();
 
+        CPU { regs: Registers::new(), sp: 0b0, pc: 0b0, bus: membus, is_halted: false }
+    }
+
+    fn load_boot(&mut self, boot: ROM){
+        // TODO: map instead of copy
         // Loading the boot ROM data into memory
         for addr in 0..boot.size() {
-            membus.write_byte(addr, boot.read_byte(addr))
+            self.bus.write_byte(addr, boot.read_byte(addr))
         } 
-
-        CPU { regs: Registers::new(), sp: 0b0, pc: 0b0, bus: membus, is_halted: false }
     }
 
     fn step(&mut self) {
@@ -111,6 +96,8 @@ impl CPU {
             Instruction::OR(target) => self.or(target),
             Instruction::CP(target) => self.cp(target),
             Instruction::LD(load_type) => self.load(load_type),
+            Instruction::LDSIG => self.ldsig(),
+            Instruction::LDSPHL => self.ldsphl(),
             Instruction::JP(test) => self.jump(test),
             Instruction::JR(test) => self.jump_relative(test),
             Instruction::JPHL => self.jump_hl(),
@@ -119,6 +106,7 @@ impl CPU {
             Instruction::CALL(test) => self.call(test),
             Instruction::RET(test) => self.ret(test),
             Instruction::RST(target) => todo!(),
+            Instruction::BIT(target, source) => self.bit(target, source),
             Instruction::RETI => todo!(),
             Instruction::DAA => todo!("daa"), //self.daa(),
             _ => { /* TODO: support more instructions */ self.pc }
@@ -254,4 +242,107 @@ impl CPU {
         }
     }
 
+    fn ldsig(&mut self) -> ProgramCounter {
+        let value: i16 = self.read_next_byte() as i16;
+        let (new_value, did_overflow) = self.sp.overflowing_add_signed(value);
+
+        self.regs.flags.zero = false;
+        self.regs.flags.subtract = false;
+        self.regs.flags.carry = did_overflow;
+        // TODO: Not sure about half-carry with signed
+        self.regs.flags.half_carry = (self.sp & 0xF) + (value as u16 & 0xF) > 0xF;
+
+        self.regs.set_hl(new_value);
+
+        self.pc.wrapping_add(2)
+    }
+
+    fn ldsphl(&mut self) -> ProgramCounter {
+        self.sp = self.regs.get_hl();
+        self.pc.wrapping_add(1)
+    }
+
+}
+
+impl Registers {
+    pub(super) fn new() -> Registers {
+        Registers { a: 0b0, 
+                    b: 0b0, 
+                    c: 0b0, 
+                    d: 0b0, 
+                    e: 0b0, 
+                    flags: FlagsRegister {  zero: false, 
+                                            subtract: false, 
+                                            half_carry: false, 
+                                            carry: false }, 
+                    h: 0b0, 
+                    l: 0b0 
+                }
+    }
+
+    pub(super) fn get_bc(&self) -> u16 {
+        (self.b as u16) << 8 | self.c as u16
+    }
+    
+    pub(super) fn set_bc(&mut self, value: u16) {
+        self.b = ((value & 0xFF00) >> 8) as u8;
+        self.c = (value & 0xFF) as u8;
+    }
+
+    pub(super) fn get_de(&self) -> u16 {
+        (self.d as u16) << 8 | self.e as u16
+    }
+
+    pub(super) fn set_de(&mut self, value: u16) {
+        self.d = ((value & 0xFF00) >> 8) as u8;
+        self.e = (value & 0xFF) as u8;
+    }
+
+    pub(super) fn get_hl(&self) -> u16 {
+        (self.h as u16) << 8 | self.l as u16
+    }
+
+    pub(super) fn set_hl(&mut self, value: u16) {
+        self.h = ((value & 0xFF00) >> 8) as u8;
+        self.l = (value & 0xFF) as u8;
+    }
+
+    pub(super) fn get_af(&self) -> u16 {
+        (self.a as u16) << 8 | u8::from(self.flags.clone()) as u16
+    }
+
+    pub(super) fn set_af(&mut self, value: u16) {
+        self.a = ((value & 0xFF00) >> 8) as u8;
+        self.flags = FlagsRegister::from((value & 0xFF) as u8);
+    }
+}
+
+const ZERO_FLAG_BYTE_POSITION: u8 = 7;
+const SUBTRACT_FLAG_BYTE_POSITION: u8 = 6;
+const HALF_CARRY_FLAG_BYTE_POSITION: u8 = 5;
+const CARRY_FLAG_BYTE_POSITION: u8 = 4;
+
+impl std::convert::From<FlagsRegister> for u8  {
+    fn from(flag: FlagsRegister) -> u8 {
+        (if flag.zero       { 1 } else { 0 }) << ZERO_FLAG_BYTE_POSITION |
+        (if flag.subtract   { 1 } else { 0 }) << SUBTRACT_FLAG_BYTE_POSITION |
+        (if flag.half_carry { 1 } else { 0 }) << HALF_CARRY_FLAG_BYTE_POSITION |
+        (if flag.carry      { 1 } else { 0 }) << CARRY_FLAG_BYTE_POSITION
+    }
+}
+
+impl std::convert::From<u8> for FlagsRegister {
+    fn from(byte: u8) -> Self {
+        let zero = ((byte >> ZERO_FLAG_BYTE_POSITION) & 0b1) != 0;
+        let subtract = ((byte >> SUBTRACT_FLAG_BYTE_POSITION) & 0b1) != 0;
+        let half_carry = ((byte >> HALF_CARRY_FLAG_BYTE_POSITION) & 0b1) != 0;
+        let carry = ((byte >> CARRY_FLAG_BYTE_POSITION) & 0b1) != 0;
+
+        FlagsRegister {
+            zero,
+            subtract,
+            half_carry,
+            carry
+        }
+    }
 }

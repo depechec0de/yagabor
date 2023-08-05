@@ -1,4 +1,4 @@
-pub(super) enum Instruction {
+pub(crate) enum Instruction {
     NOP,
     HALT,
     STOP,
@@ -24,22 +24,25 @@ pub(super) enum Instruction {
     DEC16(WordRegister),
     // 8-bit load instructions
     LD(LoadType),
+    LDSIG,
+    LDSPHL,
     // Control flow instructions
     JP(JumpTest),
     JR(JumpTest),
     JPHL,
     CALL(JumpTest),
     RET(JumpTest),
-    RST(RestartTarget),
+    RST(BitTarget),
     RETI,
     // Stack instructions
     PUSH(StackTarget),
     POP(StackTarget),
     // Prefix instructions
-    RLC(PrefixTarget)
+    RLC(PrefixTarget),
+    BIT(BitTarget, BitSource)
 }
 
-pub(super) enum JumpTest {
+pub(crate) enum JumpTest {
     NotZero,
     Zero,
     NotCarry,
@@ -48,49 +51,53 @@ pub(super) enum JumpTest {
 }
 
 #[derive(Clone)]
-pub(super) enum ArithmeticTarget {
+pub(crate) enum ArithmeticTarget {
     A, B, C, D, E, H, L, HLI, D8
 }
 
-pub(super) enum IncDecTarget {
+pub(crate) enum IncDecTarget {
     A, B, C, D, E, H, L, HLI
 }
 
-pub(super) enum PrefixTarget {
+pub(crate) enum PrefixTarget {
     A, B, C, D, E, H, L,
 }
 
-pub(super) enum WordRegister {
+pub(crate) enum WordRegister {
     BC, DE, HL, SP
 }
 
-pub(super) enum StackTarget {
+pub(crate) enum StackTarget {
     BC, DE, HL, AF
 }
 
-pub(super) enum AFromIndirectSource {
+pub(crate) enum AFromIndirectSource {
     BC, DE, HLInc, HLDec
 }
 
-pub(super) enum LoadByteTarget {
+pub(crate) enum LoadByteTarget {
     A, B, C, D, E, H, L, HLI
 }
-pub(super) enum LoadByteSource {
+pub(crate) enum LoadByteSource {
     A, B, C, D, E, H, L, D8, HLI
 }
-pub(super) enum LoadType {
+pub(crate) enum LoadType {
     Byte(LoadByteTarget, LoadByteSource),
     Word(WordRegister),
     AFromIndirect(AFromIndirectSource),
     IndirectFromA(AFromIndirectSource),
 }
 
-pub(super) enum RestartTarget {
+pub(crate) enum  BitSource {
+    A, B, C, D, E, H, L, HLI
+}
+
+pub(crate) enum BitTarget {
     Zero, One, Two, Three, Four, Five, Six, Seven
 }
 
 impl Instruction {
-    pub(super) fn from_byte(byte: u8, prefixed: bool) -> Option<Instruction> {
+    pub(crate) fn from_byte(byte: u8, prefixed: bool) -> Option<Instruction> {
         if prefixed {
             Instruction::from_byte_prefixed(byte)
         } else {
@@ -108,6 +115,79 @@ impl Instruction {
             0x05 => Some(Instruction::RLC(PrefixTarget::L)),
             0x06 => None, // TODO
             0x07 => Some(Instruction::RLC(PrefixTarget::A)),
+
+            // BIT
+            0x40 => Some(Instruction::BIT(BitTarget::Zero, BitSource::B)),
+            0x41 => Some(Instruction::BIT(BitTarget::Zero, BitSource::C)),
+            0x42 => Some(Instruction::BIT(BitTarget::Zero, BitSource::D)),
+            0x43 => Some(Instruction::BIT(BitTarget::Zero, BitSource::E)),
+            0x44 => Some(Instruction::BIT(BitTarget::Zero, BitSource::H)),
+            0x45 => Some(Instruction::BIT(BitTarget::Zero, BitSource::L)),
+            0x46 => Some(Instruction::BIT(BitTarget::Zero, BitSource::HLI)),
+            0x47 => Some(Instruction::BIT(BitTarget::Zero, BitSource::A)),
+
+            0x48 => Some(Instruction::BIT(BitTarget::One, BitSource::B)),
+            0x49 => Some(Instruction::BIT(BitTarget::One, BitSource::C)),
+            0x4A => Some(Instruction::BIT(BitTarget::One, BitSource::D)),
+            0x4B => Some(Instruction::BIT(BitTarget::One, BitSource::E)),
+            0x4C => Some(Instruction::BIT(BitTarget::One, BitSource::H)),
+            0x4D => Some(Instruction::BIT(BitTarget::One, BitSource::L)),
+            0x4E => Some(Instruction::BIT(BitTarget::One, BitSource::HLI)),
+            0x4F => Some(Instruction::BIT(BitTarget::One, BitSource::A)),
+
+            0x50 => Some(Instruction::BIT(BitTarget::Two, BitSource::B)),
+            0x51 => Some(Instruction::BIT(BitTarget::Two, BitSource::C)),
+            0x52 => Some(Instruction::BIT(BitTarget::Two, BitSource::D)),
+            0x53 => Some(Instruction::BIT(BitTarget::Two, BitSource::E)),
+            0x54 => Some(Instruction::BIT(BitTarget::Two, BitSource::H)),
+            0x55 => Some(Instruction::BIT(BitTarget::Two, BitSource::L)),
+            0x56 => Some(Instruction::BIT(BitTarget::Two, BitSource::HLI)),
+            0x57 => Some(Instruction::BIT(BitTarget::Two, BitSource::A)),
+            
+            0x58 => Some(Instruction::BIT(BitTarget::Three, BitSource::B)),
+            0x59 => Some(Instruction::BIT(BitTarget::Three, BitSource::C)),
+            0x5A => Some(Instruction::BIT(BitTarget::Three, BitSource::D)),
+            0x5B => Some(Instruction::BIT(BitTarget::Three, BitSource::E)),
+            0x5C => Some(Instruction::BIT(BitTarget::Three, BitSource::H)),
+            0x5D => Some(Instruction::BIT(BitTarget::Three, BitSource::L)),
+            0x5E => Some(Instruction::BIT(BitTarget::Three, BitSource::HLI)),
+            0x5F => Some(Instruction::BIT(BitTarget::Three, BitSource::A)),
+
+            0x60 => Some(Instruction::BIT(BitTarget::Four, BitSource::B)),
+            0x61 => Some(Instruction::BIT(BitTarget::Four, BitSource::C)),
+            0x62 => Some(Instruction::BIT(BitTarget::Four, BitSource::D)),
+            0x63 => Some(Instruction::BIT(BitTarget::Four, BitSource::E)),
+            0x64 => Some(Instruction::BIT(BitTarget::Four, BitSource::H)),
+            0x65 => Some(Instruction::BIT(BitTarget::Four, BitSource::L)),
+            0x66 => Some(Instruction::BIT(BitTarget::Four, BitSource::HLI)),
+            0x67 => Some(Instruction::BIT(BitTarget::Four, BitSource::A)),
+            
+            0x68 => Some(Instruction::BIT(BitTarget::Five, BitSource::B)),
+            0x69 => Some(Instruction::BIT(BitTarget::Five, BitSource::C)),
+            0x6A => Some(Instruction::BIT(BitTarget::Five, BitSource::D)),
+            0x6B => Some(Instruction::BIT(BitTarget::Five, BitSource::E)),
+            0x6C => Some(Instruction::BIT(BitTarget::Five, BitSource::H)),
+            0x6D => Some(Instruction::BIT(BitTarget::Five, BitSource::L)),
+            0x6E => Some(Instruction::BIT(BitTarget::Five, BitSource::HLI)),
+            0x6F => Some(Instruction::BIT(BitTarget::Five, BitSource::A)),
+
+            0x70 => Some(Instruction::BIT(BitTarget::Six, BitSource::B)),
+            0x71 => Some(Instruction::BIT(BitTarget::Six, BitSource::C)),
+            0x72 => Some(Instruction::BIT(BitTarget::Six, BitSource::D)),
+            0x73 => Some(Instruction::BIT(BitTarget::Six, BitSource::E)),
+            0x74 => Some(Instruction::BIT(BitTarget::Six, BitSource::H)),
+            0x75 => Some(Instruction::BIT(BitTarget::Six, BitSource::L)),
+            0x76 => Some(Instruction::BIT(BitTarget::Six, BitSource::HLI)),
+            0x77 => Some(Instruction::BIT(BitTarget::Six, BitSource::A)),
+
+            0x78 => Some(Instruction::BIT(BitTarget::Seven, BitSource::B)),
+            0x79 => Some(Instruction::BIT(BitTarget::Seven, BitSource::C)),
+            0x7A => Some(Instruction::BIT(BitTarget::Seven, BitSource::D)),
+            0x7B => Some(Instruction::BIT(BitTarget::Seven, BitSource::E)),
+            0x7C => Some(Instruction::BIT(BitTarget::Seven, BitSource::H)),
+            0x7D => Some(Instruction::BIT(BitTarget::Seven, BitSource::L)),
+            0x7E => Some(Instruction::BIT(BitTarget::Seven, BitSource::HLI)),
+            0x7F => Some(Instruction::BIT(BitTarget::Seven, BitSource::A)),
             _ => /* TODO: Add mapping for rest of instructions */ None
         }
     }
@@ -140,8 +220,8 @@ impl Instruction {
             0xD5 => Some(Instruction::PUSH(StackTarget::DE)),
             0xE5 => Some(Instruction::PUSH(StackTarget::HL)),
             0xF5 => Some(Instruction::PUSH(StackTarget::AF)),
-            0xF8 => todo!(),
-            0xF9 => todo!(),
+            0xF8 => Some(Instruction::LDSIG),
+            0xF9 => Some(Instruction::LDSPHL),
             0x08 => todo!(),
 
             // Control flow instructions
@@ -155,10 +235,10 @@ impl Instruction {
             0xC3 => Some(Instruction::JP(JumpTest::Always)),
             0xC4 => Some(Instruction::CALL(JumpTest::NotZero)),
             0xD4 => Some(Instruction::CALL(JumpTest::NotCarry)),
-            0xC7 => Some(Instruction::RST(RestartTarget::Zero)),
-            0xD7 => Some(Instruction::RST(RestartTarget::Two)),
-            0xE7 => Some(Instruction::RST(RestartTarget::Four)),
-            0xF7 => Some(Instruction::RST(RestartTarget::Six)),
+            0xC7 => Some(Instruction::RST(BitTarget::Zero)),
+            0xD7 => Some(Instruction::RST(BitTarget::Two)),
+            0xE7 => Some(Instruction::RST(BitTarget::Four)),
+            0xF7 => Some(Instruction::RST(BitTarget::Six)),
             0xC8 => Some(Instruction::CALL(JumpTest::Zero)),
             0xD8 => Some(Instruction::CALL(JumpTest::Carry)),
             0xC9 => Some(Instruction::CALL(JumpTest::Always)),
@@ -169,10 +249,10 @@ impl Instruction {
             0xCC => Some(Instruction::CALL(JumpTest::Zero)),
             0xDC => Some(Instruction::CALL(JumpTest::Carry)),
             0xCD => Some(Instruction::CALL(JumpTest::Always)),
-            0xCF => Some(Instruction::RST(RestartTarget::One)),
-            0xDF => Some(Instruction::RST(RestartTarget::Three)),
-            0xEF => Some(Instruction::RST(RestartTarget::Five)),
-            0xFF => Some(Instruction::RST(RestartTarget::Seven)),
+            0xCF => Some(Instruction::RST(BitTarget::One)),
+            0xDF => Some(Instruction::RST(BitTarget::Three)),
+            0xEF => Some(Instruction::RST(BitTarget::Five)),
+            0xFF => Some(Instruction::RST(BitTarget::Seven)),
             0x20 => Some(Instruction::JR(JumpTest::NotZero)),
             0x30 => Some(Instruction::JR(JumpTest::NotCarry)),
 

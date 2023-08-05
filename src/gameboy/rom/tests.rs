@@ -1,5 +1,5 @@
 #[cfg(test)]
-use crate::rom::ROM;
+use crate::gameboy::rom::ROM;
 
 #[test]
 fn load_boot_rom() {

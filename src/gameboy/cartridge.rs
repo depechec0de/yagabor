@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::rom::ROM;
+use crate::gameboy::rom::ROM;
 
 const ENTRY_START_ADDR: usize = 0x0100;
 const ENTRY_END_ADDR: usize = 0x0103;

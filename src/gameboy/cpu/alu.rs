@@ -1,4 +1,4 @@
-use crate::cpu::*;
+use crate::gameboy::cpu::*;
 
 impl CPU {
     pub(super) fn add(&mut self, target: ArithmeticTarget) -> ProgramCounter {
@@ -196,6 +196,29 @@ impl CPU {
         self.pc.wrapping_add(1)
     }
 
+    pub(super) fn bit(&mut self, target:BitTarget, source: BitSource) -> ProgramCounter {
+        let i = get_position_by_bittarget(target);
+        let value = self.get_bitsource_val(source);
+        let bit_value = get_bit_val(i, value);
+
+        self.regs.flags.zero = !bit_value;
+
+        self.pc.wrapping_add(2)
+    }
+
+    fn get_bitsource_val(&self, source: BitSource) -> u8 {
+        match source {
+            BitSource::A => self.regs.a,
+            BitSource::B => self.regs.b,
+            BitSource::C => self.regs.c,
+            BitSource::D => self.regs.d,
+            BitSource::E => self.regs.e,
+            BitSource::H => self.regs.h,
+            BitSource::L => self.regs.l,
+            BitSource::HLI => self.bus.read_byte(self.regs.get_hl()),
+        }
+    }
+    
     fn arithmetic_pc_increment(&self, target: &ArithmeticTarget) -> ProgramCounter {
         let is_d8: ProgramCounter = match target {
             ArithmeticTarget::D8 => 1,
@@ -217,4 +240,22 @@ impl CPU {
             ArithmeticTarget::D8 => self.read_next_byte()
         }
     }
+}
+
+fn get_position_by_bittarget(target:BitTarget) -> u8 {
+    match target {
+        BitTarget::Zero => 0,
+        BitTarget::One => 1,
+        BitTarget::Two => 2,
+        BitTarget::Three => 3,
+        BitTarget::Four => 4,
+        BitTarget::Five => 5,
+        BitTarget::Six => 6,
+        BitTarget::Seven => 7,
+    }
+}
+
+fn get_bit_val(position:u8, value:u8) -> bool {
+    let mask = 1 << position;
+    (mask & value) > 0
 }

@@ -32,7 +32,7 @@ impl ROM {
     }
 
     pub fn dmg() -> ROM {
-        let data = include_bytes!("../assets/dmgrom.bin");
+        let data = include_bytes!("../../../assets/dmgrom.bin");
         let buffer = data.to_vec();
 
         ROM::new(buffer)
