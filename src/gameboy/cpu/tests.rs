@@ -1,13 +1,14 @@
-#[cfg(test)]
-use crate::gameboy::cpu::CPU;
+use crate::gameboy::cpu::*;
 use crate::gameboy::cpu::Instruction::*;
 use crate::gameboy::cpu::ArithmeticTarget::*;
+use crate::gameboy::{cpu::mmu::MMU, rom::ROM, cartridge::Cartridge};
 
 #[test]
 fn add_without_carry() {
-    let mut cpu = CPU::new();
+    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut cpu = CPU::new(mmu);
 
-    cpu.regs.a = 0b00000001;
+    cpu.regs.a = 0b00000001;    
     cpu.regs.b = 0b00000001;
 
     cpu.execute(ADD(B));
@@ -21,7 +22,8 @@ fn add_without_carry() {
 
 #[test]
 fn add_with_half_carry() {
-    let mut cpu = CPU::new();
+    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b00001111;
     cpu.regs.b = 0b00000001;
@@ -36,7 +38,8 @@ fn add_with_half_carry() {
 }
 #[test]
 fn add_with_carry() {
-    let mut cpu = CPU::new();
+    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b11111111;
     cpu.regs.b = 0b1;
@@ -52,7 +55,8 @@ fn add_with_carry() {
 
 #[test]
 fn adc_with_carry() {
-    let mut cpu = CPU::new();
+    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b11111110;
     cpu.regs.b = 0b1;
@@ -69,7 +73,8 @@ fn adc_with_carry() {
 
 #[test]
 fn adc_with_half_carry() {
-    let mut cpu = CPU::new();
+    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b00001110;
     cpu.regs.b = 0b00000001;
@@ -86,7 +91,8 @@ fn adc_with_half_carry() {
 
 #[test]
 fn sub_with_carry() {
-    let mut cpu = CPU::new();
+    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b00001111;
     cpu.regs.b = 0b10000000;
@@ -102,7 +108,8 @@ fn sub_with_carry() {
 
 #[test]
 fn sub_with_half_carry() {
-    let mut cpu = CPU::new();
+    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0x1;
     cpu.regs.b = 0xF;
@@ -118,7 +125,8 @@ fn sub_with_half_carry() {
 
 #[test]
 fn sbc_with_carry() {
-    let mut cpu = CPU::new();
+    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b00001111;
     cpu.regs.b = 0b01111111;
@@ -136,7 +144,8 @@ fn sbc_with_carry() {
 
 #[test]
 fn get_af() {
-    let mut cpu = CPU::new();
+    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b01010101;
     cpu.regs.flags.zero = false;
@@ -149,7 +158,8 @@ fn get_af() {
 
 #[test]
 fn set_af() {
-    let mut cpu = CPU::new();
+    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut cpu = CPU::new(mmu);
 
     cpu.regs.set_af(0b0101010101010000);
 
@@ -162,7 +172,8 @@ fn set_af() {
 
 #[test]
 fn stack_push_pop() {
-    let mut cpu = CPU::new();
+    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut cpu = CPU::new(mmu);
     cpu.sp = 0xFF;
 
     let test_value: u16 = 0b0101010101010000;
@@ -172,15 +183,7 @@ fn stack_push_pop() {
     cpu.push(crate::gameboy::cpu::instructions::StackTarget::BC);
     cpu.pop(crate::gameboy::cpu::instructions::StackTarget::HL);
 
+    println!("{:b} {:b}", cpu.regs.get_hl(), cpu.regs.get_bc());
+
     assert_eq!(cpu.regs.get_hl(), cpu.regs.get_bc());
-}
-
-#[test]
-fn exec_boot_room() {
-    let mut cpu = CPU::new();
-
-    for i in 0..200 {
-        cpu.step();
-    }
-    
 }

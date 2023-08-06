@@ -1,18 +1,18 @@
 use std::time::Duration;
 
-use sdl2::{event::Event, keyboard::Keycode};
-
 use crate::gameboy::GameBoy;
 
+pub const CPU_CLOCK_HZ: usize = 4194304;
+pub const FPS: f32 = 60.0;
+
 pub struct Emulation {
-    ticks: u64,
     running: bool,
     gb: GameBoy
 }
 
 impl Emulation {
     pub fn new(gameboy: GameBoy) -> Emulation {
-        Emulation { ticks: 0, running: false, gb: gameboy }
+        Emulation { running: false, gb: gameboy }
     }
 
     pub fn run(&mut self){
@@ -20,7 +20,6 @@ impl Emulation {
 
         'running: loop {
             self.gb.step();
-            self.ticks += 1;
 
             // Input events
             // for event in self.event_pump.poll_iter() {
@@ -34,7 +33,7 @@ impl Emulation {
             // }
             
 
-            ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
+            //::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
         }
 
     }

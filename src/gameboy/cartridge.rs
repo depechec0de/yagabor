@@ -33,7 +33,15 @@ impl Cartridge {
         Ok(Cartridge { data: buffer, title: t })
     }
 
+    pub fn empty() -> Cartridge {
+        Cartridge { data: Vec::new(), title: "empty".to_string() }
+    }
+
     pub fn title(&self) -> String {
         self.title.clone()
+    }
+
+    pub fn read_byte(&self, address: usize) -> u8 {
+        self.data[address]
     }
 }

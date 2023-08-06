@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub(crate) enum Instruction {
     NOP,
     HALT,
@@ -42,6 +43,7 @@ pub(crate) enum Instruction {
     BIT(BitTarget, BitSource)
 }
 
+#[derive(Debug)]
 pub(crate) enum JumpTest {
     NotZero,
     Zero,
@@ -50,37 +52,47 @@ pub(crate) enum JumpTest {
     Always
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) enum ArithmeticTarget {
     A, B, C, D, E, H, L, HLI, D8
 }
 
+#[derive(Debug)]
 pub(crate) enum IncDecTarget {
     A, B, C, D, E, H, L, HLI
 }
 
+#[derive(Debug)]
 pub(crate) enum PrefixTarget {
     A, B, C, D, E, H, L,
 }
 
+#[derive(Debug)]
 pub(crate) enum WordRegister {
     BC, DE, HL, SP
 }
 
+#[derive(Debug)]
 pub(crate) enum StackTarget {
     BC, DE, HL, AF
 }
 
+#[derive(Debug)]
 pub(crate) enum AFromIndirectSource {
     BC, DE, HLInc, HLDec
 }
 
+#[derive(Debug)]
 pub(crate) enum LoadByteTarget {
     A, B, C, D, E, H, L, HLI
 }
+
+#[derive(Debug)]
 pub(crate) enum LoadByteSource {
     A, B, C, D, E, H, L, D8, HLI
 }
+
+#[derive(Debug)]
 pub(crate) enum LoadType {
     Byte(LoadByteTarget, LoadByteSource),
     Word(WordRegister),
@@ -88,10 +100,12 @@ pub(crate) enum LoadType {
     IndirectFromA(AFromIndirectSource),
 }
 
+#[derive(Debug)]
 pub(crate) enum  BitSource {
     A, B, C, D, E, H, L, HLI
 }
 
+#[derive(Debug)]
 pub(crate) enum BitTarget {
     Zero, One, Two, Three, Four, Five, Six, Seven
 }

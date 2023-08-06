@@ -1,28 +1,34 @@
+use self::{screen::Screen, keypad::Joypad, cartridge::Cartridge, rom::ROM, cpu::{mmu::MMU, CPU}};
 
-pub(crate) mod cartridge;
+pub mod cartridge;
+mod ppu;
+mod rom;
+mod keypad;
 mod cpu;
 mod screen;
-mod keypad;
-
-use self::cartridge::Cartridge;
-use self::cpu::CPU;
-use self::keypad::Joypad;
-use self::screen::Screen;
 
 pub struct GameBoy {
     cpu: CPU,
-    cartridge: Cartridge,
+    //ppu: Rc<PPU>,
     screen: Screen,
-    controller: Joypad
+    joypad: Joypad
 }
 
 impl GameBoy {
-    pub fn new(c: Cartridge) -> GameBoy {
-        GameBoy { cpu: CPU::new(), cartridge: c, screen: Screen::new(), controller: Joypad::new() }
-    }
+    pub fn new(cartridge: Cartridge) -> GameBoy {
+        let bootrom = ROM::dmg();
+        //let mut ppu = Rc::new(PPU::new());
+        let mut mmu = MMU::new(bootrom, cartridge);
+        let mut cpu = CPU::new(mmu);
+        let screen = Screen::new();
+        let joypad = Joypad::new();
 
-    pub fn start(&self) {
-        println!("Rust Game Boy emulator started with game {}", self.cartridge.title());
+        GameBoy { 
+                cpu,
+                //ppu, 
+                screen,
+                joypad
+        }
     }
 
     pub fn step(&mut self) {
