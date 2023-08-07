@@ -120,7 +120,7 @@ fn sub_with_half_carry() {
     cpu.regs.b = 0xF;
 
     cpu.execute(SUB(B));
-    println!("asasasa {:x?}", cpu.regs.a);
+
     assert_eq!(cpu.regs.a, 0xF2);
     assert_eq!(cpu.regs.flags.subtract, true);
     assert_eq!(cpu.regs.flags.zero, false);
@@ -180,26 +180,27 @@ fn stack_push() {
     let mut mmu = MMU::new(ROM::empty(), Cartridge::empty());
     let mut cpu = CPU::new(mmu);
 
-    let init_sp = 0x0100;
+    let init_sp = 0xDFFF;
     cpu.sp = init_sp;
 
-    let test_value: u16 = 0b0101010101010000;
+    let low:u8 = 0b01010000;
+    let high:u8 = 0b01010101;
+    let test_value: u16 = ((high as u16) << 8) + low as u16;
 
     cpu.regs.set_bc(test_value);
 
     cpu.push(crate::gameboy::cpu::instructions::StackTarget::BC);
 
     assert_eq!(cpu.sp, init_sp-2);
-    println!("{:b} {:b}", cpu.mmu.read_byte(init_sp-1), 0b01010101);
-    assert_eq!(cpu.mmu.read_byte(init_sp-1), 0b01010101);
-    assert_eq!(cpu.mmu.read_byte(init_sp-2), 0b01010000);
+    assert_eq!(cpu.mmu.read_byte(init_sp-1), high);
+    assert_eq!(cpu.mmu.read_byte(init_sp-2), low);
 }
 
 #[test]
 fn stack_push_pop() {
     let mut mmu = MMU::new(ROM::empty(), Cartridge::empty());
     let mut cpu = CPU::new(mmu);
-    cpu.sp = 0xFF;
+    cpu.sp = 0xDFFF;
 
     let test_value: u16 = 0b0101010101010000;
 
@@ -208,20 +209,16 @@ fn stack_push_pop() {
     cpu.push(crate::gameboy::cpu::instructions::StackTarget::BC);
     cpu.pop(crate::gameboy::cpu::instructions::StackTarget::HL);
 
-    println!("{:b} {:b}", cpu.regs.get_hl(), cpu.regs.get_bc());
-
     assert_eq!(cpu.regs.get_hl(), cpu.regs.get_bc());
 }
 
-// #[test]
-// fn cpu_instrs() {
-//     let cartridge = Cartridge::test_cpu_instrs();
-//     let mut gb: GameBoy = GameBoy::new(cartridge);
+/* #[test]
+fn cpu_instrs() {
+    let cartridge = Cartridge::test_cpu_instrs();
+    let mut gb: GameBoy = GameBoy::new(cartridge);
 
-//     let mut emu = Emulation::new(gb);
+    let mut emu = Emulation::new(gb);
 
-//     emu.run();
-    
-//     assert_eq!(cpu.regs.get_hl(), cpu.regs.get_bc());
-// }
+    emu.run();
+} */
 

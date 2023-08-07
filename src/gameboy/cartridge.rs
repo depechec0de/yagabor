@@ -35,8 +35,8 @@ impl Cartridge {
         self.title.clone()
     }
 
-    pub fn read_byte(&self, address: usize) -> u8 {
-        self.data[address]
+    pub fn read_byte(&self, address: u16) -> u8 {
+        self.data[address as usize]
     }
 
     pub fn test_cpu_instrs() -> Cartridge {

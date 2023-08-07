@@ -104,6 +104,8 @@ pub(crate) enum LoadType {
     Word(WordRegister),
     AFromIndirect(LoadIndirectSource),
     IndirectFromA(LoadIndirectSource),
+    AFromDirect,
+    DirectFromA,
 }
 
 #[derive(Debug)]
@@ -279,7 +281,7 @@ impl Instruction {
             0xF7 => Some(Instruction::RST(BitTarget::Six)),
             0xC8 => Some(Instruction::CALL(JumpTest::Zero)),
             0xD8 => Some(Instruction::CALL(JumpTest::Carry)),
-            0xC9 => Some(Instruction::CALL(JumpTest::Always)),
+            0xC9 => Some(Instruction::RET(JumpTest::Always)),
             0xD9 => Some(Instruction::RETI),
             0xE9 => Some(Instruction::JPHL),
             0xCA => Some(Instruction::JP(JumpTest::Zero)),
@@ -404,8 +406,8 @@ impl Instruction {
             0xF0 => Some(Instruction::LDFF(LoadFFType::FFa8toA)),
             0xE2 => Some(Instruction::LDFF(LoadFFType::AtoFFC)),
             0xF2 => Some(Instruction::LDFF(LoadFFType::FFCtoA)),
-            0xEA => todo!(),
-            0xFA => todo!(),
+            0xEA => Some(Instruction::LD(LoadType::DirectFromA)),
+            0xFA => Some(Instruction::LD(LoadType::AFromDirect)),
 
             // 8-bit arithmetic and logical instructions
             0x04 => Some(Instruction::INC(IncDecTarget::B)),

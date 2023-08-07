@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-pub(super) const BOOT_BEGIN: usize = 0x0000;
-pub(super) const BOOT_END: usize = 0x0100;
-pub(super) const BOOT_SIZE: usize = BOOT_END-BOOT_BEGIN;
+pub(super) const BOOT_BEGIN: u16 = 0x0000;
+pub(super) const BOOT_END: u16 = 0x00FF;
+pub(super) const BOOT_SIZE: usize = (BOOT_END - BOOT_BEGIN) as usize;
 
 // 16-bit address ROM
 pub struct ROM {
@@ -17,7 +17,7 @@ impl ROM {
     pub fn new(buffer: Vec<u8>) -> ROM {
         let mut d = [0; BOOT_SIZE];
 
-        for addr in 0..0xFFFF {
+        for addr in 0..BOOT_SIZE {
             if (addr as usize) < buffer.len() {
                 d[addr] = buffer[addr];
             }else{
@@ -44,8 +44,8 @@ impl ROM {
         self.data.len() as u16
     }
 
-    pub fn read_byte(&self, address: usize) -> u8 {
-        self.data[address].clone()
+    pub fn read_byte(&self, address: u16) -> u8 {
+        self.data[address as usize].clone()
     }
 
 }

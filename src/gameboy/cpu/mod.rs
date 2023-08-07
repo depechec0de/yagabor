@@ -18,6 +18,7 @@ pub(crate) struct CPU{
     mmu: MMU
 }
 
+#[derive(Debug)]
 pub struct Registers {
     a: u8, // Accumulators
     b: u8,
@@ -28,7 +29,7 @@ pub struct Registers {
     h: u8,
     l: u8,
 }
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct FlagsRegister {
     zero: bool,
     subtract: bool,
@@ -49,7 +50,6 @@ impl CPU {
 
     pub(crate) fn step(&mut self) {
         let mut instruction_byte = self.mmu.read_byte(self.pc);
-        println!("instruction byte {:x}", instruction_byte);
 
         let prefixed = instruction_byte == 0xCB;
         if prefixed {
@@ -57,7 +57,7 @@ impl CPU {
         }
 
         let next_pc = if let Some(instruction) = Instruction::from_byte(instruction_byte, prefixed) {
-            println!("{:?} at PC: {}", instruction, self.pc);
+            println!("0x{:x} {:?} => {:?}", instruction_byte, instruction, self.regs);
             self.execute(instruction)
         } else {
             let description = format!("0x{}{:x}", if prefixed { "cb" } else { "" }, instruction_byte);
@@ -363,6 +363,14 @@ impl CPU {
                     }
                 }
                 self.pc.wrapping_add(1)
+            },
+            LoadType::AFromDirect => {
+                self.regs.a = self.mmu.read_byte(self.read_next_word());
+                self.pc.wrapping_add(3)
+            },
+            LoadType::DirectFromA => {
+                self.mmu.write_byte(self.read_next_word(), self.regs.a);
+                self.pc.wrapping_add(3)
             }
         }
     }
@@ -417,7 +425,6 @@ impl CPU {
     pub(super) fn push_value(&mut self, value: u16) {
         self.sp = self.sp.wrapping_sub(1);
         self.mmu.write_byte(self.sp, ((value & 0xFF00) >> 8) as u8);
-
         self.sp = self.sp.wrapping_sub(1);
         self.mmu.write_byte(self.sp, (value & 0xFF) as u8);
     }
@@ -574,36 +581,104 @@ impl CPU {
     }
 
     pub(super) fn inc(&mut self, target: IncDecTarget) -> ProgramCounter {
-        let value = match target {
-            IncDecTarget::A => self.regs.a = self.regs.a.wrapping_add(1),
-            IncDecTarget::B => self.regs.b = self.regs.b.wrapping_add(1),
-            IncDecTarget::C => self.regs.c = self.regs.c.wrapping_add(1),
-            IncDecTarget::D => self.regs.d = self.regs.d.wrapping_add(1),
-            IncDecTarget::E => self.regs.e = self.regs.e.wrapping_add(1),
-            IncDecTarget::H => self.regs.h = self.regs.h.wrapping_add(1),
-            IncDecTarget::L => self.regs.l = self.regs.l.wrapping_add(1),
+        self.regs.flags.subtract = false;
+
+        match target {
+            IncDecTarget::A => { 
+                self.regs.flags.half_carry = (self.regs.a & 0xF).wrapping_add(0b1 & 0xF) > 0xF;
+                self.regs.flags.zero = self.regs.a.wrapping_add(1) == 0;
+                self.regs.a = self.regs.a.wrapping_add(1);
+            },
+            IncDecTarget::B => { 
+                self.regs.flags.half_carry = (self.regs.b & 0xF).wrapping_add(0b1 & 0xF) > 0xF;
+                self.regs.flags.zero = self.regs.b.wrapping_add(1) == 0;
+                self.regs.b = self.regs.b.wrapping_add(1);
+            },
+            IncDecTarget::C => { 
+                self.regs.flags.half_carry = (self.regs.c & 0xF).wrapping_add(0b1 & 0xF) > 0xF;
+                self.regs.flags.zero = self.regs.c.wrapping_add(1) == 0;
+                self.regs.c = self.regs.c.wrapping_add(1);
+            },
+            IncDecTarget::D => { 
+                self.regs.flags.half_carry = (self.regs.d & 0xF).wrapping_add(0b1 & 0xF) > 0xF;
+                self.regs.flags.zero = self.regs.d.wrapping_add(1) == 0;
+                self.regs.d = self.regs.d.wrapping_add(1);
+            },
+            IncDecTarget::E => { 
+                self.regs.flags.half_carry = (self.regs.e & 0xF).wrapping_add(0b1 & 0xF) > 0xF;
+                self.regs.flags.zero = self.regs.e.wrapping_add(1) == 0;
+                self.regs.e = self.regs.e.wrapping_add(1);
+            },
+            IncDecTarget::H => { 
+                self.regs.flags.half_carry = (self.regs.h & 0xF).wrapping_add(0b1 & 0xF) > 0xF;
+                self.regs.flags.zero = self.regs.h.wrapping_add(1) == 0;
+                self.regs.h = self.regs.h.wrapping_add(1);
+            },
+            IncDecTarget::L => { 
+                self.regs.flags.half_carry = (self.regs.l & 0xF).wrapping_add(0b1 & 0xF) > 0xF;
+                self.regs.flags.zero = self.regs.l.wrapping_add(1) == 0;
+                self.regs.l = self.regs.l.wrapping_add(1);
+            },
             IncDecTarget::HLI => {
-                let new_val = self.mmu.read_byte(self.regs.get_hl()).wrapping_add(1);
+                let old_val = self.mmu.read_byte(self.regs.get_hl());
+                self.regs.flags.half_carry = (old_val & 0xF).wrapping_add(0b1 & 0xF) > 0xF;
+                let new_val = old_val.wrapping_add(1);
+                self.regs.flags.zero = new_val == 0;
                 self.mmu.write_byte(self.regs.get_hl(), new_val);
             }
         };
+
         self.pc.wrapping_add(1)
     }
 
     pub(super) fn dec(&mut self, target: IncDecTarget) -> ProgramCounter {
-        let value = match target {
-            IncDecTarget::A => self.regs.a = self.regs.a.wrapping_sub(1),
-            IncDecTarget::B => self.regs.b = self.regs.b.wrapping_sub(1),
-            IncDecTarget::C => self.regs.c = self.regs.c.wrapping_sub(1),
-            IncDecTarget::D => self.regs.d = self.regs.d.wrapping_sub(1),
-            IncDecTarget::E => self.regs.e = self.regs.e.wrapping_sub(1),
-            IncDecTarget::H => self.regs.h = self.regs.h.wrapping_sub(1),
-            IncDecTarget::L => self.regs.l = self.regs.l.wrapping_sub(1),
+        self.regs.flags.subtract = true;
+
+        match target {
+            IncDecTarget::A => { 
+                self.regs.flags.half_carry = (self.regs.a & 0xF).wrapping_sub(0b1 & 0xF) > 0xF;
+                self.regs.flags.zero = self.regs.a.wrapping_sub(1) == 0;
+                self.regs.a = self.regs.a.wrapping_sub(1);
+            },
+            IncDecTarget::B => { 
+                self.regs.flags.half_carry = (self.regs.b & 0xF).wrapping_sub(0b1 & 0xF) > 0xF;
+                self.regs.flags.zero = self.regs.b.wrapping_sub(1) == 0;
+                self.regs.b = self.regs.b.wrapping_sub(1);
+            },
+            IncDecTarget::C => { 
+                self.regs.flags.half_carry = (self.regs.c & 0xF).wrapping_sub(0b1 & 0xF) > 0xF;
+                self.regs.flags.zero = self.regs.c.wrapping_sub(1) == 0;
+                self.regs.c = self.regs.c.wrapping_sub(1);
+            },
+            IncDecTarget::D => { 
+                self.regs.flags.half_carry = (self.regs.d & 0xF).wrapping_sub(0b1 & 0xF) > 0xF;
+                self.regs.flags.zero = self.regs.d.wrapping_sub(1) == 0;
+                self.regs.d = self.regs.d.wrapping_sub(1);
+            },
+            IncDecTarget::E => { 
+                self.regs.flags.half_carry = (self.regs.e & 0xF).wrapping_sub(0b1 & 0xF) > 0xF;
+                self.regs.flags.zero = self.regs.e.wrapping_sub(1) == 0;
+                self.regs.e = self.regs.e.wrapping_sub(1);
+            },
+            IncDecTarget::H => { 
+                self.regs.flags.half_carry = (self.regs.h & 0xF).wrapping_sub(0b1 & 0xF) > 0xF;
+                self.regs.flags.zero = self.regs.h.wrapping_sub(1) == 0;
+                self.regs.h = self.regs.h.wrapping_sub(1);
+            },
+            IncDecTarget::L => { 
+                self.regs.flags.half_carry = (self.regs.l & 0xF).wrapping_sub(0b1 & 0xF) > 0xF;
+                self.regs.flags.zero = self.regs.l.wrapping_sub(1) == 0;
+                self.regs.l = self.regs.l.wrapping_sub(1);
+            },
             IncDecTarget::HLI => {
-                let new_val = self.mmu.read_byte(self.regs.get_hl()).wrapping_sub(1);
+                let old_val = self.mmu.read_byte(self.regs.get_hl());
+                self.regs.flags.half_carry = (old_val & 0xF).wrapping_sub(0b1 & 0xF) > 0xF;
+                let new_val = old_val.wrapping_sub(1);
+                self.regs.flags.zero = new_val == 0;
                 self.mmu.write_byte(self.regs.get_hl(), new_val);
             }
         };
+
         self.pc.wrapping_add(1)
     }
 

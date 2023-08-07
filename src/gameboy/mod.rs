@@ -8,26 +8,17 @@ mod cpu;
 mod screen;
 
 pub struct GameBoy {
-    cpu: CPU,
-    //ppu: Rc<PPU>,
-    screen: Screen,
-    joypad: Joypad
+    cpu: CPU
 }
 
 impl GameBoy {
     pub fn new(cartridge: Cartridge) -> GameBoy {
         let bootrom = ROM::dmg();
-        //let mut ppu = Rc::new(PPU::new());
         let mut mmu = MMU::new(bootrom, cartridge);
         let mut cpu = CPU::new(mmu);
-        let screen = Screen::new();
-        let joypad = Joypad::new();
 
         GameBoy { 
-                cpu,
-                //ppu, 
-                screen,
-                joypad
+                cpu
         }
     }
 
