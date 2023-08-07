@@ -1,3 +1,4 @@
 /target
 *.gb
 *.gbc
+!assets/cpu_instrs.gb
