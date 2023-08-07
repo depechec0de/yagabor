@@ -1,3 +1,8 @@
+use std::path::PathBuf;
+
+use crate::emulation::Emulation;
+use crate::gameboy::GameBoy;
+use crate::gameboy::cartridge;
 use crate::gameboy::cpu::*;
 use crate::gameboy::cpu::Instruction::*;
 use crate::gameboy::cpu::ArithmeticTarget::*;
@@ -5,7 +10,7 @@ use crate::gameboy::{cpu::mmu::MMU, rom::ROM, cartridge::Cartridge};
 
 #[test]
 fn add_without_carry() {
-    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut mmu = MMU::new(ROM::empty(), Cartridge::empty());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b00000001;    
@@ -22,7 +27,7 @@ fn add_without_carry() {
 
 #[test]
 fn add_with_half_carry() {
-    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut mmu = MMU::new(ROM::empty(), Cartridge::empty());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b00001111;
@@ -38,7 +43,7 @@ fn add_with_half_carry() {
 }
 #[test]
 fn add_with_carry() {
-    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut mmu = MMU::new(ROM::empty(), Cartridge::empty());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b11111111;
@@ -55,7 +60,7 @@ fn add_with_carry() {
 
 #[test]
 fn adc_with_carry() {
-    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut mmu = MMU::new(ROM::empty(), Cartridge::empty());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b11111110;
@@ -73,7 +78,7 @@ fn adc_with_carry() {
 
 #[test]
 fn adc_with_half_carry() {
-    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut mmu = MMU::new(ROM::empty(), Cartridge::empty());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b00001110;
@@ -91,7 +96,7 @@ fn adc_with_half_carry() {
 
 #[test]
 fn sub_with_carry() {
-    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut mmu = MMU::new(ROM::empty(), Cartridge::empty());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b00001111;
@@ -108,7 +113,7 @@ fn sub_with_carry() {
 
 #[test]
 fn sub_with_half_carry() {
-    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut mmu = MMU::new(ROM::empty(), Cartridge::empty());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0x1;
@@ -125,7 +130,7 @@ fn sub_with_half_carry() {
 
 #[test]
 fn sbc_with_carry() {
-    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut mmu = MMU::new(ROM::empty(), Cartridge::empty());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b00001111;
@@ -144,7 +149,7 @@ fn sbc_with_carry() {
 
 #[test]
 fn get_af() {
-    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut mmu = MMU::new(ROM::empty(), Cartridge::empty());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b01010101;
@@ -158,7 +163,7 @@ fn get_af() {
 
 #[test]
 fn set_af() {
-    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut mmu = MMU::new(ROM::empty(), Cartridge::empty());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.set_af(0b0101010101010000);
@@ -171,8 +176,28 @@ fn set_af() {
 }
 
 #[test]
+fn stack_push() {
+    let mut mmu = MMU::new(ROM::empty(), Cartridge::empty());
+    let mut cpu = CPU::new(mmu);
+
+    let init_sp = 0x0100;
+    cpu.sp = init_sp;
+
+    let test_value: u16 = 0b0101010101010000;
+
+    cpu.regs.set_bc(test_value);
+
+    cpu.push(crate::gameboy::cpu::instructions::StackTarget::BC);
+
+    assert_eq!(cpu.sp, init_sp-2);
+    println!("{:b} {:b}", cpu.mmu.read_byte(init_sp-1), 0b01010101);
+    assert_eq!(cpu.mmu.read_byte(init_sp-1), 0b01010101);
+    assert_eq!(cpu.mmu.read_byte(init_sp-2), 0b01010000);
+}
+
+#[test]
 fn stack_push_pop() {
-    let mut mmu = MMU::new(ROM::dmg(), Cartridge::empty());
+    let mut mmu = MMU::new(ROM::empty(), Cartridge::empty());
     let mut cpu = CPU::new(mmu);
     cpu.sp = 0xFF;
 
@@ -187,3 +212,16 @@ fn stack_push_pop() {
 
     assert_eq!(cpu.regs.get_hl(), cpu.regs.get_bc());
 }
+
+// #[test]
+// fn cpu_instrs() {
+//     let cartridge = Cartridge::test_cpu_instrs();
+//     let mut gb: GameBoy = GameBoy::new(cartridge);
+
+//     let mut emu = Emulation::new(gb);
+
+//     emu.run();
+    
+//     assert_eq!(cpu.regs.get_hl(), cpu.regs.get_bc());
+// }
+

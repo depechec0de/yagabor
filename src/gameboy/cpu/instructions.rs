@@ -27,6 +27,7 @@ pub(crate) enum Instruction {
     LD(LoadType),
     LDSIG,
     LDSPHL,
+    LDFF(LoadFFType),
     // Control flow instructions
     JP(JumpTest),
     JR(JumpTest),
@@ -40,7 +41,12 @@ pub(crate) enum Instruction {
     POP(StackTarget),
     // Prefix instructions
     RLC(PrefixTarget),
-    BIT(BitTarget, BitSource)
+    BIT(BitTarget, BitSource),
+    RL(IncDecTarget),
+    RLA,
+    RLAC,
+    RRA,
+    RRCA
 }
 
 #[derive(Debug)]
@@ -78,7 +84,7 @@ pub(crate) enum StackTarget {
 }
 
 #[derive(Debug)]
-pub(crate) enum AFromIndirectSource {
+pub(crate) enum LoadIndirectSource {
     BC, DE, HLInc, HLDec
 }
 
@@ -96,8 +102,16 @@ pub(crate) enum LoadByteSource {
 pub(crate) enum LoadType {
     Byte(LoadByteTarget, LoadByteSource),
     Word(WordRegister),
-    AFromIndirect(AFromIndirectSource),
-    IndirectFromA(AFromIndirectSource),
+    AFromIndirect(LoadIndirectSource),
+    IndirectFromA(LoadIndirectSource),
+}
+
+#[derive(Debug)]
+pub(crate) enum LoadFFType {
+    AtoFFC,
+    FFCtoA,
+    FFa8toA,
+    AtoFFa8
 }
 
 #[derive(Debug)]
@@ -129,6 +143,16 @@ impl Instruction {
             0x05 => Some(Instruction::RLC(PrefixTarget::L)),
             0x06 => None, // TODO
             0x07 => Some(Instruction::RLC(PrefixTarget::A)),
+
+            // RL
+            0x10 => Some(Instruction::RL(IncDecTarget::B)),
+            0x11 => Some(Instruction::RL(IncDecTarget::C)),
+            0x12 => Some(Instruction::RL(IncDecTarget::D)),
+            0x13 => Some(Instruction::RL(IncDecTarget::E)),
+            0x14 => Some(Instruction::RL(IncDecTarget::H)),
+            0x15 => Some(Instruction::RL(IncDecTarget::L)),
+            0x16 => Some(Instruction::RL(IncDecTarget::HLI)),
+            0x17 => Some(Instruction::RL(IncDecTarget::A)),
 
             // BIT
             0x40 => Some(Instruction::BIT(BitTarget::Zero, BitSource::B)),
@@ -220,8 +244,8 @@ impl Instruction {
             0xFB => todo!(),
 
             // Rotate instructions
-            0x07 => todo!(),
-            0x17 => todo!(),
+            0x07 => Some(Instruction::RLAC),
+            0x17 => Some(Instruction::RLA),
             0x0F => todo!(),
             0x1F => todo!(),
 
@@ -292,10 +316,10 @@ impl Instruction {
             0xE8 => Some(Instruction::ADDSP8),
             
             // 8-bit load instructions
-            0x02 => Some(Instruction::LD(LoadType::IndirectFromA(AFromIndirectSource::BC))),
-            0x12 => Some(Instruction::LD(LoadType::IndirectFromA(AFromIndirectSource::DE))),
-            0x22 => Some(Instruction::LD(LoadType::IndirectFromA(AFromIndirectSource::HLInc))),
-            0x32 => Some(Instruction::LD(LoadType::IndirectFromA(AFromIndirectSource::HLDec))),
+            0x02 => Some(Instruction::LD(LoadType::IndirectFromA(LoadIndirectSource::BC))),
+            0x12 => Some(Instruction::LD(LoadType::IndirectFromA(LoadIndirectSource::DE))),
+            0x22 => Some(Instruction::LD(LoadType::IndirectFromA(LoadIndirectSource::HLInc))),
+            0x32 => Some(Instruction::LD(LoadType::IndirectFromA(LoadIndirectSource::HLDec))),
             0x40 => Some(Instruction::LD(LoadType::Byte(LoadByteTarget::B, LoadByteSource::B))),
             0x41 => Some(Instruction::LD(LoadType::Byte(LoadByteTarget::B, LoadByteSource::C))),
             0x42 => Some(Instruction::LD(LoadType::Byte(LoadByteTarget::B, LoadByteSource::D))),
@@ -372,14 +396,14 @@ impl Instruction {
             0x2E => Some(Instruction::LD(LoadType::Byte(LoadByteTarget::L, LoadByteSource::D8))),
             0x3E => Some(Instruction::LD(LoadType::Byte(LoadByteTarget::A, LoadByteSource::D8))),
 
-            0x0A => Some(Instruction::LD(LoadType::AFromIndirect(AFromIndirectSource::BC))),
-            0x1A => Some(Instruction::LD(LoadType::AFromIndirect(AFromIndirectSource::DE))),
-            0x2A => Some(Instruction::LD(LoadType::AFromIndirect(AFromIndirectSource::HLInc))),
-            0x3A => Some(Instruction::LD(LoadType::AFromIndirect(AFromIndirectSource::HLDec))),
-            0xE0 => todo!(),
-            0xF0 => todo!(),
-            0xE2 => todo!(),
-            0xF2 => todo!(),
+            0x0A => Some(Instruction::LD(LoadType::AFromIndirect(LoadIndirectSource::BC))),
+            0x1A => Some(Instruction::LD(LoadType::AFromIndirect(LoadIndirectSource::DE))),
+            0x2A => Some(Instruction::LD(LoadType::AFromIndirect(LoadIndirectSource::HLInc))),
+            0x3A => Some(Instruction::LD(LoadType::AFromIndirect(LoadIndirectSource::HLDec))),
+            0xE0 => Some(Instruction::LDFF(LoadFFType::AtoFFa8)),
+            0xF0 => Some(Instruction::LDFF(LoadFFType::FFa8toA)),
+            0xE2 => Some(Instruction::LDFF(LoadFFType::AtoFFC)),
+            0xF2 => Some(Instruction::LDFF(LoadFFType::FFCtoA)),
             0xEA => todo!(),
             0xFA => todo!(),
 

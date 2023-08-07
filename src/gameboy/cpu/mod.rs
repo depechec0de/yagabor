@@ -93,6 +93,7 @@ impl CPU {
             Instruction::LD(load_type) => self.load(load_type),
             Instruction::LDSIG => self.ldsig(),
             Instruction::LDSPHL => self.ldsphl(),
+            Instruction::LDFF(load_type) => self.ldff(load_type),
             Instruction::JP(test) => self.jump(test),
             Instruction::JR(test) => self.jump_relative(test),
             Instruction::JPHL => self.jump_hl(),
@@ -104,6 +105,8 @@ impl CPU {
             Instruction::BIT(target, source) => self.bit(target, source),
             Instruction::RETI => todo!(),
             Instruction::DAA => todo!("daa"), //self.daa(),
+            Instruction::RL(target) => self.rl(target),
+            Instruction::RLA => self.rla(),
             _ => { /* TODO: support more instructions */ self.pc }
         }
     }
@@ -267,76 +270,125 @@ impl CPU {
 
     pub(super) fn load(&mut self, load_type: LoadType) -> ProgramCounter {
         match load_type {
-        LoadType::Byte(target, source) => {
-            let source_value = match source {
-                LoadByteSource::A   => self.regs.a,
-                LoadByteSource::B   => self.regs.b,
-                LoadByteSource::C   => self.regs.c,
-                LoadByteSource::D   => self.regs.d,
-                LoadByteSource::E   => self.regs.e,
-                LoadByteSource::H   => self.regs.h,
-                LoadByteSource::L   => self.regs.l,
-                LoadByteSource::D8  => self.read_next_byte(),
-                LoadByteSource::HLI => self.mmu.read_byte(self.regs.get_hl())
-            };
-            match target {
-                LoadByteTarget::A   => self.regs.a = source_value,
-                LoadByteTarget::B   => self.regs.b = source_value,
-                LoadByteTarget::C   => self.regs.c = source_value,
-                LoadByteTarget::D   => self.regs.d = source_value,
-                LoadByteTarget::E   => self.regs.e = source_value,
-                LoadByteTarget::H   => self.regs.h = source_value,
-                LoadByteTarget::L   => self.regs.l = source_value,
-                LoadByteTarget::HLI => self.mmu.write_byte(self.regs.get_hl(), source_value)
-            };
-            match source {
-                LoadByteSource::D8  => self.pc.wrapping_add(2),
-                _                   => self.pc.wrapping_add(1),
-            }
-        },
-        LoadType::Word(target) => {
-            match target {
-                WordRegister::BC => {
-                    self.regs.set_bc(self.read_next_word());
-                },
-                WordRegister::DE => {
-                    self.regs.set_de(self.read_next_word());
-                },
-                WordRegister::HL => {
-                    self.regs.set_hl(self.read_next_word());
-                },
-                WordRegister::SP => {
-                    self.sp = self.read_next_word();
+            LoadType::Byte(target, source) => {
+                let source_value = match source {
+                    LoadByteSource::A   => self.regs.a,
+                    LoadByteSource::B   => self.regs.b,
+                    LoadByteSource::C   => self.regs.c,
+                    LoadByteSource::D   => self.regs.d,
+                    LoadByteSource::E   => self.regs.e,
+                    LoadByteSource::H   => self.regs.h,
+                    LoadByteSource::L   => self.regs.l,
+                    LoadByteSource::D8  => self.read_next_byte(),
+                    LoadByteSource::HLI => self.mmu.read_byte(self.regs.get_hl())
+                };
+                match target {
+                    LoadByteTarget::A   => self.regs.a = source_value,
+                    LoadByteTarget::B   => self.regs.b = source_value,
+                    LoadByteTarget::C   => self.regs.c = source_value,
+                    LoadByteTarget::D   => self.regs.d = source_value,
+                    LoadByteTarget::E   => self.regs.e = source_value,
+                    LoadByteTarget::H   => self.regs.h = source_value,
+                    LoadByteTarget::L   => self.regs.l = source_value,
+                    LoadByteTarget::HLI => self.mmu.write_byte(self.regs.get_hl(), source_value)
+                };
+                match source {
+                    LoadByteSource::D8  => self.pc.wrapping_add(2),
+                    _                   => self.pc.wrapping_add(1),
                 }
-            }
-            self.pc.wrapping_add(3)
-        },
-        LoadType::IndirectFromA(target) => {
-            match target {
-                AFromIndirectSource::BC => {
-                    let addr = self.regs.get_bc();
-                    self.regs.a = self.mmu.read_byte(addr);
-                },
-                AFromIndirectSource::DE => {
-                    let addr = self.regs.get_de();
-                    self.regs.a = self.mmu.read_byte(addr);
-                },
-                AFromIndirectSource::HLInc => {
-                    let addr = self.regs.get_hl();
-                    self.regs.a = self.mmu.read_byte(addr);
-                    let new_value = self.regs.get_hl().wrapping_add(1);
-                    self.regs.set_hl(new_value);
-                },
-                AFromIndirectSource::HLDec => {
-                    let addr = self.regs.get_hl();
-                    self.regs.a = self.mmu.read_byte(addr);
-                    let new_value = self.regs.get_hl().wrapping_sub(1);
-                    self.regs.set_hl(new_value);
+            },
+            LoadType::Word(target) => {
+                match target {
+                    WordRegister::BC => {
+                        self.regs.set_bc(self.read_next_word());
+                    },
+                    WordRegister::DE => {
+                        self.regs.set_de(self.read_next_word());
+                    },
+                    WordRegister::HL => {
+                        self.regs.set_hl(self.read_next_word());
+                    },
+                    WordRegister::SP => {
+                        self.sp = self.read_next_word();
+                    }
                 }
+                self.pc.wrapping_add(3)
+            },
+            LoadType::AFromIndirect(target) => {
+                match target {
+                    LoadIndirectSource::BC => {
+                        let addr = self.regs.get_bc();
+                        self.regs.a = self.mmu.read_byte(addr);
+                    },
+                    LoadIndirectSource::DE => {
+                        let addr = self.regs.get_de();
+                        self.regs.a = self.mmu.read_byte(addr);
+                    },
+                    LoadIndirectSource::HLInc => {
+                        let addr = self.regs.get_hl();
+                        self.regs.a = self.mmu.read_byte(addr);
+                        let new_value = self.regs.get_hl().wrapping_add(1);
+                        self.regs.set_hl(new_value);
+                    },
+                    LoadIndirectSource::HLDec => {
+                        let addr = self.regs.get_hl();
+                        self.regs.a = self.mmu.read_byte(addr);
+                        let new_value = self.regs.get_hl().wrapping_sub(1);
+                        self.regs.set_hl(new_value);
+                    }
+                }
+                self.pc.wrapping_add(1)
+            },
+            LoadType::IndirectFromA(target) => {
+                match target {
+                    LoadIndirectSource::BC => {
+                        let addr = self.regs.get_bc();
+                        self.mmu.write_byte(addr, self.regs.a);
+                    },
+                    LoadIndirectSource::DE => {
+                        let addr = self.regs.get_de();
+                        self.mmu.write_byte(addr, self.regs.a);
+                    },
+                    LoadIndirectSource::HLInc => {
+                        let addr = self.regs.get_hl();
+                        self.regs.a = self.mmu.read_byte(addr);
+                        let new_value = self.regs.get_hl().wrapping_add(1);
+                        self.regs.set_hl(new_value);
+                    },
+                    LoadIndirectSource::HLDec => {
+                        let addr = self.regs.get_hl();
+                        self.regs.a = self.mmu.read_byte(addr);
+                        let new_value = self.regs.get_hl().wrapping_sub(1);
+                        self.regs.set_hl(new_value);
+                    }
+                }
+                self.pc.wrapping_add(1)
             }
-            self.pc.wrapping_add(1)
-        },
-        _ => { todo!("todo") }
+        }
+    }
+    
+    pub(super) fn ldff(&mut self, load_type: LoadFFType) -> ProgramCounter {
+        match load_type {
+            LoadFFType::AtoFFC => { 
+                let addr: u16 = 0xFF00 + self.regs.c as u16;        
+                self.mmu.write_byte(addr, self.regs.a);
+                self.pc.wrapping_add(1)
+            },
+            LoadFFType::FFCtoA => {
+                let addr: u16 = 0xFF00 + self.regs.c as u16;        
+                self.regs.a = self.mmu.read_byte(addr);
+                self.pc.wrapping_add(1)
+            },
+            LoadFFType::AtoFFa8 => {
+                let addr: u16 = 0xFF00 + self.read_next_byte() as u16;        
+                self.mmu.write_byte(addr, self.regs.a);
+                self.pc.wrapping_add(2)
+            },
+            LoadFFType::FFa8toA => {
+                let addr: u16 = 0xFF00 + self.read_next_byte() as u16;        
+                self.regs.a = self.mmu.read_byte(addr);
+                self.pc.wrapping_add(2)
+            }
         }
     }
 
@@ -618,6 +670,64 @@ impl CPU {
             ArithmeticTarget::HLI   => self.mmu.read_byte(self.regs.get_hl()),
             ArithmeticTarget::D8    => self.read_next_byte()
         }
+    }
+
+    pub(super) fn rla(&mut self) -> ProgramCounter {
+        self.regs.flags.zero = false;
+        self.regs.flags.subtract = false;
+        self.regs.flags.half_carry = false;
+
+        self.shift_left_register(&IncDecTarget::A);
+
+        self.pc.wrapping_add(1)
+    }
+
+    pub(super) fn rl(&mut self, target: IncDecTarget) -> ProgramCounter {
+        self.regs.flags.subtract = false;
+        self.regs.flags.half_carry = false;
+
+        self.shift_left_register(&target);
+
+        match target {
+            IncDecTarget::A => { self.regs.flags.zero = self.regs.a == 0; },
+            IncDecTarget::B => { self.regs.flags.zero = self.regs.b == 0; },
+            IncDecTarget::C => { self.regs.flags.zero = self.regs.c == 0; },
+            IncDecTarget::D => { self.regs.flags.zero = self.regs.d == 0; },
+            IncDecTarget::E => { self.regs.flags.zero = self.regs.e == 0; },
+            IncDecTarget::H => { self.regs.flags.zero = self.regs.h == 0; },
+            IncDecTarget::L => { self.regs.flags.zero = self.regs.l == 0; },
+            IncDecTarget::HLI => { self.regs.flags.zero = self.mmu.read_byte(self.regs.get_hl()) == 0; }
+        };
+        self.pc.wrapping_add(2)
+    }
+
+    fn shift_left_register(&mut self, target: &IncDecTarget) {
+        let old_carry = self.regs.flags.carry;
+
+        match target {
+            IncDecTarget::A => self.regs.flags.carry = get_bit_val(7,self.regs.a),
+            IncDecTarget::B => self.regs.flags.carry = get_bit_val(7,self.regs.b),
+            IncDecTarget::C => self.regs.flags.carry = get_bit_val(7,self.regs.c),
+            IncDecTarget::D => self.regs.flags.carry = get_bit_val(7,self.regs.d),
+            IncDecTarget::E => self.regs.flags.carry = get_bit_val(7,self.regs.e),
+            IncDecTarget::H   => self.regs.flags.carry = get_bit_val(7,self.regs.h),
+            IncDecTarget::L   => self.regs.flags.carry = get_bit_val(7,self.regs.l),
+            IncDecTarget::HLI => self.regs.flags.carry = get_bit_val(7,self.mmu.read_byte(self.regs.get_hl()))
+        };
+
+        match target {
+            IncDecTarget::A => { self.regs.a = (self.regs.a << 1) + old_carry as u8; },
+            IncDecTarget::B => { self.regs.b = (self.regs.b << 1) + old_carry as u8; },
+            IncDecTarget::C => { self.regs.c = (self.regs.c << 1) + old_carry as u8; },
+            IncDecTarget::D => { self.regs.d = (self.regs.d << 1) + old_carry as u8; },
+            IncDecTarget::E => { self.regs.e = (self.regs.e << 1) + old_carry as u8; },
+            IncDecTarget::H => { self.regs.h = (self.regs.h << 1) + old_carry as u8; },
+            IncDecTarget::L => { self.regs.l = (self.regs.l << 1) + old_carry as u8; },
+            IncDecTarget::HLI => {
+                let new_val = (self.mmu.read_byte(self.regs.get_hl()) << 1) + old_carry as u8;
+                self.mmu.write_byte(self.regs.get_hl(), new_val);
+            }
+        };
     }
 
 }

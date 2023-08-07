@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use crate::gameboy::{ppu::*, rom::*, cartridge::Cartridge};
 
 const MEM_SIZE: usize = 0xFFFF;

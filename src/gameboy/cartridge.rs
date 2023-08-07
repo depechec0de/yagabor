@@ -21,17 +21,11 @@ pub struct Cartridge {
 
 impl Cartridge {
     pub fn new(file: PathBuf) -> Result<Cartridge, std::io::Error> {
-        let buffer = std::fs::read(file)?;
+        let data = std::fs::read(file)?;       
+        let title = parse_title(&data);
 
-        let start = TITLE_START_ADDR;
-        let end = TITLE_END_ADDR;
-
-        let t = std::str::from_utf8(&buffer[start..end])
-                          .expect("invalid utf-8 sequence")
-                          .to_string();
-
-        Ok(Cartridge { data: buffer, title: t })
-    }
+        Ok(Cartridge { data, title })
+    }   
 
     pub fn empty() -> Cartridge {
         Cartridge { data: Vec::new(), title: "empty".to_string() }
@@ -44,4 +38,21 @@ impl Cartridge {
     pub fn read_byte(&self, address: usize) -> u8 {
         self.data[address]
     }
+
+    pub fn test_cpu_instrs() -> Cartridge {
+        let buffer = include_bytes!("../../assets/cpu_instrs.gb");
+        let data = buffer.to_vec();
+        let title = parse_title(&data);
+    
+        Cartridge{ data, title }
+    }
+}
+
+fn parse_title(buffer: &Vec<u8>) -> String {
+    let start = TITLE_START_ADDR;
+    let end = TITLE_END_ADDR;
+
+    std::str::from_utf8(&buffer[start..end])
+              .expect("invalid utf-8 sequence")
+              .to_string()
 }
