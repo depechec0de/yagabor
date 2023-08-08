@@ -1,5 +1,10 @@
 use std::path::PathBuf;
 
+const HEADER_BEGIN: usize = 0x0100;
+const HEADER_END: usize = 0x014F;
+
+const CARTRIDGE_SIZE: usize = HEADER_END+1;
+
 const ENTRY_START_ADDR: usize = 0x0100;
 const ENTRY_END_ADDR: usize = 0x0103;
 const ENTRY_SIZE: usize = ENTRY_END_ADDR-ENTRY_START_ADDR;
@@ -28,7 +33,7 @@ impl Cartridge {
     }   
 
     pub fn empty() -> Cartridge {
-        Cartridge { data: Vec::new(), title: "empty".to_string() }
+        Cartridge { data: vec![0; CARTRIDGE_SIZE], title: "empty".to_string() }
     }
 
     pub fn title(&self) -> String {

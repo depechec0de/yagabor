@@ -149,7 +149,7 @@ impl CPU {
      
         if should_jump {
             let offset: i8 = self.read_next_byte() as i8;
-            self.pc.wrapping_add(2 + offset as u16)
+            self.pc.wrapping_add(2i8.wrapping_add(offset) as u16)
         } else {
             // If we don't jump we need to still move the program
             // counter forward by 2 since the jump instruction is

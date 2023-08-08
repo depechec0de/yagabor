@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 pub(super) const BOOT_BEGIN: u16 = 0x0000;
 pub(super) const BOOT_END: u16 = 0x00FF;
-pub(super) const BOOT_SIZE: usize = (BOOT_END - BOOT_BEGIN) as usize;
+pub(super) const BOOT_SIZE: usize = (BOOT_END - BOOT_BEGIN + 1) as usize;
 
 // 16-bit address ROM
 pub struct ROM {
