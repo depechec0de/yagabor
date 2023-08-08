@@ -8,7 +8,6 @@ use self::{mmu::MMU, instructions::*};
 
 pub(super) type ProgramCounter = u16;
 pub(super) type StackPointer = u16;
-pub(super) type Address = u16;
 
 pub(crate) struct CPU{
     regs: Registers,
@@ -57,19 +56,30 @@ impl CPU {
         }
 
         let next_pc = if let Some(instruction) = Instruction::from_byte(instruction_byte, prefixed) {
-            println!("0x{:x} {:?} => {:?}", instruction_byte, instruction, self.regs);
+
+            // For debug
+            let full_instruction_byte = match instruction.bytes_length() {
+                1 => "".to_string(),
+                2 => match prefixed { false => format!("{:x}", self.read_next_byte()), true => "".to_string() },
+                3 => format!("{:x}", self.read_next_word()),
+                _ => format!("{:x}", self.read_next_word()),
+            };
+            println!("{:<14} | {:<30} | {:?}", format!("0x{:x} {:?}", instruction_byte, full_instruction_byte), format!("{:?}",instruction), self.regs);
+
             self.execute(instruction)
+
         } else {
             let description = format!("0x{}{:x}", if prefixed { "cb" } else { "" }, instruction_byte);
             panic!("Unkown instruction found for: {}", description)
         };
-
-        println!("Next pc {}", next_pc);
         self.pc = next_pc;
     }
 
     // Returns the next PC to execute
     fn execute(&mut self, instruction: Instruction) -> ProgramCounter {
+        let mut jump_pc : Option<ProgramCounter> = None;
+        let bytes_length = instruction.bytes_length();
+
         match instruction {
             Instruction::NOP => self.nop(),
             Instruction::HALT => self.halt(),
@@ -94,21 +104,27 @@ impl CPU {
             Instruction::LDSIG => self.ldsig(),
             Instruction::LDSPHL => self.ldsphl(),
             Instruction::LDFF(load_type) => self.ldff(load_type),
-            Instruction::JP(test) => self.jump(test),
-            Instruction::JR(test) => self.jump_relative(test),
-            Instruction::JPHL => self.jump_hl(),
+            Instruction::JP(test) => jump_pc = Some(self.jump(test)),
+            Instruction::JR(test) => jump_pc = Some(self.jump_relative(test)),
+            Instruction::JPHL => jump_pc = Some(self.jump_hl()),
             Instruction::PUSH(target) => self.push(target),
             Instruction::POP(target) => self.pop(target),
-            Instruction::CALL(test) => self.call(test),
-            Instruction::RET(test) => self.ret(test),
+            Instruction::CALL(test) => jump_pc = Some(self.call(test)),
+            Instruction::RET(test) => jump_pc = Some(self.ret(test)),
             Instruction::RST(target) => todo!(),
             Instruction::BIT(target, source) => self.bit(target, source),
             Instruction::RETI => todo!(),
             Instruction::DAA => todo!("daa"), //self.daa(),
             Instruction::RL(target) => self.rl(target),
             Instruction::RLA => self.rla(),
-            _ => { /* TODO: support more instructions */ self.pc }
+            _ => { todo!("Unsupported instruction") }
         }
+
+        match jump_pc {
+            None => self.pc.wrapping_add(bytes_length as u16),
+            Some(jpc) => jpc
+        }
+        
     }
 
     fn jump(&self, test: JumpTest) -> ProgramCounter {
@@ -157,32 +173,28 @@ impl CPU {
         }
     }
 
-    fn nop(&self) -> ProgramCounter {
-        self.pc.wrapping_add(1)
+    fn nop(&self) {
     }
 
-    fn scf(&mut self) -> ProgramCounter {
+    fn scf(&mut self) {
         self.regs.flags.carry = true;
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
-        self.pc.wrapping_add(1)
     }
 
-    fn cpl(&mut self) -> ProgramCounter {
+    fn cpl(&mut self) {
         self.regs.a = !self.regs.a; 
         self.regs.flags.subtract = true;
         self.regs.flags.half_carry = true;
-        self.pc.wrapping_add(1)
     }
 
-    fn ccf(&mut self) -> ProgramCounter {
+    fn ccf(&mut self) {
         self.regs.flags.carry = !self.regs.flags.carry;
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
-        self.pc.wrapping_add(1)
     }
 
-    fn daa(&self) -> ProgramCounter {
+    fn daa(&self) {
         // https://ehaskins.com/2018-01-30%20Z80%20DAA/
         // let correction = 0;
       
@@ -206,13 +218,10 @@ impl CPU {
         // regF |= setFlagC | setFlagZ;
       
         // return { output, carry, zero };
-
-        self.pc.wrapping_add(1)
     }
 
-    fn halt(&mut self) -> ProgramCounter {
+    fn halt(&mut self) {
         self.is_halted = true;
-        self.pc.wrapping_add(1)
     }
 
     fn call(&mut self, test: JumpTest) -> ProgramCounter {
@@ -232,7 +241,7 @@ impl CPU {
         self.return_(jump_condition)
     }
 
-    fn return_(&mut self, should_jump: bool) -> u16 {
+    fn return_(&mut self, should_jump: bool) -> ProgramCounter {
         if should_jump {
             self.pop_value()
         } else {
@@ -240,7 +249,7 @@ impl CPU {
         }
     }
 
-    fn ldsig(&mut self) -> ProgramCounter {
+    fn ldsig(&mut self) {
         let value: i16 = self.read_next_byte() as i16;
         let (new_value, did_overflow) = self.sp.overflowing_add_signed(value);
 
@@ -252,12 +261,11 @@ impl CPU {
 
         self.regs.set_hl(new_value);
 
-        self.pc.wrapping_add(2)
+        
     }
 
-    fn ldsphl(&mut self) -> ProgramCounter {
+    fn ldsphl(&mut self) {
         self.sp = self.regs.get_hl();
-        self.pc.wrapping_add(1)
     }
 
     pub(super) fn read_next_byte(&self) -> u8 {
@@ -268,7 +276,7 @@ impl CPU {
         ((self.mmu.read_byte(self.pc+2) as u16) << 8) | self.mmu.read_byte(self.pc+1) as u16
     }
 
-    pub(super) fn load(&mut self, load_type: LoadType) -> ProgramCounter {
+    pub(super) fn load(&mut self, load_type: LoadType) {
         match load_type {
             LoadType::Byte(target, source) => {
                 let source_value = match source {
@@ -292,10 +300,7 @@ impl CPU {
                     LoadByteTarget::L   => self.regs.l = source_value,
                     LoadByteTarget::HLI => self.mmu.write_byte(self.regs.get_hl(), source_value)
                 };
-                match source {
-                    LoadByteSource::D8  => self.pc.wrapping_add(2),
-                    _                   => self.pc.wrapping_add(1),
-                }
+
             },
             LoadType::Word(target) => {
                 match target {
@@ -312,7 +317,6 @@ impl CPU {
                         self.sp = self.read_next_word();
                     }
                 }
-                self.pc.wrapping_add(3)
             },
             LoadType::AFromIndirect(target) => {
                 match target {
@@ -337,7 +341,6 @@ impl CPU {
                         self.regs.set_hl(new_value);
                     }
                 }
-                self.pc.wrapping_add(1)
             },
             LoadType::IndirectFromA(target) => {
                 match target {
@@ -351,56 +354,49 @@ impl CPU {
                     },
                     LoadIndirectSource::HLInc => {
                         let addr = self.regs.get_hl();
-                        self.regs.a = self.mmu.read_byte(addr);
+                        self.mmu.write_byte(addr, self.regs.a);
                         let new_value = self.regs.get_hl().wrapping_add(1);
                         self.regs.set_hl(new_value);
                     },
                     LoadIndirectSource::HLDec => {
                         let addr = self.regs.get_hl();
-                        self.regs.a = self.mmu.read_byte(addr);
+                        self.mmu.write_byte(addr, self.regs.a);
                         let new_value = self.regs.get_hl().wrapping_sub(1);
                         self.regs.set_hl(new_value);
                     }
                 }
-                self.pc.wrapping_add(1)
             },
             LoadType::AFromDirect => {
                 self.regs.a = self.mmu.read_byte(self.read_next_word());
-                self.pc.wrapping_add(3)
             },
             LoadType::DirectFromA => {
                 self.mmu.write_byte(self.read_next_word(), self.regs.a);
-                self.pc.wrapping_add(3)
             }
         }
     }
     
-    pub(super) fn ldff(&mut self, load_type: LoadFFType) -> ProgramCounter {
+    pub(super) fn ldff(&mut self, load_type: LoadFFType) {
         match load_type {
             LoadFFType::AtoFFC => { 
                 let addr: u16 = 0xFF00 + self.regs.c as u16;        
                 self.mmu.write_byte(addr, self.regs.a);
-                self.pc.wrapping_add(1)
             },
             LoadFFType::FFCtoA => {
                 let addr: u16 = 0xFF00 + self.regs.c as u16;        
                 self.regs.a = self.mmu.read_byte(addr);
-                self.pc.wrapping_add(1)
             },
             LoadFFType::AtoFFa8 => {
                 let addr: u16 = 0xFF00 + self.read_next_byte() as u16;        
                 self.mmu.write_byte(addr, self.regs.a);
-                self.pc.wrapping_add(2)
             },
             LoadFFType::FFa8toA => {
                 let addr: u16 = 0xFF00 + self.read_next_byte() as u16;        
                 self.regs.a = self.mmu.read_byte(addr);
-                self.pc.wrapping_add(2)
             }
         }
     }
 
-    pub(super) fn push(&mut self, target: StackTarget) -> ProgramCounter {
+    pub(super) fn push(&mut self, target: StackTarget) {
         let value = match target {
             StackTarget::BC => self.regs.get_bc(),
             StackTarget::DE => self.regs.get_de(),
@@ -408,10 +404,9 @@ impl CPU {
             StackTarget::AF => self.regs.get_af(),
         };
         self.push_value(value);
-        self.pc.wrapping_add(1)
     }
 
-    pub(super) fn pop(&mut self, target: StackTarget) -> ProgramCounter {
+    pub(super) fn pop(&mut self, target: StackTarget) {
         let result = self.pop_value();
         match target {
             StackTarget::BC => self.regs.set_bc(result),
@@ -419,7 +414,6 @@ impl CPU {
             StackTarget::HL => self.regs.set_hl(result),
             StackTarget::AF => self.regs.set_af(result),
         };
-        self.pc.wrapping_add(1)
     }
 
     pub(super) fn push_value(&mut self, value: u16) {
@@ -439,7 +433,7 @@ impl CPU {
         (msb << 8) | lsb
     }
 
-    pub(super) fn add(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+    pub(super) fn add(&mut self, target: ArithmeticTarget) {
         let value = self.get_arithmetic_target_val(&target);
 
         let (new_value, did_overflow) = self.regs.a.overflowing_add(value);
@@ -451,11 +445,9 @@ impl CPU {
         // than the addition caused a carry from the lower nibble to the upper nibble.
         self.regs.flags.half_carry = (self.regs.a & 0xF) + (value & 0xF) > 0xF;
         self.regs.a = new_value;
-
-        self.arithmetic_pc_increment(&target)
     }
 
-    pub(super) fn addsp8(&mut self) -> ProgramCounter {
+    pub(super) fn addsp8(&mut self) {
         let value = self.read_next_byte() as u16;
 
         let (new_value, did_overflow) = self.sp.overflowing_add(value);
@@ -464,11 +456,9 @@ impl CPU {
         self.regs.flags.carry = did_overflow;
         self.regs.flags.half_carry = (self.sp & 0xF) + (value & 0xF) > 0xF;
         self.sp = new_value;
-
-        self.pc.wrapping_add(2)
     }
 
-    pub(super) fn add16(&mut self, target: WordRegister) -> ProgramCounter {
+    pub(super) fn add16(&mut self, target: WordRegister) {
         let value = match target {
             WordRegister::BC => self.regs.get_bc(),
             WordRegister::DE => self.regs.get_de(),
@@ -481,11 +471,9 @@ impl CPU {
         self.regs.flags.carry = did_overflow;
         self.regs.flags.half_carry = (self.regs.get_hl() & 0xF) + (value & 0xF) > 0xF;
         self.regs.set_hl(new_value);
-
-        self.pc.wrapping_add(1)
     }
 
-    pub(super) fn adc(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+    pub(super) fn adc(&mut self, target: ArithmeticTarget) {
         let value = self.get_arithmetic_target_val(&target);
 
         let (new_value1, did_overflow1) = self.regs.a.overflowing_add(value);
@@ -497,11 +485,9 @@ impl CPU {
         self.regs.flags.half_carry = ((self.regs.a & 0xF) + (value & 0xF) > 0xF) || ((new_value1 & 0xF) + (self.regs.flags.carry as u8) > 0xF);
         self.regs.flags.carry = did_overflow1 || did_overflow2;      
         self.regs.a = new_value2;
-
-        self.arithmetic_pc_increment(&target)
     }
 
-    pub(super) fn sub(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+    pub(super) fn sub(&mut self, target: ArithmeticTarget) {
         let value = self.get_arithmetic_target_val(&target);
 
         let (new_value, did_overflow) = self.regs.a.overflowing_sub(value);
@@ -511,11 +497,9 @@ impl CPU {
         let (new_value_low, _) = (self.regs.a & 0xF).overflowing_sub(value & 0xF);
         self.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
         self.regs.a = new_value;
-
-        self.arithmetic_pc_increment(&target)
     }
 
-    pub(super) fn sbc(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+    pub(super) fn sbc(&mut self, target: ArithmeticTarget) {
         let value = self.get_arithmetic_target_val(&target);
 
         let (new_value1, did_overflow1) = self.regs.a.overflowing_sub(self.regs.flags.carry as u8);
@@ -527,11 +511,9 @@ impl CPU {
         let (new_value_low, _) = (new_value2 & 0xF).overflowing_sub(value & 0xF);
         self.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
         self.regs.a = new_value2;
-
-        self.arithmetic_pc_increment(&target)
     }
 
-    pub(super) fn and(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+    pub(super) fn and(&mut self, target: ArithmeticTarget) {
         let value = self.get_arithmetic_target_val(&target);
 
         self.regs.a = self.regs.a & value;
@@ -539,11 +521,9 @@ impl CPU {
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = true;
         self.regs.flags.carry = false;
-
-        self.arithmetic_pc_increment(&target)
     }
 
-    pub(super) fn xor(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+    pub(super) fn xor(&mut self, target: ArithmeticTarget) {
         let value = self.get_arithmetic_target_val(&target);
 
         self.regs.a = self.regs.a ^ value;
@@ -552,10 +532,9 @@ impl CPU {
         self.regs.flags.half_carry = false;
         self.regs.flags.carry = false;
 
-        self.arithmetic_pc_increment(&target)
     }
 
-    pub(super) fn or(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+    pub(super) fn or(&mut self, target: ArithmeticTarget) {
         let value = self.get_arithmetic_target_val(&target);
 
         self.regs.a = self.regs.a | value;
@@ -563,11 +542,9 @@ impl CPU {
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
         self.regs.flags.carry = false;
-
-        self.arithmetic_pc_increment(&target)
     }
 
-    pub(super) fn cp(&mut self, target: ArithmeticTarget) -> ProgramCounter {
+    pub(super) fn cp(&mut self, target: ArithmeticTarget) {
         let value = self.get_arithmetic_target_val(&target);
 
         let (result, did_overflow) = self.regs.a.overflowing_sub(value);
@@ -577,10 +554,9 @@ impl CPU {
         self.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
         self.regs.flags.carry = did_overflow;
 
-        self.arithmetic_pc_increment(&target)
     }
 
-    pub(super) fn inc(&mut self, target: IncDecTarget) -> ProgramCounter {
+    pub(super) fn inc(&mut self, target: IncDecTarget) {
         self.regs.flags.subtract = false;
 
         match target {
@@ -627,11 +603,9 @@ impl CPU {
                 self.mmu.write_byte(self.regs.get_hl(), new_val);
             }
         };
-
-        self.pc.wrapping_add(1)
     }
 
-    pub(super) fn dec(&mut self, target: IncDecTarget) -> ProgramCounter {
+    pub(super) fn dec(&mut self, target: IncDecTarget) {
         self.regs.flags.subtract = true;
 
         match target {
@@ -678,38 +652,32 @@ impl CPU {
                 self.mmu.write_byte(self.regs.get_hl(), new_val);
             }
         };
-
-        self.pc.wrapping_add(1)
     }
 
-    pub(super) fn inc16(&mut self, target: WordRegister) -> ProgramCounter {
+    pub(super) fn inc16(&mut self, target: WordRegister) {
         let value = match target {
             WordRegister::BC => self.regs.set_bc(self.regs.get_bc().wrapping_add(1)),
             WordRegister::DE => self.regs.set_de(self.regs.get_de().wrapping_add(1)),
             WordRegister::HL => self.regs.set_hl(self.regs.get_hl().wrapping_add(1)),
             WordRegister::SP => self.sp = self.sp.wrapping_add(1),
         };
-        self.pc.wrapping_add(1)
     }
 
-    pub(super) fn dec16(&mut self, target: WordRegister) -> ProgramCounter {
+    pub(super) fn dec16(&mut self, target: WordRegister) {
         let value = match target {
             WordRegister::BC => self.regs.set_bc(self.regs.get_bc().wrapping_sub(1)),
             WordRegister::DE => self.regs.set_de(self.regs.get_de().wrapping_sub(1)),
             WordRegister::HL => self.regs.set_hl(self.regs.get_hl().wrapping_sub(1)),
             WordRegister::SP => self.sp = self.sp.wrapping_sub(1),
         };
-        self.pc.wrapping_add(1)
     }
 
-    pub(super) fn bit(&mut self, target:BitTarget, source: BitSource) -> ProgramCounter {
+    pub(super) fn bit(&mut self, target:BitTarget, source: BitSource) {
         let i = get_position_by_bittarget(target);
         let value = self.get_bitsource_val(source);
         let bit_value = get_bit_val(i, value);
 
         self.regs.flags.zero = !bit_value;
-
-        self.pc.wrapping_add(2)
     }
 
     fn get_bitsource_val(&self, source: BitSource) -> u8 {
@@ -723,14 +691,6 @@ impl CPU {
             BitSource::L => self.regs.l,
             BitSource::HLI => self.mmu.read_byte(self.regs.get_hl()),
         }
-    }
-    
-    fn arithmetic_pc_increment(&self, target: &ArithmeticTarget) -> ProgramCounter {
-        let is_d8: ProgramCounter = match target {
-            ArithmeticTarget::D8 => 1,
-            _ => 0
-        }; 
-        self.pc.wrapping_add(1+is_d8)
     }
 
     fn get_arithmetic_target_val(&self, target: &ArithmeticTarget) -> u8 {
@@ -747,17 +707,15 @@ impl CPU {
         }
     }
 
-    pub(super) fn rla(&mut self) -> ProgramCounter {
+    pub(super) fn rla(&mut self) {
         self.regs.flags.zero = false;
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
 
         self.shift_left_register(&IncDecTarget::A);
-
-        self.pc.wrapping_add(1)
     }
 
-    pub(super) fn rl(&mut self, target: IncDecTarget) -> ProgramCounter {
+    pub(super) fn rl(&mut self, target: IncDecTarget) {
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
 
@@ -773,7 +731,7 @@ impl CPU {
             IncDecTarget::L => { self.regs.flags.zero = self.regs.l == 0; },
             IncDecTarget::HLI => { self.regs.flags.zero = self.mmu.read_byte(self.regs.get_hl()) == 0; }
         };
-        self.pc.wrapping_add(2)
+        
     }
 
     fn shift_left_register(&mut self, target: &IncDecTarget) {

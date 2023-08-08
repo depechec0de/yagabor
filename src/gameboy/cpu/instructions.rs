@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum Instruction {
     NOP,
     HALT,
@@ -49,7 +49,7 @@ pub(crate) enum Instruction {
     RRCA
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum JumpTest {
     NotZero,
     Zero,
@@ -63,42 +63,42 @@ pub(crate) enum ArithmeticTarget {
     A, B, C, D, E, H, L, HLI, D8
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum IncDecTarget {
     A, B, C, D, E, H, L, HLI
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum PrefixTarget {
     A, B, C, D, E, H, L,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum WordRegister {
     BC, DE, HL, SP
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum StackTarget {
     BC, DE, HL, AF
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum LoadIndirectSource {
     BC, DE, HLInc, HLDec
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum LoadByteTarget {
     A, B, C, D, E, H, L, HLI
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum LoadByteSource {
     A, B, C, D, E, H, L, D8, HLI
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum LoadType {
     Byte(LoadByteTarget, LoadByteSource),
     Word(WordRegister),
@@ -108,7 +108,7 @@ pub(crate) enum LoadType {
     DirectFromA,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum LoadFFType {
     AtoFFC,
     FFCtoA,
@@ -116,12 +116,12 @@ pub(crate) enum LoadFFType {
     AtoFFa8
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum  BitSource {
     A, B, C, D, E, H, L, HLI
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum BitTarget {
     Zero, One, Two, Three, Four, Five, Six, Seven
 }
@@ -132,6 +132,67 @@ impl Instruction {
             Instruction::from_byte_prefixed(byte)
         } else {
             Instruction::from_byte_not_prefixed(byte)
+        }
+    }
+
+    pub(crate) fn bytes_length(&self) -> usize {
+        match self {
+            Instruction::NOP => 1,
+            Instruction::HALT => 1,
+            Instruction::STOP => 2,
+            Instruction::SCF => 1,
+            Instruction::CCF => 1,
+            Instruction::CPL => 1,
+            Instruction::ADD(atarget) => match atarget { ArithmeticTarget::D8 => 2, _ => 1 },
+            Instruction::ADC(atarget) => match atarget { ArithmeticTarget::D8 => 2, _ => 1 },
+            Instruction::INC(_) => 1,
+            Instruction::DEC(_) => 1,
+            Instruction::ADD16(_) => 1,
+            Instruction::INC16(_) => 1,
+            Instruction::DEC16(_) => 1,
+            Instruction::ADDSP8 => 2,
+            Instruction::SUB(atarget) => match atarget { ArithmeticTarget::D8 => 2, _ => 1 },
+            Instruction::SBC(atarget) => match atarget { ArithmeticTarget::D8 => 2, _ => 1 },
+            Instruction::AND(atarget) => match atarget { ArithmeticTarget::D8 => 2, _ => 1 },
+            Instruction::XOR(atarget) => match atarget { ArithmeticTarget::D8 => 2, _ => 1 },
+            Instruction::OR(atarget) => match atarget { ArithmeticTarget::D8 => 2, _ => 1 },
+            Instruction::CP(atarget) => match atarget { ArithmeticTarget::D8 => 2, _ => 1 },
+            Instruction::LD(load_type) => match load_type {
+                                                        LoadType::AFromDirect => 3,
+                                                        LoadType::DirectFromA => 3,
+                                                        LoadType::Byte(_, source) => match source {
+                                                                                                            LoadByteSource::D8 => 2,
+                                                                                                            _ => 1
+                                                                                                      },
+                                                        LoadType::Word(_) => 3,
+                                                        LoadType::AFromIndirect(_) => 1,
+                                                        LoadType::IndirectFromA(_) => 1,
+                                                    },
+            Instruction::LDSIG => 2,
+            Instruction::LDSPHL => 1,
+            Instruction::LDFF(load_type) => match load_type {
+                                                            LoadFFType::AtoFFa8 => 2,
+                                                            LoadFFType::FFa8toA => 2,
+                                                            LoadFFType::AtoFFC => 1,
+                                                            LoadFFType::FFCtoA => 1,
+                                                        },
+            Instruction::JP(_) => 3,
+            Instruction::JR(_) => 2,
+            Instruction::JPHL => 1,
+            Instruction::PUSH(_) => 1,
+            Instruction::POP(_) => 1,
+            Instruction::CALL(_) => 3,
+            Instruction::RET(_) => 1,
+            Instruction::RST(_) => 1,
+            Instruction::BIT(_, _) => 2,
+            Instruction::RETI => 1,
+            Instruction::DAA => 1,
+            Instruction::RL(_) => 2,
+            Instruction::RLA => 1,
+            Instruction::RLC(_) => 2,
+            Instruction::RLAC => 1,
+            Instruction::RRA => 1,
+            Instruction::RRCA => 1,
         }
     }
 

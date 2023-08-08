@@ -100,7 +100,11 @@ impl MMU {
     }
 
     fn read_io(&self, address: u16) -> u8 {
-        self.io[address as usize - IO_BEGIN as usize]
+        match address {
+            0xFF44 => 0x90,
+            _ => self.io[address as usize - IO_BEGIN as usize]
+        }
+        
     }
 
     fn read_hram(&self, address: u16) -> u8 {
