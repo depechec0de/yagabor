@@ -4,7 +4,7 @@ use crate::emulation::Emulation;
 use crate::gameboy::GameBoy;
 use crate::gameboy::cartridge;
 use crate::gameboy::cpu::*;
-use crate::gameboy::cpu::Instruction::*;
+use crate::gameboy::cpu::InstructionType;
 use crate::gameboy::cpu::ArithmeticTarget::*;
 use crate::gameboy::{cpu::mmu::MMU, rom::ROM, cartridge::Cartridge};
 
@@ -16,7 +16,10 @@ fn add_without_carry() {
     cpu.regs.a = 0b00000001;    
     cpu.regs.b = 0b00000001;
 
-    cpu.execute(ADD(B));
+    // ADD A, B
+    let inst = cpu.parse_instruction(0x80).unwrap();
+
+    cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b00000010);
     assert_eq!(cpu.regs.flags.subtract, false);
@@ -33,7 +36,10 @@ fn add_with_half_carry() {
     cpu.regs.a = 0b00001111;
     cpu.regs.b = 0b00000001;
 
-    cpu.execute(ADD(B));
+    // ADD A, B
+    let inst = cpu.parse_instruction(0x80).unwrap();
+
+    cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b00010000);
     assert_eq!(cpu.regs.flags.subtract, false);
@@ -49,7 +55,10 @@ fn add_with_carry() {
     cpu.regs.a = 0b11111111;
     cpu.regs.b = 0b1;
 
-    cpu.execute(ADD(B));
+    // ADD A, B
+    let inst = cpu.parse_instruction(0x80).unwrap();
+
+    cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b0);
     assert_eq!(cpu.regs.flags.subtract, false);
@@ -67,7 +76,10 @@ fn adc_with_carry() {
     cpu.regs.b = 0b1;
     cpu.regs.flags.carry = true;
 
-    cpu.execute(ADC(B));
+    // ADC A, B
+    let inst = cpu.parse_instruction(0x88).unwrap();
+
+    cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b0);
     assert_eq!(cpu.regs.flags.subtract, false);
@@ -85,7 +97,10 @@ fn adc_with_half_carry() {
     cpu.regs.b = 0b00000001;
     cpu.regs.flags.carry = true;
 
-    cpu.execute(ADC(B));
+    // ADC A, B
+    let inst = cpu.parse_instruction(0x88).unwrap();
+
+    cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b00010000);
     assert_eq!(cpu.regs.flags.subtract, false);
@@ -102,7 +117,10 @@ fn sub_with_carry() {
     cpu.regs.a = 0b00001111;
     cpu.regs.b = 0b10000000;
 
-    cpu.execute(SUB(B));
+    // SUB B
+    let inst = cpu.parse_instruction(0x90).unwrap();
+
+    cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b10001111);
     assert_eq!(cpu.regs.flags.subtract, true);
@@ -119,7 +137,10 @@ fn sub_with_half_carry() {
     cpu.regs.a = 0x1;
     cpu.regs.b = 0xF;
 
-    cpu.execute(SUB(B));
+    // SUB B
+    let inst = cpu.parse_instruction(0x90).unwrap();
+
+    cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0xF2);
     assert_eq!(cpu.regs.flags.subtract, true);
@@ -138,7 +159,10 @@ fn sbc_with_carry() {
 
     cpu.regs.flags.carry = true;
 
-    cpu.execute(SBC(B));
+    // SBC B
+    let inst = cpu.parse_instruction(0x98).unwrap();
+
+    cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b10001111);
     assert_eq!(cpu.regs.flags.subtract, true);
