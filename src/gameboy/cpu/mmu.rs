@@ -1,5 +1,7 @@
 use crate::gameboy::{ppu::*, rom::*, cartridge::Cartridge};
 
+use super::{io::*, Address};
+
 const MEM_SIZE: usize = 0xFFFF;
 
 const ROM_BEGIN: u16 = 0x0000;
@@ -23,10 +25,6 @@ const ERAM_END: u16 = 0xFDFF;
 const NOTUSABLE_BEGIN: u16 = 0xFEA0;
 const NOTUSABLE_END: u16 = 0xFEFF;
 
-const IO_BEGIN: u16 = 0xFF00;
-const IO_END: u16 = 0xFF7F;
-const IO_SIZE: usize = (IO_END - IO_BEGIN + 1) as usize;
-
 const HRAM_BEGIN: u16 = 0xFF80;
 const HRAM_END: u16 = 0xFFFE;
 const HRAM_SIZE: usize = (HRAM_END - HRAM_BEGIN + 1) as usize;
@@ -35,26 +33,26 @@ pub(crate) struct MMU {
     is_boot_rom_mapped: bool,
     bootrom: ROM,
     cartridge: Cartridge,
+    io: IO,
     vram: [u8; VRAM_SIZE],
     wram: [u8; WRAM_SIZE],
-    io: [u8; IO_SIZE],
     hram: [u8; HRAM_SIZE],
 }
 
 impl MMU {
-    pub fn new(bootrom: ROM, cartridge: Cartridge) -> MMU {
+    pub fn new(bootrom: ROM, cartridge: Cartridge, io: IO) -> MMU {
         MMU { 
             is_boot_rom_mapped: true, 
             cartridge,
             bootrom,
-            io: [0; IO_SIZE],
+            io,
             vram: [0; VRAM_SIZE], 
             wram: [0; WRAM_SIZE], 
             hram: [0; HRAM_SIZE],
         }
     }
 
-    pub(super) fn read_byte(&self, address: u16) -> u8 {
+    pub(super) fn read_byte(&self, address: Address) -> u8 {
         match address {
             GAMEROM0_BEGIN ..= GAMEROM0_END => {
                 match address {
@@ -78,7 +76,7 @@ impl MMU {
         }
     }
 
-    pub(super) fn write_byte(&mut self, address: u16, value: u8) {
+    pub(super) fn write_byte(&mut self, address: Address, value: u8) {
         match address {
             GAMEROM0_BEGIN ..= GAMEROM0_END => panic!("Writing in ROM is not possible"),
             VRAM_BEGIN ..= VRAM_END => self.write_vram(address, value),
@@ -91,39 +89,40 @@ impl MMU {
         }
     }
 
-    fn read_vram(&self, address: u16) -> u8 {
+    fn read_vram(&self, address: Address) -> u8 {
         self.vram[address as usize - VRAM_BEGIN as usize]
     }
 
-    fn read_wram(&self, address: u16) -> u8 {
+    fn read_wram(&self, address: Address) -> u8 {
         self.wram[address as usize - WRAM_BEGIN as usize]
     }
 
-    fn read_io(&self, address: u16) -> u8 {
-        match address {
-            0xFF44 => 0x90,
-            _ => self.io[address as usize - IO_BEGIN as usize]
-        }
-        
+    fn read_io(&self, address: Address) -> u8 {
+        self.io.read_byte(address)     
     }
 
-    fn read_hram(&self, address: u16) -> u8 {
+    fn read_hram(&self, address: Address) -> u8 {
         self.hram[address as usize - HRAM_BEGIN as usize]
     }
 
-    fn write_vram(&mut self, address: u16, value: u8) {
+    fn write_vram(&mut self, address: Address, value: u8) {
         self.vram[address as usize - VRAM_BEGIN as usize] = value;
     }
 
-    fn write_wram(&mut self, address: u16, value: u8) {
+    fn write_wram(&mut self, address: Address, value: u8) {
         self.wram[address as usize - WRAM_BEGIN as usize] = value;
     }
 
-    fn write_io(&mut self, address: u16, value: u8) {
-        self.io[address as usize - IO_BEGIN as usize] = value;
+    fn write_io(&mut self, address: Address, value: u8) {
+        let result: Option<IOEvent> = self.io.write_byte(address, value);
+        
+        match result {
+            Some(IOEvent::BootSwitched(new_val)) => self.is_boot_rom_mapped = new_val,
+            None => {}
+        }
     }
 
-    fn write_hram(&mut self, address: u16, value: u8) {
+    fn write_hram(&mut self, address: Address, value: u8) {
         self.hram[address as usize - HRAM_BEGIN as usize] = value;
     }
 

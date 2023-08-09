@@ -1,6 +1,7 @@
 mod alu;
-pub mod mmu;
+pub(crate) mod mmu;
 mod instructions;
+pub(crate) mod io;
 mod tests;
 mod registers;
 
@@ -10,6 +11,7 @@ use self::{mmu::MMU, instructions::*, registers::*};
 
 pub(super) type ProgramCounter = u16;
 pub(super) type StackPointer = u16;
+pub(super) type Address = u16;
 
 pub(crate) struct CPU{
     regs: Registers,
@@ -31,9 +33,10 @@ impl CPU {
     }
 
     pub(crate) fn step(&mut self) {
-        let mut instruction_byte = self.mmu.read_byte(self.pc);
+        let instruction_byte = self.mmu.read_byte(self.pc);
 
         let next_pc = if let Some(instruction) = self.parse_instruction(instruction_byte) {
+            println!("{:?}", instruction);
             self.execute(instruction)
         } else {
             panic!("Unkown instruction found for: {}", instruction_byte)
@@ -73,7 +76,8 @@ impl CPU {
     // Returns the next PC to execute
     fn execute(&mut self, instruction: Instruction) -> ProgramCounter {
         let mut jump_pc : Option<ProgramCounter> = None;
-        let inst_type = instruction.op;
+        let inst_type = instruction.op.clone();
+        let inst_size = instruction.size_bytes();
 
         match inst_type {
             InstructionType::NOP => self.nop(),
@@ -116,7 +120,7 @@ impl CPU {
         }
 
         match jump_pc {
-            None => self.pc.wrapping_add(instruction.size as u16),
+            None => self.pc.wrapping_add(inst_size as u16),
             Some(jpc) => jpc
         }
         

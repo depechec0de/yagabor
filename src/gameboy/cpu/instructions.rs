@@ -1,9 +1,21 @@
+#[derive(Debug)]
 pub(super) struct Instruction {
     pub(super) op: InstructionType,
     pub(super) size: InstructionSize,
     pub(super) payload: Option<u16>
 }
 
+impl Instruction {
+    pub(super) fn size_bytes(&self) -> u16 {
+        match self.size {
+            InstructionSize::OneByte => 1,
+            InstructionSize::TwoBytes => 2,
+            InstructionSize::ThreeBytes => 3,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub(super) enum InstructionSize {
     OneByte,
     TwoBytes,
@@ -138,25 +150,7 @@ pub(super) enum BitTarget {
     Zero, One, Two, Three, Four, Five, Six, Seven
 }
 
-// For debug
-// let full_instruction_byte = match instruction.bytes_length() {
-//     1 => "".to_string(),
-//     2 => match prefixed { false => format!("{:x}", self.read_next_byte()), true => "".to_string() },
-//     3 => format!("{:x}", self.read_next_word()),
-//     _ => format!("{:x}", self.read_next_word()),
-// };
-// println!("{:<14} | {:<30} | {:?}", format!("0x{:x} {:?}", instruction_byte, full_instruction_byte), format!("{:?}",instruction), self.regs);
-
 impl InstructionType {
-
-    pub(super) fn size_bytes(&self) -> u16 {
-        match self.size() {
-            InstructionSize::OneByte => 1,
-            InstructionSize::TwoBytes => 2,
-            InstructionSize::ThreeBytes => 3,
-        }
-    }
-
     pub(super) fn size(&self) -> InstructionSize {
         match self {
             InstructionType::NOP => InstructionSize::OneByte,

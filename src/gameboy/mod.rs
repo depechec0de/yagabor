@@ -1,4 +1,4 @@
-use self::{screen::Screen, keypad::Joypad, cartridge::Cartridge, rom::ROM, cpu::{mmu::MMU, CPU}};
+use self::{screen::Screen, keypad::Joypad, cartridge::Cartridge, rom::ROM, cpu::{mmu::MMU, CPU, io::IO}};
 
 pub mod cartridge;
 mod ppu;
@@ -14,7 +14,8 @@ pub struct GameBoy {
 impl GameBoy {
     pub fn new(cartridge: Cartridge) -> GameBoy {
         let bootrom = ROM::dmg();
-        let mut mmu = MMU::new(bootrom, cartridge);
+        let io = IO::new();
+        let mut mmu = MMU::new(bootrom, cartridge, io);
         let mut cpu = CPU::new(mmu);
 
         GameBoy { 
