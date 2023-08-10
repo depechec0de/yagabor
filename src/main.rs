@@ -1,5 +1,6 @@
 mod emulation;
 mod gameboy;
+mod clock;
 
 use std::io::Error;
 

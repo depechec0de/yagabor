@@ -1,14 +1,19 @@
-use self::{screen::Screen, keypad::Joypad, cartridge::Cartridge, rom::ROM, cpu::{mmu::MMU, CPU, io::IO}};
-
 pub mod cartridge;
 mod ppu;
 mod rom;
-mod keypad;
 mod cpu;
-mod screen;
+
+use self::{cartridge::Cartridge, rom::ROM, cpu::{mmu::MMU, io::IO, cpu::CPU}};
+use std::io::{Error, ErrorKind};
 
 pub struct GameBoy {
     cpu: CPU
+}
+
+// We use machine cycles for reference, but in the translation we multiply by 4
+#[derive(Debug)]
+pub enum ClockCycles {
+    One, Two, Three, Four, Five, Six
 }
 
 impl GameBoy {
@@ -18,12 +23,28 @@ impl GameBoy {
         let mut mmu = MMU::new(bootrom, cartridge, io);
         let mut cpu = CPU::new(mmu);
 
-        GameBoy { 
-                cpu
-        }
+        GameBoy { cpu }
     }
 
-    pub fn step(&mut self) {
-        self.cpu.step();
+    pub fn step(&mut self) -> Result<ClockCycles, Error> {
+        if let Some(cycles) = self.cpu.step() {
+            Ok(cycles)
+        }else{
+            Err(Error::new(ErrorKind::Other, "Unkown instruction found"))
+        }
+    }
+}
+
+impl std::convert::From<ClockCycles> for u64  {
+    fn from(cycles: ClockCycles) -> u64 {
+        let machine_cycles = match cycles {
+            ClockCycles::One => 1,
+            ClockCycles::Two => 2,
+            ClockCycles::Three => 3,
+            ClockCycles::Four => 4,
+            ClockCycles::Five => 5,
+            ClockCycles::Six => 6
+        };
+        machine_cycles*4
     }
 }

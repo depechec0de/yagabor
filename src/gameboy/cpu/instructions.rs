@@ -1,3 +1,7 @@
+use crate::gameboy::ClockCycles;
+
+use crate::gameboy::cpu::cpu::ProgramCounter;
+
 #[derive(Debug)]
 pub(super) struct Instruction {
     pub(super) op: InstructionType,
@@ -12,6 +16,36 @@ impl Instruction {
             InstructionSize::TwoBytes => 2,
             InstructionSize::ThreeBytes => 3,
         }
+    }
+
+    // An Instruction can length 3 bytes max 
+    pub(super) fn parse_instruction(inst_byte: u8, byte0: u8, byte1: u8) -> Option<Instruction> {
+        let prefixed = inst_byte == 0xCB;
+        let mut instruction_byte = inst_byte;
+        if prefixed {
+            instruction_byte = byte0;
+        }
+
+        let inst_type: Option<InstructionType>;
+
+        if prefixed {
+            inst_type = InstructionType::from_byte_prefixed(instruction_byte)
+        } else {
+            inst_type = InstructionType::from_byte_not_prefixed(instruction_byte)
+        }
+
+        if let Some(op) = inst_type {
+            let size = op.size();
+            let payload = match op.size() {
+                InstructionSize::OneByte => None,
+                InstructionSize::TwoBytes => Some(byte0 as u16),
+                InstructionSize::ThreeBytes => Some(((byte0 as u16) << 8) | byte1 as u16),
+            };
+
+            Some(Instruction{op, size, payload})
+        }else{
+            None
+        }        
     }
 }
 
@@ -65,12 +99,17 @@ pub(super) enum InstructionType {
     POP(StackTarget),
     // Prefix instructions
     RLC(PrefixTarget),
-    BIT(BitTarget, BitSource),
+    BIT(BitType),
     RL(IncDecTarget),
     RLA,
     RLAC,
     RRA,
     RRCA
+}
+
+#[derive(Clone, Debug)]
+pub(super) enum BitType {
+    Registers(BitTarget, BitSource),    
 }
 
 #[derive(Clone, Debug)]
@@ -200,7 +239,7 @@ impl InstructionType {
             InstructionType::CALL(_) => InstructionSize::ThreeBytes,
             InstructionType::RET(_) => InstructionSize::OneByte,
             InstructionType::RST(_) => InstructionSize::OneByte,
-            InstructionType::BIT(_, _) => InstructionSize::TwoBytes,
+            InstructionType::BIT(_) => InstructionSize::TwoBytes,
             InstructionType::RETI => InstructionSize::OneByte,
             InstructionType::DAA => InstructionSize::OneByte,
             InstructionType::RL(_) => InstructionSize::TwoBytes,
@@ -211,7 +250,6 @@ impl InstructionType {
             InstructionType::RRCA => InstructionSize::OneByte,
         }
 
-        
     }
 
     pub(super) fn from_byte_prefixed(byte: u8) -> Option<InstructionType> {
@@ -236,77 +274,77 @@ impl InstructionType {
             0x17 => Some(InstructionType::RL(IncDecTarget::A)),
 
             // BIT
-            0x40 => Some(InstructionType::BIT(BitTarget::Zero, BitSource::B)),
-            0x41 => Some(InstructionType::BIT(BitTarget::Zero, BitSource::C)),
-            0x42 => Some(InstructionType::BIT(BitTarget::Zero, BitSource::D)),
-            0x43 => Some(InstructionType::BIT(BitTarget::Zero, BitSource::E)),
-            0x44 => Some(InstructionType::BIT(BitTarget::Zero, BitSource::H)),
-            0x45 => Some(InstructionType::BIT(BitTarget::Zero, BitSource::L)),
-            0x46 => Some(InstructionType::BIT(BitTarget::Zero, BitSource::HLI)),
-            0x47 => Some(InstructionType::BIT(BitTarget::Zero, BitSource::A)),
+            0x40 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Zero, BitSource::B))),
+            0x41 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Zero, BitSource::C))),
+            0x42 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Zero, BitSource::D))),
+            0x43 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Zero, BitSource::E))),
+            0x44 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Zero, BitSource::H))),
+            0x45 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Zero, BitSource::L))),
+            0x46 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Zero, BitSource::HLI))),
+            0x47 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Zero, BitSource::A))),
 
-            0x48 => Some(InstructionType::BIT(BitTarget::One, BitSource::B)),
-            0x49 => Some(InstructionType::BIT(BitTarget::One, BitSource::C)),
-            0x4A => Some(InstructionType::BIT(BitTarget::One, BitSource::D)),
-            0x4B => Some(InstructionType::BIT(BitTarget::One, BitSource::E)),
-            0x4C => Some(InstructionType::BIT(BitTarget::One, BitSource::H)),
-            0x4D => Some(InstructionType::BIT(BitTarget::One, BitSource::L)),
-            0x4E => Some(InstructionType::BIT(BitTarget::One, BitSource::HLI)),
-            0x4F => Some(InstructionType::BIT(BitTarget::One, BitSource::A)),
+            0x48 => Some(InstructionType::BIT(BitType::Registers(BitTarget::One, BitSource::B))),
+            0x49 => Some(InstructionType::BIT(BitType::Registers(BitTarget::One, BitSource::C))),
+            0x4A => Some(InstructionType::BIT(BitType::Registers(BitTarget::One, BitSource::D))),
+            0x4B => Some(InstructionType::BIT(BitType::Registers(BitTarget::One, BitSource::E))),
+            0x4C => Some(InstructionType::BIT(BitType::Registers(BitTarget::One, BitSource::H))),
+            0x4D => Some(InstructionType::BIT(BitType::Registers(BitTarget::One, BitSource::L))),
+            0x4E => Some(InstructionType::BIT(BitType::Registers(BitTarget::One, BitSource::HLI))),
+            0x4F => Some(InstructionType::BIT(BitType::Registers(BitTarget::One, BitSource::A))),
 
-            0x50 => Some(InstructionType::BIT(BitTarget::Two, BitSource::B)),
-            0x51 => Some(InstructionType::BIT(BitTarget::Two, BitSource::C)),
-            0x52 => Some(InstructionType::BIT(BitTarget::Two, BitSource::D)),
-            0x53 => Some(InstructionType::BIT(BitTarget::Two, BitSource::E)),
-            0x54 => Some(InstructionType::BIT(BitTarget::Two, BitSource::H)),
-            0x55 => Some(InstructionType::BIT(BitTarget::Two, BitSource::L)),
-            0x56 => Some(InstructionType::BIT(BitTarget::Two, BitSource::HLI)),
-            0x57 => Some(InstructionType::BIT(BitTarget::Two, BitSource::A)),
+            0x50 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Two, BitSource::B))),
+            0x51 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Two, BitSource::C))),
+            0x52 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Two, BitSource::D))),
+            0x53 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Two, BitSource::E))),
+            0x54 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Two, BitSource::H))),
+            0x55 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Two, BitSource::L))),
+            0x56 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Two, BitSource::HLI))),
+            0x57 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Two, BitSource::A))),
             
-            0x58 => Some(InstructionType::BIT(BitTarget::Three, BitSource::B)),
-            0x59 => Some(InstructionType::BIT(BitTarget::Three, BitSource::C)),
-            0x5A => Some(InstructionType::BIT(BitTarget::Three, BitSource::D)),
-            0x5B => Some(InstructionType::BIT(BitTarget::Three, BitSource::E)),
-            0x5C => Some(InstructionType::BIT(BitTarget::Three, BitSource::H)),
-            0x5D => Some(InstructionType::BIT(BitTarget::Three, BitSource::L)),
-            0x5E => Some(InstructionType::BIT(BitTarget::Three, BitSource::HLI)),
-            0x5F => Some(InstructionType::BIT(BitTarget::Three, BitSource::A)),
+            0x58 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Three, BitSource::B))),
+            0x59 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Three, BitSource::C))),
+            0x5A => Some(InstructionType::BIT(BitType::Registers(BitTarget::Three, BitSource::D))),
+            0x5B => Some(InstructionType::BIT(BitType::Registers(BitTarget::Three, BitSource::E))),
+            0x5C => Some(InstructionType::BIT(BitType::Registers(BitTarget::Three, BitSource::H))),
+            0x5D => Some(InstructionType::BIT(BitType::Registers(BitTarget::Three, BitSource::L))),
+            0x5E => Some(InstructionType::BIT(BitType::Registers(BitTarget::Three, BitSource::HLI))),
+            0x5F => Some(InstructionType::BIT(BitType::Registers(BitTarget::Three, BitSource::A))),
 
-            0x60 => Some(InstructionType::BIT(BitTarget::Four, BitSource::B)),
-            0x61 => Some(InstructionType::BIT(BitTarget::Four, BitSource::C)),
-            0x62 => Some(InstructionType::BIT(BitTarget::Four, BitSource::D)),
-            0x63 => Some(InstructionType::BIT(BitTarget::Four, BitSource::E)),
-            0x64 => Some(InstructionType::BIT(BitTarget::Four, BitSource::H)),
-            0x65 => Some(InstructionType::BIT(BitTarget::Four, BitSource::L)),
-            0x66 => Some(InstructionType::BIT(BitTarget::Four, BitSource::HLI)),
-            0x67 => Some(InstructionType::BIT(BitTarget::Four, BitSource::A)),
+            0x60 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Four, BitSource::B))),
+            0x61 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Four, BitSource::C))),
+            0x62 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Four, BitSource::D))),
+            0x63 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Four, BitSource::E))),
+            0x64 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Four, BitSource::H))),
+            0x65 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Four, BitSource::L))),
+            0x66 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Four, BitSource::HLI))),
+            0x67 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Four, BitSource::A))),
             
-            0x68 => Some(InstructionType::BIT(BitTarget::Five, BitSource::B)),
-            0x69 => Some(InstructionType::BIT(BitTarget::Five, BitSource::C)),
-            0x6A => Some(InstructionType::BIT(BitTarget::Five, BitSource::D)),
-            0x6B => Some(InstructionType::BIT(BitTarget::Five, BitSource::E)),
-            0x6C => Some(InstructionType::BIT(BitTarget::Five, BitSource::H)),
-            0x6D => Some(InstructionType::BIT(BitTarget::Five, BitSource::L)),
-            0x6E => Some(InstructionType::BIT(BitTarget::Five, BitSource::HLI)),
-            0x6F => Some(InstructionType::BIT(BitTarget::Five, BitSource::A)),
+            0x68 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Five, BitSource::B))),
+            0x69 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Five, BitSource::C))),
+            0x6A => Some(InstructionType::BIT(BitType::Registers(BitTarget::Five, BitSource::D))),
+            0x6B => Some(InstructionType::BIT(BitType::Registers(BitTarget::Five, BitSource::E))),
+            0x6C => Some(InstructionType::BIT(BitType::Registers(BitTarget::Five, BitSource::H))),
+            0x6D => Some(InstructionType::BIT(BitType::Registers(BitTarget::Five, BitSource::L))),
+            0x6E => Some(InstructionType::BIT(BitType::Registers(BitTarget::Five, BitSource::HLI))),
+            0x6F => Some(InstructionType::BIT(BitType::Registers(BitTarget::Five, BitSource::A))),
 
-            0x70 => Some(InstructionType::BIT(BitTarget::Six, BitSource::B)),
-            0x71 => Some(InstructionType::BIT(BitTarget::Six, BitSource::C)),
-            0x72 => Some(InstructionType::BIT(BitTarget::Six, BitSource::D)),
-            0x73 => Some(InstructionType::BIT(BitTarget::Six, BitSource::E)),
-            0x74 => Some(InstructionType::BIT(BitTarget::Six, BitSource::H)),
-            0x75 => Some(InstructionType::BIT(BitTarget::Six, BitSource::L)),
-            0x76 => Some(InstructionType::BIT(BitTarget::Six, BitSource::HLI)),
-            0x77 => Some(InstructionType::BIT(BitTarget::Six, BitSource::A)),
+            0x70 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Six, BitSource::B))),
+            0x71 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Six, BitSource::C))),
+            0x72 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Six, BitSource::D))),
+            0x73 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Six, BitSource::E))),
+            0x74 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Six, BitSource::H))),
+            0x75 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Six, BitSource::L))),
+            0x76 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Six, BitSource::HLI))),
+            0x77 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Six, BitSource::A))),
 
-            0x78 => Some(InstructionType::BIT(BitTarget::Seven, BitSource::B)),
-            0x79 => Some(InstructionType::BIT(BitTarget::Seven, BitSource::C)),
-            0x7A => Some(InstructionType::BIT(BitTarget::Seven, BitSource::D)),
-            0x7B => Some(InstructionType::BIT(BitTarget::Seven, BitSource::E)),
-            0x7C => Some(InstructionType::BIT(BitTarget::Seven, BitSource::H)),
-            0x7D => Some(InstructionType::BIT(BitTarget::Seven, BitSource::L)),
-            0x7E => Some(InstructionType::BIT(BitTarget::Seven, BitSource::HLI)),
-            0x7F => Some(InstructionType::BIT(BitTarget::Seven, BitSource::A)),
+            0x78 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Seven, BitSource::B))),
+            0x79 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Seven, BitSource::C))),
+            0x7A => Some(InstructionType::BIT(BitType::Registers(BitTarget::Seven, BitSource::D))),
+            0x7B => Some(InstructionType::BIT(BitType::Registers(BitTarget::Seven, BitSource::E))),
+            0x7C => Some(InstructionType::BIT(BitType::Registers(BitTarget::Seven, BitSource::H))),
+            0x7D => Some(InstructionType::BIT(BitType::Registers(BitTarget::Seven, BitSource::L))),
+            0x7E => Some(InstructionType::BIT(BitType::Registers(BitTarget::Seven, BitSource::HLI))),
+            0x7F => Some(InstructionType::BIT(BitType::Registers(BitTarget::Seven, BitSource::A))),
             _ => /* TODO: Add mapping for rest of InstructionTypes */ None
         }
     }
@@ -348,7 +386,7 @@ impl InstructionType {
             0x28 => Some(InstructionType::JR(JumpTest::Zero)),
             0x38 => Some(InstructionType::JR(JumpTest::Carry)),
             0xC0 => Some(InstructionType::RET(JumpTest::NotZero)),
-            0xD0 => Some(InstructionType::CALL(JumpTest::NotCarry)),
+            0xD0 => Some(InstructionType::RET(JumpTest::NotCarry)),
             0xC2 => Some(InstructionType::JP(JumpTest::NotZero)),
             0xD2 => Some(InstructionType::JP(JumpTest::NotCarry)),
             0xC3 => Some(InstructionType::JP(JumpTest::Always)),
@@ -358,8 +396,8 @@ impl InstructionType {
             0xD7 => Some(InstructionType::RST(BitTarget::Two)),
             0xE7 => Some(InstructionType::RST(BitTarget::Four)),
             0xF7 => Some(InstructionType::RST(BitTarget::Six)),
-            0xC8 => Some(InstructionType::CALL(JumpTest::Zero)),
-            0xD8 => Some(InstructionType::CALL(JumpTest::Carry)),
+            0xC8 => Some(InstructionType::RET(JumpTest::Zero)),
+            0xD8 => Some(InstructionType::RET(JumpTest::Carry)),
             0xC9 => Some(InstructionType::RET(JumpTest::Always)),
             0xD9 => Some(InstructionType::RETI),
             0xE9 => Some(InstructionType::JPHL),

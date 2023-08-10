@@ -1,4 +1,4 @@
-use crate::gameboy::*;
+use crate::gameboy::{*, cpu::instructions::Instruction};
 
 #[test]
 fn add_without_carry() {
@@ -9,7 +9,7 @@ fn add_without_carry() {
     cpu.regs.b = 0b00000001;
 
     // ADD A, B
-    let inst = cpu.parse_instruction(0x80).unwrap();
+    let inst = Instruction::parse_instruction(0x80, 0x0, 0x0).unwrap();
 
     cpu.execute(inst);
 
@@ -29,7 +29,7 @@ fn add_with_half_carry() {
     cpu.regs.b = 0b00000001;
 
     // ADD A, B
-    let inst = cpu.parse_instruction(0x80).unwrap();
+    let inst = Instruction::parse_instruction(0x80, 0x0, 0x0).unwrap();
 
     cpu.execute(inst);
 
@@ -48,7 +48,7 @@ fn add_with_carry() {
     cpu.regs.b = 0b1;
 
     // ADD A, B
-    let inst = cpu.parse_instruction(0x80).unwrap();
+    let inst = Instruction::parse_instruction(0x80, 0x0, 0x0).unwrap();
 
     cpu.execute(inst);
 
@@ -69,7 +69,7 @@ fn adc_with_carry() {
     cpu.regs.flags.carry = true;
 
     // ADC A, B
-    let inst = cpu.parse_instruction(0x88).unwrap();
+    let inst = Instruction::parse_instruction(0x88, 0x0, 0x0).unwrap();
 
     cpu.execute(inst);
 
@@ -90,7 +90,7 @@ fn adc_with_half_carry() {
     cpu.regs.flags.carry = true;
 
     // ADC A, B
-    let inst = cpu.parse_instruction(0x88).unwrap();
+    let inst = Instruction::parse_instruction(0x88, 0x0, 0x0).unwrap();
 
     cpu.execute(inst);
 
@@ -110,7 +110,7 @@ fn sub_with_carry() {
     cpu.regs.b = 0b10000000;
 
     // SUB B
-    let inst = cpu.parse_instruction(0x90).unwrap();
+    let inst = Instruction::parse_instruction(0x90, 0x0, 0x0).unwrap();
 
     cpu.execute(inst);
 
@@ -130,7 +130,7 @@ fn sub_with_half_carry() {
     cpu.regs.b = 0xF;
 
     // SUB B
-    let inst = cpu.parse_instruction(0x90).unwrap();
+    let inst = Instruction::parse_instruction(0x90, 0x0, 0x0).unwrap();
 
     cpu.execute(inst);
 
@@ -152,7 +152,7 @@ fn sbc_with_carry() {
     cpu.regs.flags.carry = true;
 
     // SBC B
-    let inst = cpu.parse_instruction(0x98).unwrap();
+    let inst = Instruction::parse_instruction(0x98, 0x0, 0x0).unwrap();
 
     cpu.execute(inst);
 

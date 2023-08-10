@@ -1,8 +1,10 @@
-use super::*;
+use crate::gameboy::ClockCycles;
+
+use super::{instructions::*, cpu::{CPU, ProgramCounter}};
 
 impl CPU {
-    pub(super) fn add(&mut self, target: ArithmeticTarget) {
-        let value = self.get_arithmetic_target_val(&target);
+    pub(super) fn add(&mut self, target: ArithmeticTarget, current_pc: ProgramCounter) -> ClockCycles {
+        let value = self.get_arithmetic_target_val(&target, current_pc);
 
         let (new_value, did_overflow) = self.regs.a.overflowing_add(value);
         self.regs.flags.zero = new_value == 0;
@@ -13,10 +15,16 @@ impl CPU {
         // than the addition caused a carry from the lower nibble to the upper nibble.
         self.regs.flags.half_carry = (self.regs.a & 0xF) + (value & 0xF) > 0xF;
         self.regs.a = new_value;
+
+        match target {
+            ArithmeticTarget::HLI => ClockCycles::Two,
+            ArithmeticTarget::D8 => ClockCycles::Two,
+            _ => ClockCycles::One,
+        }
     }
 
-    pub(super) fn addsp8(&mut self) {
-        let value = self.read_next_byte() as u16;
+    pub(super) fn addsp8(&mut self, current_pc: ProgramCounter) -> ClockCycles {
+        let value = self.read_next_byte(current_pc) as u16;
 
         let (new_value, did_overflow) = self.sp.overflowing_add(value);
         self.regs.flags.zero = false;
@@ -24,9 +32,11 @@ impl CPU {
         self.regs.flags.carry = did_overflow;
         self.regs.flags.half_carry = (self.sp & 0xF) + (value & 0xF) > 0xF;
         self.sp = new_value;
+
+        ClockCycles::Four
     }
 
-    pub(super) fn add16(&mut self, target: WordRegister) {
+    pub(super) fn add16(&mut self, target: WordRegister) -> ClockCycles {
         let value = match target {
             WordRegister::BC => self.regs.get_bc(),
             WordRegister::DE => self.regs.get_de(),
@@ -39,10 +49,12 @@ impl CPU {
         self.regs.flags.carry = did_overflow;
         self.regs.flags.half_carry = (self.regs.get_hl() & 0xF) + (value & 0xF) > 0xF;
         self.regs.set_hl(new_value);
+
+        ClockCycles::Two
     }
 
-    pub(super) fn adc(&mut self, target: ArithmeticTarget) {
-        let value = self.get_arithmetic_target_val(&target);
+    pub(super) fn adc(&mut self, target: ArithmeticTarget, current_pc: ProgramCounter) -> ClockCycles {
+        let value = self.get_arithmetic_target_val(&target, current_pc);
 
         let (new_value1, did_overflow1) = self.regs.a.overflowing_add(value);
 
@@ -53,10 +65,16 @@ impl CPU {
         self.regs.flags.half_carry = ((self.regs.a & 0xF) + (value & 0xF) > 0xF) || ((new_value1 & 0xF) + (self.regs.flags.carry as u8) > 0xF);
         self.regs.flags.carry = did_overflow1 || did_overflow2;      
         self.regs.a = new_value2;
+
+        match target {
+            ArithmeticTarget::HLI => ClockCycles::Two,
+            ArithmeticTarget::D8 => ClockCycles::Two,
+            _ => ClockCycles::One,
+        }
     }
 
-    pub(super) fn sub(&mut self, target: ArithmeticTarget) {
-        let value = self.get_arithmetic_target_val(&target);
+    pub(super) fn sub(&mut self, target: ArithmeticTarget, current_pc: ProgramCounter) -> ClockCycles {
+        let value = self.get_arithmetic_target_val(&target, current_pc);
 
         let (new_value, did_overflow) = self.regs.a.overflowing_sub(value);
         self.regs.flags.zero = new_value == 0;
@@ -65,10 +83,16 @@ impl CPU {
         let (new_value_low, _) = (self.regs.a & 0xF).overflowing_sub(value & 0xF);
         self.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
         self.regs.a = new_value;
+
+        match target {
+            ArithmeticTarget::HLI => ClockCycles::Two,
+            ArithmeticTarget::D8 => ClockCycles::Two,
+            _ => ClockCycles::One,
+        }
     }
 
-    pub(super) fn sbc(&mut self, target: ArithmeticTarget) {
-        let value = self.get_arithmetic_target_val(&target);
+    pub(super) fn sbc(&mut self, target: ArithmeticTarget, current_pc: ProgramCounter) -> ClockCycles {
+        let value = self.get_arithmetic_target_val(&target, current_pc);
 
         let (new_value1, did_overflow1) = self.regs.a.overflowing_sub(self.regs.flags.carry as u8);
         let (new_value2, did_overflow2) = new_value1.overflowing_sub(value);
@@ -79,20 +103,32 @@ impl CPU {
         let (new_value_low, _) = (new_value2 & 0xF).overflowing_sub(value & 0xF);
         self.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
         self.regs.a = new_value2;
+
+        match target {
+            ArithmeticTarget::HLI => ClockCycles::Two,
+            ArithmeticTarget::D8 => ClockCycles::Two,
+            _ => ClockCycles::One,
+        }
     }
 
-    pub(super) fn and(&mut self, target: ArithmeticTarget) {
-        let value = self.get_arithmetic_target_val(&target);
+    pub(super) fn and(&mut self, target: ArithmeticTarget, current_pc: ProgramCounter) -> ClockCycles {
+        let value = self.get_arithmetic_target_val(&target, current_pc);
 
         self.regs.a = self.regs.a & value;
         self.regs.flags.zero = self.regs.a == 0;
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = true;
         self.regs.flags.carry = false;
+
+        match target {
+            ArithmeticTarget::HLI => ClockCycles::Two,
+            ArithmeticTarget::D8 => ClockCycles::Two,
+            _ => ClockCycles::One,
+        }
     }
 
-    pub(super) fn xor(&mut self, target: ArithmeticTarget) {
-        let value = self.get_arithmetic_target_val(&target);
+    pub(super) fn xor(&mut self, target: ArithmeticTarget, current_pc: ProgramCounter) -> ClockCycles {
+        let value = self.get_arithmetic_target_val(&target, current_pc);
 
         self.regs.a = self.regs.a ^ value;
         self.regs.flags.zero = self.regs.a == 0;
@@ -100,20 +136,31 @@ impl CPU {
         self.regs.flags.half_carry = false;
         self.regs.flags.carry = false;
 
+        match target {
+            ArithmeticTarget::HLI => ClockCycles::Two,
+            ArithmeticTarget::D8 => ClockCycles::Two,
+            _ => ClockCycles::One,
+        }
     }
 
-    pub(super) fn or(&mut self, target: ArithmeticTarget) {
-        let value = self.get_arithmetic_target_val(&target);
+    pub(super) fn or(&mut self, target: ArithmeticTarget, current_pc: ProgramCounter) -> ClockCycles {
+        let value = self.get_arithmetic_target_val(&target, current_pc);
 
         self.regs.a = self.regs.a | value;
         self.regs.flags.zero = self.regs.a == 0;
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
         self.regs.flags.carry = false;
+
+        match target {
+            ArithmeticTarget::HLI => ClockCycles::Two,
+            ArithmeticTarget::D8 => ClockCycles::Two,
+            _ => ClockCycles::One,
+        }
     }
 
-    pub(super) fn cp(&mut self, target: ArithmeticTarget) {
-        let value = self.get_arithmetic_target_val(&target);
+    pub(super) fn cp(&mut self, target: ArithmeticTarget, current_pc: ProgramCounter) -> ClockCycles {
+        let value = self.get_arithmetic_target_val(&target, current_pc);
 
         let (result, did_overflow) = self.regs.a.overflowing_sub(value);
         self.regs.flags.zero = result == 0;
@@ -122,9 +169,14 @@ impl CPU {
         self.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
         self.regs.flags.carry = did_overflow;
 
+        match target {
+            ArithmeticTarget::HLI => ClockCycles::Two,
+            ArithmeticTarget::D8 => ClockCycles::Two,
+            _ => ClockCycles::One,
+        }
     }
 
-    pub(super) fn inc(&mut self, target: IncDecTarget) {
+    pub(super) fn inc(&mut self, target: IncDecTarget) -> ClockCycles {
         self.regs.flags.subtract = false;
 
         match target {
@@ -171,9 +223,14 @@ impl CPU {
                 self.mmu.write_byte(self.regs.get_hl(), new_val);
             }
         };
+
+        match target {
+            IncDecTarget::HLI => ClockCycles::Three,
+            _ => ClockCycles::One,
+        }
     }
 
-    pub(super) fn dec(&mut self, target: IncDecTarget) {
+    pub(super) fn dec(&mut self, target: IncDecTarget) -> ClockCycles {
         self.regs.flags.subtract = true;
 
         match target {
@@ -220,32 +277,50 @@ impl CPU {
                 self.mmu.write_byte(self.regs.get_hl(), new_val);
             }
         };
+
+        match target {
+            IncDecTarget::HLI => ClockCycles::Three,
+            _ => ClockCycles::One,
+        }
     }
 
-    pub(super) fn inc16(&mut self, target: WordRegister) {
-        let value = match target {
+    pub(super) fn inc16(&mut self, target: WordRegister) -> ClockCycles {
+        match target {
             WordRegister::BC => self.regs.set_bc(self.regs.get_bc().wrapping_add(1)),
             WordRegister::DE => self.regs.set_de(self.regs.get_de().wrapping_add(1)),
             WordRegister::HL => self.regs.set_hl(self.regs.get_hl().wrapping_add(1)),
             WordRegister::SP => self.sp = self.sp.wrapping_add(1),
         };
+
+        ClockCycles::Two
     }
 
-    pub(super) fn dec16(&mut self, target: WordRegister) {
-        let value = match target {
+    pub(super) fn dec16(&mut self, target: WordRegister) -> ClockCycles {
+        match target {
             WordRegister::BC => self.regs.set_bc(self.regs.get_bc().wrapping_sub(1)),
             WordRegister::DE => self.regs.set_de(self.regs.get_de().wrapping_sub(1)),
             WordRegister::HL => self.regs.set_hl(self.regs.get_hl().wrapping_sub(1)),
             WordRegister::SP => self.sp = self.sp.wrapping_sub(1),
         };
+
+        ClockCycles::Two
     }
 
-    pub(super) fn bit(&mut self, target:BitTarget, source: BitSource) {
+    pub(super) fn bit(&mut self, bit_type: BitType) -> ClockCycles {
+        let BitType::Registers(t, s) = bit_type;
+        let target = t;
+        let source = s;
+
         let i = get_position_by_bittarget(target);
-        let value = self.get_bitsource_val(source);
+        let value = self.get_bitsource_val(source.clone());
         let bit_value = get_bit_val(i, value);
 
         self.regs.flags.zero = !bit_value;
+
+        match source {
+            BitSource::HLI => ClockCycles::Three,
+            _ => ClockCycles::Two,
+        }             
     }
 
     fn get_bitsource_val(&self, source: BitSource) -> u8 {
@@ -261,7 +336,7 @@ impl CPU {
         }
     }
 
-    fn get_arithmetic_target_val(&self, target: &ArithmeticTarget) -> u8 {
+    fn get_arithmetic_target_val(&self, target: &ArithmeticTarget, current_pc: ProgramCounter) -> u8 {
         match target {
             ArithmeticTarget::A     => self.regs.a,
             ArithmeticTarget::B     => self.regs.b,
@@ -271,19 +346,21 @@ impl CPU {
             ArithmeticTarget::H     => self.regs.h,
             ArithmeticTarget::L     => self.regs.l,
             ArithmeticTarget::HLI   => self.mmu.read_byte(self.regs.get_hl()),
-            ArithmeticTarget::D8    => self.read_next_byte()
+            ArithmeticTarget::D8    => self.read_next_byte(current_pc)
         }
     }
 
-    pub(super) fn rla(&mut self) {
+    pub(super) fn rla(&mut self) -> ClockCycles {
         self.regs.flags.zero = false;
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
 
         self.shift_left_register(&IncDecTarget::A);
+
+        ClockCycles::One
     }
 
-    pub(super) fn rl(&mut self, target: IncDecTarget) {
+    pub(super) fn rl(&mut self, target: IncDecTarget) -> ClockCycles {
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
 
@@ -300,6 +377,10 @@ impl CPU {
             IncDecTarget::HLI => { self.regs.flags.zero = self.mmu.read_byte(self.regs.get_hl()) == 0; }
         };
         
+        match target {
+            IncDecTarget::HLI => ClockCycles::Four,
+            _ => ClockCycles::Two,
+        }
     }
 
     fn shift_left_register(&mut self, target: &IncDecTarget) {

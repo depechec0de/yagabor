@@ -1,4 +1,4 @@
-use super::Address;
+use crate::gameboy::cpu::cpu::Address;
 
 pub(super) const IO_BEGIN: Address = 0xFF00;
 pub(super) const IO_END: Address = 0xFF7F;

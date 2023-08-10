@@ -1,39 +1,29 @@
-use std::time::Duration;
-
-use crate::gameboy::GameBoy;
+use crate::{gameboy::GameBoy, clock::Clock};
 
 pub const CPU_CLOCK_HZ: usize = 4194304;
-pub const FPS: f32 = 60.0;
+pub const FPS: f32 = 59.7;
 
 pub struct Emulation {
     running: bool,
-    gb: GameBoy
+    gb: GameBoy,
+    clock: Clock,
+    executed_cycles: u64
 }
 
 impl Emulation {
     pub fn new(gameboy: GameBoy) -> Emulation {
-        Emulation { running: false, gb: gameboy }
+        Emulation { running: false, gb: gameboy, clock: Clock::new(CPU_CLOCK_HZ), executed_cycles: 0 }
     }
 
     pub fn run(&mut self){
         self.running = true;
 
         'running: loop {
-            self.gb.step();
-
-            // Input events
-            // for event in self.event_pump.poll_iter() {
-            //     match event {
-            //         Event::Quit {..} |
-            //         Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-            //             break 'running
-            //         },
-            //         _ => {}
-            //     }
-            // }
-            
-
-            //::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
+            if let Ok(cycles_passed) = self.gb.step() {
+                self.executed_cycles = self.executed_cycles + u64::from(cycles_passed);
+            }else{
+                println!("Emulation terminated in {} cycles", self.executed_cycles);
+            }
         }
 
     }

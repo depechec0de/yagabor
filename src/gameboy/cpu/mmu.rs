@@ -1,6 +1,6 @@
 use crate::gameboy::{ppu::*, rom::*, cartridge::Cartridge};
 
-use super::{io::*, Address};
+use super::{io::*, cpu::Address};
 
 const MEM_SIZE: usize = 0xFFFF;
 
