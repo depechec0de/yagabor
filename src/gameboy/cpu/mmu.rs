@@ -1,3 +1,7 @@
+use std::fmt;
+
+use pretty_hex::*;
+
 use crate::gameboy::{ppu::*, rom::*, cartridge::Cartridge};
 
 use super::{io::*, cpu::Address};
@@ -126,4 +130,25 @@ impl MMU {
         self.hram[address as usize - HRAM_BEGIN as usize] = value;
     }
 
+}
+
+impl fmt::Display for MMU {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        //write!(f, "{}", self.bootrom)?;
+        //write!(f, "{}", "\n")?;
+        write!(f, "{} {:x}-{:x}\n", "VRAM", VRAM_BEGIN, VRAM_END)?;
+        write!(f, "{}", pretty_hex(&self.vram))?;
+        write!(f, "{}", "\n\n")?;
+
+        write!(f, "{} {:x}-{:x}\n", "WRAM", WRAM_BEGIN, WRAM_END)?;
+        write!(f, "{}", pretty_hex(&self.wram))?;
+        write!(f, "{}", "\n\n")?;
+
+        write!(f, "{}", self.io)?;
+        write!(f, "{}", "\n\n")?;
+
+        write!(f, "{} {:x}-{:x}\n", "HRAM", HRAM_BEGIN, HRAM_END)?;
+        write!(f, "{}", pretty_hex(&self.hram))?;
+        write!(f, "{}", "\n\n")
+    }
 }

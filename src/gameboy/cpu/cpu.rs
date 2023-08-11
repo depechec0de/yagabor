@@ -1,4 +1,5 @@
 use core::panic;
+use std::io::{Error, ErrorKind};
 
 use crate::gameboy::ClockCycles;
 
@@ -27,23 +28,28 @@ impl CPU {
         }
     }
 
-    pub(crate) fn step(&mut self) -> Option<ClockCycles> {
+    pub(crate) fn step(&mut self) -> Result<ClockCycles, Error> {
         let instruction_byte = self.mmu.read_byte(self.pc);
         let byte0 = self.mmu.read_byte(self.pc+1);
         let byte1 = self.mmu.read_byte(self.pc+2);
 
         if let Some(instruction) = Instruction::parse_instruction(instruction_byte, byte0, byte1) {
             //println!("{:?} {:?}", instruction, self.regs);
-            println!("pc {:x} | {:x} {:?} {:?}", self.pc, instruction_byte, instruction, self.regs);
-            let cycles = self.execute(instruction);
-            Some(cycles)
+            if let Ok(cycles) = self.execute(instruction.clone()){
+                println!("pc {:#04x} | {:x} ({:?} cycles) {:?} {:?} SP:{:x}", self.pc, instruction_byte, u64::from(cycles.clone()) , instruction, self.regs, self.sp);
+                Ok(cycles)
+            }else{
+                //println!("{}", self.mmu);
+                Err(Error::new(ErrorKind::Other, "Error during execution"))
+            }
         } else {
-            None
+            println!("{}", self.mmu);
+            Err(Error::new(ErrorKind::Other, "Unkown instruction found"))
         }   
     }   
 
     // Returns the next PC to execute and the cycles consumed
-    pub(super) fn execute(&mut self, instruction: Instruction) -> ClockCycles {
+    pub(super) fn execute(&mut self, instruction: Instruction) -> Result<ClockCycles, Error> {
 
         let inst_type = instruction.op.clone();
         let inst_size = instruction.size_bytes();
@@ -53,43 +59,43 @@ impl CPU {
 
         let executed_cycles = match inst_type {
             // This instructions never return and change directly the PC
-            InstructionType::CALL(test) => self.call(test, prev_pc),
-            InstructionType::RET(test) => self.ret(test),
-            InstructionType::JP(test) => self.jump(test, prev_pc),
-            InstructionType::JR(test) => self.jump_relative(test, prev_pc),
-            InstructionType::JPHL => self.jump_hl(),
-            InstructionType::NOP => self.nop(),
-            InstructionType::HALT => self.halt(),
-            InstructionType::SCF => self.scf(),
-            InstructionType::CCF => self.ccf(),
-            InstructionType::CPL => self.cpl(),
-            InstructionType::ADD(target) => self.add(target, prev_pc),
-            InstructionType::ADC(target) => self.adc(target, prev_pc),
-            InstructionType::INC(target) => self.inc(target),
-            InstructionType::DEC(target) => self.dec(target),
-            InstructionType::ADD16(target) => self.add16(target),
-            InstructionType::INC16(target) => self.inc16(target),
-            InstructionType::DEC16(target) => self.dec16(target),
-            InstructionType::ADDSP8 => self.addsp8(prev_pc),
-            InstructionType::SUB(target) => self.sub(target, prev_pc),
-            InstructionType::SBC(target) => self.sbc(target, prev_pc),
-            InstructionType::AND(target) => self.and(target, prev_pc),
-            InstructionType::XOR(target) => self.xor(target, prev_pc),
-            InstructionType::OR(target) => self.or(target, prev_pc),
-            InstructionType::CP(target) => self.cp(target, prev_pc),
-            InstructionType::LD(load_type) => self.load(prev_pc, load_type),
-            InstructionType::LDSIG => self.ldsig(prev_pc),
-            InstructionType::LDSPHL => self.ldsphl(),
-            InstructionType::LDFF(load_type) => self.ldff(load_type, prev_pc),
-            InstructionType::PUSH(target) => self.push(target),
-            InstructionType::POP(target) => self.pop(target),
-            InstructionType::RST(target) => todo!(),
-            InstructionType::BIT(bit_type) => self.bit(bit_type),
-            InstructionType::RETI => todo!(),
-            InstructionType::DAA => todo!("daa"), //self.daa(),
-            InstructionType::RL(target) => self.rl(target),
-            InstructionType::RLA => self.rla(),
-            _ => { todo!("Unsupported instruction") }
+            InstructionType::CALL(test) => Ok(self.call(test, prev_pc)),
+            InstructionType::RET(test) => Ok(self.ret(test)),
+            InstructionType::JP(test) => Ok(self.jump(test, prev_pc)),
+            InstructionType::JR(test) => Ok(self.jump_relative(test, prev_pc)),
+            InstructionType::JPHL => Ok(self.jump_hl()),
+            InstructionType::NOP => Ok(self.nop()),
+            InstructionType::HALT => Ok(self.halt()),
+            InstructionType::SCF => Ok(self.scf()),
+            InstructionType::CCF => Ok(self.ccf()),
+            InstructionType::CPL => Ok(self.cpl()),
+            InstructionType::ADD(target) => Ok(self.add(target, prev_pc)),
+            InstructionType::ADC(target) => Ok(self.adc(target, prev_pc)),
+            InstructionType::INC(target) => Ok(self.inc(target)),
+            InstructionType::DEC(target) => Ok(self.dec(target)),
+            InstructionType::ADD16(target) => Ok(self.add16(target)),
+            InstructionType::INC16(target) => Ok(self.inc16(target)),
+            InstructionType::DEC16(target) => Ok(self.dec16(target)),
+            InstructionType::ADDSP8 => Ok(self.addsp8(prev_pc)),
+            InstructionType::SUB(target) => Ok(self.sub(target, prev_pc)),
+            InstructionType::SBC(target) => Ok(self.sbc(target, prev_pc)),
+            InstructionType::AND(target) => Ok(self.and(target, prev_pc)),
+            InstructionType::XOR(target) => Ok(self.xor(target, prev_pc)),
+            InstructionType::OR(target) => Ok(self.or(target, prev_pc)),
+            InstructionType::CP(target) => Ok(self.cp(target, prev_pc)),
+            InstructionType::LD(load_type) => Ok(self.load(prev_pc, load_type)),
+            InstructionType::LDSIG => Ok(self.ldsig(prev_pc)),
+            InstructionType::LDSPHL => Ok(self.ldsphl()),
+            InstructionType::LDFF(load_type) => Ok(self.ldff(load_type, prev_pc)),
+            InstructionType::PUSH(target) => Ok(self.push(target)),
+            InstructionType::POP(target) => Ok(self.pop(target)),
+            //InstructionType::RST(target) => todo!(),
+            InstructionType::BIT(bit_type) => Ok(self.bit(bit_type)),
+            //InstructionType::RETI => todo!(),
+            //InstructionType::DAA => self.daa(),
+            InstructionType::RL(target) => Ok(self.rl(target)),
+            InstructionType::RLA => Ok(self.rla()),
+            _ => { Err(Error::new(ErrorKind::Other, "Unsupported instruction")) }
         };
 
         executed_cycles

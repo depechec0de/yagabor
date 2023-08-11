@@ -1,4 +1,6 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, fmt};
+
+use pretty_hex::*;
 
 pub(super) const BOOT_BEGIN: u16 = 0x0000;
 pub(super) const BOOT_END: u16 = 0x00FF;
@@ -48,4 +50,11 @@ impl ROM {
         self.data[address as usize].clone()
     }
 
+}
+
+impl fmt::Display for ROM {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", "BOOTROM\n")?;
+        write!(f, "{}", pretty_hex(&self.data))
+    }
 }

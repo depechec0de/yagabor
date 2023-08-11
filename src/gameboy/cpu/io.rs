@@ -1,4 +1,8 @@
+use core::fmt;
+
 use crate::gameboy::cpu::cpu::Address;
+
+use pretty_hex::*;
 
 pub(super) const IO_BEGIN: Address = 0xFF00;
 pub(super) const IO_END: Address = 0xFF7F;
@@ -37,5 +41,12 @@ impl IO {
             BOOT_SWITCH => Some(IOEvent::BootSwitched(value == 0)),
             _ => None
         }
+    }
+}
+
+impl fmt::Display for IO {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {:x}-{:x}\n", "IO", IO_BEGIN, IO_END)?;
+        write!(f, "{}", pretty_hex(&self.data))
     }
 }

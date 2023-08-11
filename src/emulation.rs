@@ -23,6 +23,7 @@ impl Emulation {
                 self.executed_cycles = self.executed_cycles + u64::from(cycles_passed);
             }else{
                 println!("Emulation terminated in {} cycles", self.executed_cycles);
+                break
             }
         }
 

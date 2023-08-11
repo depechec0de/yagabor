@@ -11,7 +11,7 @@ pub struct GameBoy {
 }
 
 // We use machine cycles for reference, but in the translation we multiply by 4
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ClockCycles {
     One, Two, Three, Four, Five, Six
 }
@@ -27,11 +27,7 @@ impl GameBoy {
     }
 
     pub fn step(&mut self) -> Result<ClockCycles, Error> {
-        if let Some(cycles) = self.cpu.step() {
-            Ok(cycles)
-        }else{
-            Err(Error::new(ErrorKind::Other, "Unkown instruction found"))
-        }
+        self.cpu.step()
     }
 }
 

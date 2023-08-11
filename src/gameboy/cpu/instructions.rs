@@ -2,7 +2,7 @@ use crate::gameboy::ClockCycles;
 
 use crate::gameboy::cpu::cpu::ProgramCounter;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) struct Instruction {
     pub(super) op: InstructionType,
     pub(super) size: InstructionSize,
@@ -49,7 +49,7 @@ impl Instruction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(super) enum InstructionSize {
     OneByte,
     TwoBytes,
@@ -359,14 +359,14 @@ impl InstructionType {
             0x37 => Some(InstructionType::SCF),
             0x2F => Some(InstructionType::CPL),
             0x3F => Some(InstructionType::CCF),
-            0xF3 => todo!(),
-            0xFB => todo!(),
+            0xF3 => None,
+            0xFB => None,
 
             // Rotate InstructionTypes
             0x07 => Some(InstructionType::RLAC),
             0x17 => Some(InstructionType::RLA),
-            0x0F => todo!(),
-            0x1F => todo!(),
+            0x0F => None,
+            0x1F => None,
 
             // Stack InstructionTypes
             0xC1 => Some(InstructionType::POP(StackTarget::BC)),
@@ -379,7 +379,7 @@ impl InstructionType {
             0xF5 => Some(InstructionType::PUSH(StackTarget::AF)),
             0xF8 => Some(InstructionType::LDSIG),
             0xF9 => Some(InstructionType::LDSPHL),
-            0x08 => todo!(),
+            0x08 => None,
 
             // Control flow InstructionTypes
             0x18 => Some(InstructionType::JR(JumpTest::Always)),
