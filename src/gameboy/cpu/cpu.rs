@@ -7,14 +7,15 @@ use super::{registers::Registers, mmu::MMU, instructions::*};
 
 pub(super) type ProgramCounter = u16;
 pub(super) type StackPointer = u16;
-pub(super) type Address = u16;
+pub(crate) type Address = u16;
 
 pub(crate) struct CPU{
     pub(super) regs: Registers,
     pub(super) sp: StackPointer,
     pub(super) pc: ProgramCounter,
     pub(super) is_halted: bool,
-    pub(super) mmu: MMU
+    pub(super) mmu: MMU,
+    pub(super) ime: bool,
 }
 
 impl CPU {
@@ -24,7 +25,8 @@ impl CPU {
             sp: 0b0, 
             pc: 0b0,  
             is_halted: false,
-            mmu 
+            mmu,
+            ime: true
         }
     }
 
@@ -34,17 +36,21 @@ impl CPU {
         let byte1 = self.mmu.read_byte(self.pc+2);
 
         if let Some(instruction) = Instruction::parse_instruction(instruction_byte, byte0, byte1) {
-            //println!("{:?} {:?}", instruction, self.regs);
+            println!("{:?}", instruction);
             if let Ok(cycles) = self.execute(instruction.clone()){
-                println!("pc {:#04x} | {:x} ({:?} cycles) {:?} {:?} SP:{:x}", self.pc, instruction_byte, u64::from(cycles.clone()) , instruction, self.regs, self.sp);
+                //println!("pc {:#04x} | {:x} ({:?} cycles) {:?} {:?} SP:{:x}", self.pc, instruction_byte, u64::from(cycles.clone()) , instruction, self.regs, self.sp);
+                //if self.pc > 0xFF {
+                    println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:02X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}", 
+                            self.regs.a, u8::from(self.regs.flags.clone()), self.regs.b, self.regs.c, self.regs.d, self.regs.e, self.regs.h, self.regs.l, self.sp, self.pc, self.mmu.read_byte(self.pc), self.mmu.read_byte(self.pc+1), self.mmu.read_byte(self.pc+2), self.mmu.read_byte(self.pc+3) );
+                //}
                 Ok(cycles)
             }else{
                 //println!("{}", self.mmu);
                 Err(Error::new(ErrorKind::Other, "Error during execution"))
             }
         } else {
-            println!("{}", self.mmu);
-            Err(Error::new(ErrorKind::Other, "Unkown instruction found"))
+            //println!("{}", self.mmu);
+            Err(Error::new(ErrorKind::Other, format!("Unkown instruction {:x} {:x} found", instruction_byte, byte0)))
         }   
     }   
 
@@ -95,6 +101,10 @@ impl CPU {
             //InstructionType::DAA => self.daa(),
             InstructionType::RL(target) => Ok(self.rl(target)),
             InstructionType::RLA => Ok(self.rla()),
+            InstructionType::EI => Ok(self.ei()),
+            InstructionType::DI => Ok(self.di()),
+            InstructionType::RES(target) => Ok(self.res_set(target, false)),
+            InstructionType::SET(target) => Ok(self.res_set(target, true)),
             _ => { Err(Error::new(ErrorKind::Other, "Unsupported instruction")) }
         };
 
@@ -147,6 +157,16 @@ impl CPU {
     }
 
     fn nop(&self) -> ClockCycles {
+        ClockCycles::One
+    }
+
+    fn ei(&mut self) -> ClockCycles {
+        self.ime = true;
+        ClockCycles::One
+    }
+
+    fn di(&mut self) -> ClockCycles {
+        self.ime = false;
         ClockCycles::One
     }
 
@@ -269,25 +289,25 @@ impl CPU {
         match &load_type {
             LoadType::Byte(target, source) => {
                 let source_value = match source {
-                    LoadByteSource::A   => self.regs.a,
-                    LoadByteSource::B   => self.regs.b,
-                    LoadByteSource::C   => self.regs.c,
-                    LoadByteSource::D   => self.regs.d,
-                    LoadByteSource::E   => self.regs.e,
-                    LoadByteSource::H   => self.regs.h,
-                    LoadByteSource::L   => self.regs.l,
-                    LoadByteSource::D8  => self.read_next_byte(current_pc),
-                    LoadByteSource::HLI => self.mmu.read_byte(self.regs.get_hl())
+                    RegistersIndDir::A   => self.regs.a,
+                    RegistersIndDir::B   => self.regs.b,
+                    RegistersIndDir::C   => self.regs.c,
+                    RegistersIndDir::D   => self.regs.d,
+                    RegistersIndDir::E   => self.regs.e,
+                    RegistersIndDir::H   => self.regs.h,
+                    RegistersIndDir::L   => self.regs.l,
+                    RegistersIndDir::D8  => self.read_next_byte(current_pc),
+                    RegistersIndDir::HLI => self.mmu.read_byte(self.regs.get_hl())
                 };
                 match target {
-                    LoadByteTarget::A   => self.regs.a = source_value,
-                    LoadByteTarget::B   => self.regs.b = source_value,
-                    LoadByteTarget::C   => self.regs.c = source_value,
-                    LoadByteTarget::D   => self.regs.d = source_value,
-                    LoadByteTarget::E   => self.regs.e = source_value,
-                    LoadByteTarget::H   => self.regs.h = source_value,
-                    LoadByteTarget::L   => self.regs.l = source_value,
-                    LoadByteTarget::HLI => self.mmu.write_byte(self.regs.get_hl(), source_value)
+                    RegistersIndirect::A   => self.regs.a = source_value,
+                    RegistersIndirect::B   => self.regs.b = source_value,
+                    RegistersIndirect::C   => self.regs.c = source_value,
+                    RegistersIndirect::D   => self.regs.d = source_value,
+                    RegistersIndirect::E   => self.regs.e = source_value,
+                    RegistersIndirect::H   => self.regs.h = source_value,
+                    RegistersIndirect::L   => self.regs.l = source_value,
+                    RegistersIndirect::HLI => self.mmu.write_byte(self.regs.get_hl(), source_value)
                 };
 
             },
@@ -364,8 +384,8 @@ impl CPU {
         }
 
         match load_type {
-            LoadType::Byte(_,LoadByteSource::HLI) => ClockCycles::Two,
-            LoadType::Byte(LoadByteTarget::HLI, _) => ClockCycles::Two,
+            LoadType::Byte(_,RegistersIndDir::HLI) => ClockCycles::Two,
+            LoadType::Byte(RegistersIndirect::HLI, _) => ClockCycles::Two,
             LoadType::AFromIndirect(_) => ClockCycles::Two,
             LoadType::IndirectFromA(_) => ClockCycles::Two,
             LoadType::Word(_) => ClockCycles::Three,

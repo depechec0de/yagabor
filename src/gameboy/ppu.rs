@@ -1,6 +1,12 @@
-pub(super) const VRAM_BEGIN: usize = 0x8000;
-pub(super) const VRAM_END: usize = 0x9FFF;
-pub(super) const VRAM_SIZE: usize = VRAM_END - VRAM_BEGIN + 1;
+use std::fmt;
+
+use pretty_hex::*;
+
+use super::cpu::cpu::Address;
+
+pub(super) const VRAM_BEGIN: Address = 0x8000;
+pub(super) const VRAM_END: Address = 0x9FFF;
+pub(super) const VRAM_SIZE: usize = (VRAM_END - VRAM_BEGIN + 1) as usize;
 
 #[derive(Copy,Clone)]
 enum TilePixelValue {
@@ -15,7 +21,7 @@ fn empty_tile() -> Tile {
     [[TilePixelValue::Zero; 8]; 8]
 }
 
-pub(super) struct PPU{
+pub(crate) struct PPU{
     vram: [u8; VRAM_SIZE],
     tile_set: [Tile; 384],
 }
@@ -25,11 +31,12 @@ impl PPU {
         PPU{ vram: [0x0; VRAM_SIZE], tile_set: [[[TilePixelValue::Zero; 8]; 8]; 384] }
     }
 
-    pub(super) fn read_vram(&self, address: usize) -> u8 {
-        self.vram[address]
+    pub(super) fn read_vram(&self, address: Address) -> u8 {
+        self.vram[address as usize]
     }
 
-    pub(super) fn write_vram(&mut self, index: usize, value: u8) {
+    pub(super) fn write_vram(&mut self, address: Address, value: u8) {
+        let index = address as usize;
         self.vram[index] = value;
         // If our index is greater than 0x1800, we're not writing to the tile set storage
         // so we can just return.
@@ -89,5 +96,12 @@ impl PPU {
             self.tile_set[tile_index][row_index][pixel_index] = value;
         }
 
+    }
+}
+
+impl fmt::Display for PPU {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {:x}-{:x}\n", "PPU", VRAM_BEGIN, VRAM_END)?;
+        write!(f, "{}", pretty_hex(&self.vram))
     }
 }

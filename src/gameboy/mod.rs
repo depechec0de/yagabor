@@ -3,11 +3,13 @@ mod ppu;
 mod rom;
 mod cpu;
 
-use self::{cartridge::Cartridge, rom::ROM, cpu::{mmu::MMU, io::IO, cpu::CPU}};
+use self::{cartridge::Cartridge, rom::ROM, cpu::{mmu::MMU, io::IO, cpu::CPU}, ppu::PPU};
 use std::io::{Error, ErrorKind};
 
 pub struct GameBoy {
-    cpu: CPU
+    cpu: CPU,
+    cycles_passed: u64,
+    cycles_executed: u64
 }
 
 // We use machine cycles for reference, but in the translation we multiply by 4
@@ -20,13 +22,14 @@ impl GameBoy {
     pub fn new(cartridge: Cartridge) -> GameBoy {
         let bootrom = ROM::dmg();
         let io = IO::new();
-        let mut mmu = MMU::new(bootrom, cartridge, io);
+        let ppu = PPU::new();
+        let mut mmu = MMU::new(bootrom, cartridge, io, ppu);
         let mut cpu = CPU::new(mmu);
 
-        GameBoy { cpu }
+        GameBoy { cpu, cycles_passed: 0, cycles_executed: 0 }
     }
 
-    pub fn step(&mut self) -> Result<ClockCycles, Error> {
+    pub fn tick(&mut self) -> Result<ClockCycles, Error> {
         self.cpu.step()
     }
 }

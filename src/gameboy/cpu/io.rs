@@ -23,15 +23,14 @@ pub(super) enum IOEvent {
 
 impl IO {
     pub(crate) fn new() -> IO {
-        let mut io = IO{ data:[0; IO_SIZE] };
-        // TODO: Handle vertical line period properly
-        io.data[(0xFF44 - IO_BEGIN) as usize] = 0x90;
-
-        io
+        IO{ data:[0; IO_SIZE] }
     }
 
     pub(super) fn read_byte(&self, address: Address) -> u8 {
-        self.data[(address - IO_BEGIN) as usize]
+        match address {
+            0xFF44 => 0x90,
+            _ => self.data[(address - IO_BEGIN) as usize]
+        }
     }
 
     pub(super) fn write_byte(&mut self, address: Address, value: u8) -> Option<IOEvent> {

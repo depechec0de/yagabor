@@ -8,49 +8,53 @@ use super::{io::*, cpu::Address};
 
 const MEM_SIZE: usize = 0xFFFF;
 
-const ROM_BEGIN: u16 = 0x0000;
-const ROM_END: u16 = 0x7FFF;
+const ROM_BEGIN: Address = 0x0000;
+const ROM_END: Address = 0x7FFF;
 
-const GAMEROM0_BEGIN: u16 = 0x0000;
-const GAMEROM0_END: u16 = 0x3FFF;
-const GAMEROM0_SIZE: usize = (GAMEROM0_END - GAMEROM0_BEGIN + 1) as usize;
+const GAMEROM_0_BEGIN: Address = 0x0000;
+const GAMEROM_0_END: Address = 0x3FFF;
+const GAMEROM_0_SIZE: usize = (GAMEROM_0_END - GAMEROM_0_BEGIN + 1) as usize;
 
-const VRAM_BEGIN: u16 = 0x8000;
-const VRAM_END: u16 = 0x9FFF;
-const VRAM_SIZE: usize = (VRAM_END - VRAM_BEGIN + 1) as usize;
+const GAMEROM_N_BEGIN: Address = 0x4000;
+const GAMEROM_N_END: Address = 0x7FFF;
+const GAMEROM_N_SIZE: usize = (GAMEROM_N_END - GAMEROM_N_BEGIN + 1) as usize;
 
-const WRAM_BEGIN: u16 = 0xC000;
-const WRAM_END: u16 = 0xDFFF;
+const WRAM_BEGIN: Address = 0xC000;
+const WRAM_END: Address = 0xDFFF;
 const WRAM_SIZE: usize = (WRAM_END - WRAM_BEGIN + 1) as usize;
 
-const ERAM_BEGIN: u16 = 0xE000;
-const ERAM_END: u16 = 0xFDFF;
+const ERAM_BEGIN: Address = 0xE000;
+const ERAM_END: Address = 0xFDFF;
 
-const NOTUSABLE_BEGIN: u16 = 0xFEA0;
-const NOTUSABLE_END: u16 = 0xFEFF;
+const NOTUSABLE_BEGIN: Address = 0xFEA0;
+const NOTUSABLE_END: Address = 0xFEFF;
 
-const HRAM_BEGIN: u16 = 0xFF80;
-const HRAM_END: u16 = 0xFFFE;
+const HRAM_BEGIN: Address = 0xFF80;
+const HRAM_END: Address = 0xFFFE;
 const HRAM_SIZE: usize = (HRAM_END - HRAM_BEGIN + 1) as usize;
+
+const INTERRUPT_ADDRESS: Address = 0xFFFF;
 
 pub(crate) struct MMU {
     is_boot_rom_mapped: bool,
     bootrom: ROM,
     cartridge: Cartridge,
     io: IO,
-    vram: [u8; VRAM_SIZE],
+    ppu: PPU,
+    interrupt: u8,
     wram: [u8; WRAM_SIZE],
     hram: [u8; HRAM_SIZE],
 }
 
 impl MMU {
-    pub fn new(bootrom: ROM, cartridge: Cartridge, io: IO) -> MMU {
+    pub fn new(bootrom: ROM, cartridge: Cartridge, io: IO, ppu: PPU) -> MMU {
         MMU { 
             is_boot_rom_mapped: true, 
             cartridge,
             bootrom,
             io,
-            vram: [0; VRAM_SIZE], 
+            ppu, 
+            interrupt: 0x0,
             wram: [0; WRAM_SIZE], 
             hram: [0; HRAM_SIZE],
         }
@@ -58,7 +62,7 @@ impl MMU {
 
     pub(super) fn read_byte(&self, address: Address) -> u8 {
         match address {
-            GAMEROM0_BEGIN ..= GAMEROM0_END => {
+            GAMEROM_0_BEGIN ..= GAMEROM_0_END => {
                 match address {
                     BOOT_BEGIN ..= BOOT_END => {
                         if self.is_boot_rom_mapped {
@@ -70,31 +74,35 @@ impl MMU {
                     _ => self.cartridge.read_byte(address)
                 }
             },
+            GAMEROM_N_BEGIN ..= GAMEROM_N_END => self.cartridge.read_byte(address),
             VRAM_BEGIN ..= VRAM_END => self.read_vram(address),
             WRAM_BEGIN ..= WRAM_END => self.read_wram(address),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited read 0x{:x} to echo ram", address),
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited read 0x{:x}", address),
             IO_BEGIN ..= IO_END => self.read_io(address),
             HRAM_BEGIN ..= HRAM_END => self.read_hram(address),
+            INTERRUPT_ADDRESS => self.interrupt,
             _ => panic!("unmapped read {:x}", address),
         }
     }
 
     pub(super) fn write_byte(&mut self, address: Address, value: u8) {
         match address {
-            GAMEROM0_BEGIN ..= GAMEROM0_END => panic!("Writing in ROM is not possible"),
+            GAMEROM_0_BEGIN ..= GAMEROM_0_END => panic!("Writing in ROM is not possible"),
+            GAMEROM_N_BEGIN ..= GAMEROM_N_END => panic!("Writing in ROM is not possible"),
             VRAM_BEGIN ..= VRAM_END => self.write_vram(address, value),
             WRAM_BEGIN ..= WRAM_END => self.write_wram(address, value),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited write 0x{:x} to echo ram", address),
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited write 0x{:x}", address),
             IO_BEGIN ..= IO_END => self.write_io(address, value),
             HRAM_BEGIN ..= HRAM_END => self.write_hram(address, value),
+            INTERRUPT_ADDRESS => self.interrupt = value,
             _ => panic!("unmapped write {:x}", address),
         }
     }
 
     fn read_vram(&self, address: Address) -> u8 {
-        self.vram[address as usize - VRAM_BEGIN as usize]
+        self.ppu.read_vram(address - VRAM_BEGIN)
     }
 
     fn read_wram(&self, address: Address) -> u8 {
@@ -110,7 +118,7 @@ impl MMU {
     }
 
     fn write_vram(&mut self, address: Address, value: u8) {
-        self.vram[address as usize - VRAM_BEGIN as usize] = value;
+        self.ppu.write_vram(address - VRAM_BEGIN, value);
     }
 
     fn write_wram(&mut self, address: Address, value: u8) {
@@ -137,7 +145,7 @@ impl fmt::Display for MMU {
         //write!(f, "{}", self.bootrom)?;
         //write!(f, "{}", "\n")?;
         write!(f, "{} {:x}-{:x}\n", "VRAM", VRAM_BEGIN, VRAM_END)?;
-        write!(f, "{}", pretty_hex(&self.vram))?;
+        write!(f, "{}", self.ppu)?;
         write!(f, "{}", "\n\n")?;
 
         write!(f, "{} {:x}-{:x}\n", "WRAM", WRAM_BEGIN, WRAM_END)?;

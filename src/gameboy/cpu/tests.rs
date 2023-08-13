@@ -2,7 +2,7 @@ use crate::gameboy::{*, cpu::instructions::Instruction};
 
 #[test]
 fn add_without_carry() {
-    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new());
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b00000001;    
@@ -22,7 +22,7 @@ fn add_without_carry() {
 
 #[test]
 fn add_with_half_carry() {
-    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new());
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b00001111;
@@ -41,7 +41,7 @@ fn add_with_half_carry() {
 }
 #[test]
 fn add_with_carry() {
-    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new());
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b11111111;
@@ -61,7 +61,7 @@ fn add_with_carry() {
 
 #[test]
 fn adc_with_carry() {
-    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new());
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b11111110;
@@ -82,7 +82,7 @@ fn adc_with_carry() {
 
 #[test]
 fn adc_with_half_carry() {
-    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new());
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b00001110;
@@ -103,7 +103,7 @@ fn adc_with_half_carry() {
 
 #[test]
 fn sub_with_carry() {
-    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new());
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b00001111;
@@ -123,7 +123,7 @@ fn sub_with_carry() {
 
 #[test]
 fn sub_with_half_carry() {
-    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new());
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0x1;
@@ -143,7 +143,7 @@ fn sub_with_half_carry() {
 
 #[test]
 fn sbc_with_carry() {
-    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new());
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b00001111;
@@ -165,7 +165,7 @@ fn sbc_with_carry() {
 
 #[test]
 fn get_af() {
-    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new());
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.a = 0b01010101;
@@ -179,7 +179,7 @@ fn get_af() {
 
 #[test]
 fn set_af() {
-    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new());
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
     let mut cpu = CPU::new(mmu);
 
     cpu.regs.set_af(0b0101010101010000);
@@ -193,7 +193,7 @@ fn set_af() {
 
 #[test]
 fn stack_push() {
-    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new());
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
     let mut cpu = CPU::new(mmu);
 
     let init_sp = 0xDFFF;
@@ -214,7 +214,7 @@ fn stack_push() {
 
 #[test]
 fn stack_push_pop() {
-    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new());
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
     let mut cpu = CPU::new(mmu);
     cpu.sp = 0xDFFF;
 
