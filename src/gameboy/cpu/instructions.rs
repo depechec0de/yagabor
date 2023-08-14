@@ -86,6 +86,7 @@ pub(super) enum InstructionType {
     LDSIG,
     LDSPHL,
     LDFF(LoadFFType),
+    LDSPA16,
     // Control flow instructions
     JP(JumpTest),
     JR(JumpTest),
@@ -98,13 +99,19 @@ pub(super) enum InstructionType {
     PUSH(StackTarget),
     POP(StackTarget),
     // Prefix instructions
-    RLC(PrefixTarget),
     BIT(BitType),
     RL(RegistersIndirect),
+    RLC(RegistersIndirect),
+    RR(RegistersIndirect),
+    RRC(RegistersIndirect),
     RLA,
-    RLAC,
+    RLCA,
     RRA,
     RRCA,
+    SLA(RegistersIndirect),
+    SRA(RegistersIndirect),
+    SRL(RegistersIndirect),
+    SWAP(RegistersIndirect),
     DI,
     EI,
     RES(ResSetType),
@@ -183,6 +190,11 @@ pub(super) enum BitTarget {
     Zero, One, Two, Three, Four, Five, Six, Seven
 }
 
+#[derive(Clone, Debug)]
+pub(super) enum RotateDirection {
+    Left, Right
+}
+
 impl InstructionType {
     pub(super) fn size(&self) -> InstructionSize {
         match self {
@@ -219,6 +231,7 @@ impl InstructionType {
                                                     },
             InstructionType::LDSIG => InstructionSize::TwoBytes,
             InstructionType::LDSPHL => InstructionSize::OneByte,
+            InstructionType::LDSPA16 => InstructionSize::ThreeBytes,
             InstructionType::LDFF(load_type) => match load_type {
                                                             LoadFFType::AtoFFa8 => InstructionSize::TwoBytes,
                                                             LoadFFType::FFa8toA => InstructionSize::TwoBytes,
@@ -237,11 +250,17 @@ impl InstructionType {
             InstructionType::RETI => InstructionSize::OneByte,
             InstructionType::DAA => InstructionSize::OneByte,
             InstructionType::RL(_) => InstructionSize::TwoBytes,
-            InstructionType::RLA => InstructionSize::OneByte,
             InstructionType::RLC(_) => InstructionSize::TwoBytes,
-            InstructionType::RLAC => InstructionSize::OneByte,
+            InstructionType::RR(_) => InstructionSize::TwoBytes,
+            InstructionType::RRC(_) => InstructionSize::TwoBytes,
+            InstructionType::RLA => InstructionSize::OneByte,
+            InstructionType::RLCA => InstructionSize::OneByte,
             InstructionType::RRA => InstructionSize::OneByte,
             InstructionType::RRCA => InstructionSize::OneByte,
+            InstructionType::SLA(_) => InstructionSize::TwoBytes,
+            InstructionType::SRA(_) => InstructionSize::TwoBytes,
+            InstructionType::SRL(_) => InstructionSize::TwoBytes,
+            InstructionType::SWAP(_) => InstructionSize::TwoBytes,
             InstructionType::DI => InstructionSize::OneByte,
             InstructionType::EI => InstructionSize::OneByte,
             InstructionType::RES(_) => InstructionSize::TwoBytes,
@@ -252,16 +271,24 @@ impl InstructionType {
 
     pub(super) fn from_byte_prefixed(byte: u8) -> Option<InstructionType> {
         match byte {
-            0x00 => Some(InstructionType::RLC(PrefixTarget::B)),
-            0x01 => Some(InstructionType::RLC(PrefixTarget::C)),
-            0x02 => Some(InstructionType::RLC(PrefixTarget::D)),
-            0x03 => Some(InstructionType::RLC(PrefixTarget::E)),
-            0x04 => Some(InstructionType::RLC(PrefixTarget::H)),
-            0x05 => Some(InstructionType::RLC(PrefixTarget::L)),
-            0x06 => None, // TODO
-            0x07 => Some(InstructionType::RLC(PrefixTarget::A)),
+            0x00 => Some(InstructionType::RLC(RegistersIndirect::B)),
+            0x01 => Some(InstructionType::RLC(RegistersIndirect::C)),
+            0x02 => Some(InstructionType::RLC(RegistersIndirect::D)),
+            0x03 => Some(InstructionType::RLC(RegistersIndirect::E)),
+            0x04 => Some(InstructionType::RLC(RegistersIndirect::H)),
+            0x05 => Some(InstructionType::RLC(RegistersIndirect::L)),
+            0x06 => Some(InstructionType::RLC(RegistersIndirect::HLI)),
+            0x07 => Some(InstructionType::RLC(RegistersIndirect::A)),
 
-            // RL
+            0x08 => Some(InstructionType::RRC(RegistersIndirect::B)),
+            0x09 => Some(InstructionType::RRC(RegistersIndirect::C)),
+            0x0A => Some(InstructionType::RRC(RegistersIndirect::D)),
+            0x0B => Some(InstructionType::RRC(RegistersIndirect::E)),
+            0x0C => Some(InstructionType::RRC(RegistersIndirect::H)),
+            0x0D => Some(InstructionType::RRC(RegistersIndirect::L)),
+            0x0E => Some(InstructionType::RRC(RegistersIndirect::HLI)),
+            0x0F => Some(InstructionType::RRC(RegistersIndirect::A)),
+
             0x10 => Some(InstructionType::RL(RegistersIndirect::B)),
             0x11 => Some(InstructionType::RL(RegistersIndirect::C)),
             0x12 => Some(InstructionType::RL(RegistersIndirect::D)),
@@ -270,6 +297,51 @@ impl InstructionType {
             0x15 => Some(InstructionType::RL(RegistersIndirect::L)),
             0x16 => Some(InstructionType::RL(RegistersIndirect::HLI)),
             0x17 => Some(InstructionType::RL(RegistersIndirect::A)),
+
+            0x18 => Some(InstructionType::RR(RegistersIndirect::B)),
+            0x19 => Some(InstructionType::RR(RegistersIndirect::C)),
+            0x1A => Some(InstructionType::RR(RegistersIndirect::D)),
+            0x1B => Some(InstructionType::RR(RegistersIndirect::E)),
+            0x1C => Some(InstructionType::RR(RegistersIndirect::H)),
+            0x1D => Some(InstructionType::RR(RegistersIndirect::L)),
+            0x1E => Some(InstructionType::RR(RegistersIndirect::HLI)),
+            0x1F => Some(InstructionType::RR(RegistersIndirect::A)),
+
+            0x20 => Some(InstructionType::SLA(RegistersIndirect::B)),
+            0x21 => Some(InstructionType::SLA(RegistersIndirect::C)),
+            0x22 => Some(InstructionType::SLA(RegistersIndirect::D)),
+            0x23 => Some(InstructionType::SLA(RegistersIndirect::E)),
+            0x24 => Some(InstructionType::SLA(RegistersIndirect::H)),
+            0x25 => Some(InstructionType::SLA(RegistersIndirect::L)),
+            0x26 => Some(InstructionType::SLA(RegistersIndirect::HLI)),
+            0x27 => Some(InstructionType::SLA(RegistersIndirect::A)),
+
+            0x28 => Some(InstructionType::SRA(RegistersIndirect::B)),
+            0x29 => Some(InstructionType::SRA(RegistersIndirect::C)),
+            0x2A => Some(InstructionType::SRA(RegistersIndirect::D)),
+            0x2B => Some(InstructionType::SRA(RegistersIndirect::E)),
+            0x2C => Some(InstructionType::SRA(RegistersIndirect::H)),
+            0x2D => Some(InstructionType::SRA(RegistersIndirect::L)),
+            0x2E => Some(InstructionType::SRA(RegistersIndirect::HLI)),
+            0x2F => Some(InstructionType::SRA(RegistersIndirect::A)),
+
+            0x30 => Some(InstructionType::SWAP(RegistersIndirect::B)),
+            0x31 => Some(InstructionType::SWAP(RegistersIndirect::C)),
+            0x32 => Some(InstructionType::SWAP(RegistersIndirect::D)),
+            0x33 => Some(InstructionType::SWAP(RegistersIndirect::E)),
+            0x34 => Some(InstructionType::SWAP(RegistersIndirect::H)),
+            0x35 => Some(InstructionType::SWAP(RegistersIndirect::L)),
+            0x36 => Some(InstructionType::SWAP(RegistersIndirect::HLI)),
+            0x37 => Some(InstructionType::SWAP(RegistersIndirect::A)),
+
+            0x38 => Some(InstructionType::SRL(RegistersIndirect::B)),
+            0x39 => Some(InstructionType::SRL(RegistersIndirect::C)),
+            0x3A => Some(InstructionType::SRL(RegistersIndirect::D)),
+            0x3B => Some(InstructionType::SRL(RegistersIndirect::E)),
+            0x3C => Some(InstructionType::SRL(RegistersIndirect::H)),
+            0x3D => Some(InstructionType::SRL(RegistersIndirect::L)),
+            0x3E => Some(InstructionType::SRL(RegistersIndirect::HLI)),
+            0x3F => Some(InstructionType::SRL(RegistersIndirect::A)),
 
             // BIT
             0x40 => Some(InstructionType::BIT(BitType::Registers(BitTarget::Zero, RegistersIndirect::B))),
@@ -506,10 +578,10 @@ impl InstructionType {
             0xFB => Some(InstructionType::EI),
 
             // Rotate InstructionTypes
-            0x07 => Some(InstructionType::RLAC),
+            0x07 => Some(InstructionType::RLCA),
             0x17 => Some(InstructionType::RLA),
-            0x0F => None,
-            0x1F => None,
+            0x0F => Some(InstructionType::RRCA),
+            0x1F => Some(InstructionType::RRA),
 
             // Stack InstructionTypes
             0xC1 => Some(InstructionType::POP(StackTarget::BC)),
@@ -522,7 +594,7 @@ impl InstructionType {
             0xF5 => Some(InstructionType::PUSH(StackTarget::AF)),
             0xF8 => Some(InstructionType::LDSIG),
             0xF9 => Some(InstructionType::LDSPHL),
-            0x08 => None,
+            0x08 => Some(InstructionType::LDSPA16),
 
             // Control flow InstructionTypes
             0x18 => Some(InstructionType::JR(JumpTest::Always)),
@@ -771,7 +843,20 @@ impl InstructionType {
             0xDE => Some(InstructionType::SBC(RegistersIndDir::D8)),
             0xEE => Some(InstructionType::XOR(RegistersIndDir::D8)),
             0xFE => Some(InstructionType::CP(RegistersIndDir::D8)),
-            _ => None
+
+            // Invalid
+            0xD3 => None,
+            0xE3 => None,
+            0xE4 => None,
+            0xF4 => None,
+            0xCB => None,
+            0xDB => None,
+            0xEB => None,
+            0xEC => None,
+            0xFC => None,
+            0xDD => None,
+            0xED => None,
+            0xFD => None,
         }
     }
 }

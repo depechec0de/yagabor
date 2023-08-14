@@ -227,3 +227,73 @@ fn stack_push_pop() {
 
     assert_eq!(cpu.regs.get_hl(), cpu.regs.get_bc());
 }
+
+#[test]
+fn rla() {
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
+    let mut cpu = CPU::new(mmu);
+
+    cpu.regs.a = 0b10000000;
+
+    cpu.regs.flags.carry = true;
+
+    let inst = Instruction::parse_instruction(0x17, 0x0, 0x0).unwrap();
+
+    cpu.execute(inst);
+
+    assert_eq!(cpu.regs.a, 0b00000001);
+    assert_eq!(cpu.regs.flags.subtract, false);
+    assert_eq!(cpu.regs.flags.zero, false);
+    assert_eq!(cpu.regs.flags.carry, true);
+    assert_eq!(cpu.regs.flags.half_carry, false);
+
+    // No carry to move to bit 0
+    cpu.regs.a = 0b10000000;
+
+    cpu.regs.flags.carry = false;
+
+    let inst = Instruction::parse_instruction(0x17, 0x0, 0x0).unwrap();
+
+    cpu.execute(inst);
+
+    assert_eq!(cpu.regs.a, 0b00000000);
+    assert_eq!(cpu.regs.flags.subtract, false);
+    assert_eq!(cpu.regs.flags.zero, false);
+    assert_eq!(cpu.regs.flags.carry, true);
+    assert_eq!(cpu.regs.flags.half_carry, false);
+}
+
+#[test]
+fn rlca() {
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
+    let mut cpu = CPU::new(mmu);
+
+    cpu.regs.a = 0b10000000;
+
+    cpu.regs.flags.carry = false;
+
+    let inst = Instruction::parse_instruction(0x07, 0x0, 0x0).unwrap();
+
+    cpu.execute(inst);
+
+    assert_eq!(cpu.regs.a, 0b00000001);
+    assert_eq!(cpu.regs.flags.subtract, false);
+    assert_eq!(cpu.regs.flags.zero, false);
+    assert_eq!(cpu.regs.flags.carry, true);
+    assert_eq!(cpu.regs.flags.half_carry, false);
+
+    // No bit 7 to move
+    cpu.regs.a = 0b01000001;
+
+    cpu.regs.flags.carry = false;
+
+    let inst = Instruction::parse_instruction(0x07, 0x0, 0x0).unwrap();
+
+    cpu.execute(inst);
+
+    assert_eq!(cpu.regs.a, 0b10000010);
+    assert_eq!(cpu.regs.flags.subtract, false);
+    assert_eq!(cpu.regs.flags.zero, false);
+    assert_eq!(cpu.regs.flags.carry, false);
+    assert_eq!(cpu.regs.flags.half_carry, false);
+}

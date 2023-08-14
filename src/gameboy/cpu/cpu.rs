@@ -37,16 +37,19 @@ impl CPU {
 
         if let Some(instruction) = Instruction::parse_instruction(instruction_byte, byte0, byte1) {
             println!("{:?}", instruction);
-            if let Ok(cycles) = self.execute(instruction.clone()){
-                //println!("pc {:#04x} | {:x} ({:?} cycles) {:?} {:?} SP:{:x}", self.pc, instruction_byte, u64::from(cycles.clone()) , instruction, self.regs, self.sp);
-                //if self.pc > 0xFF {
-                    println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:02X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}", 
-                            self.regs.a, u8::from(self.regs.flags.clone()), self.regs.b, self.regs.c, self.regs.d, self.regs.e, self.regs.h, self.regs.l, self.sp, self.pc, self.mmu.read_byte(self.pc), self.mmu.read_byte(self.pc+1), self.mmu.read_byte(self.pc+2), self.mmu.read_byte(self.pc+3) );
-                //}
-                Ok(cycles)
-            }else{
-                //println!("{}", self.mmu);
-                Err(Error::new(ErrorKind::Other, "Error during execution"))
+            match self.execute(instruction.clone()) {
+                Ok(cycles) => {
+                    //println!("pc {:#04x} | {:x} ({:?} cycles) {:?} {:?} SP:{:x}", self.pc, instruction_byte, u64::from(cycles.clone()) , instruction, self.regs, self.sp);
+                    //if self.pc > 0xFF {
+                        println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:02X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}", 
+                                self.regs.a, u8::from(self.regs.flags.clone()), self.regs.b, self.regs.c, self.regs.d, self.regs.e, self.regs.h, self.regs.l, self.sp, self.pc, self.mmu.read_byte(self.pc), self.mmu.read_byte(self.pc+1), self.mmu.read_byte(self.pc+2), self.mmu.read_byte(self.pc+3) );
+                    //}
+                    Ok(cycles)
+                },
+                Err(error) => {
+                    //println!("{}", self.mmu);
+                    Err(Error::new(ErrorKind::Other, format!("Error during execution: {}", error)))
+                }
             }
         } else {
             //println!("{}", self.mmu);
@@ -92,6 +95,7 @@ impl CPU {
             InstructionType::LD(load_type) => Ok(self.load(prev_pc, load_type)),
             InstructionType::LDSIG => Ok(self.ldsig(prev_pc)),
             InstructionType::LDSPHL => Ok(self.ldsphl()),
+            InstructionType::LDSPA16 => Ok(self.ldspa16()),
             InstructionType::LDFF(load_type) => Ok(self.ldff(load_type, prev_pc)),
             InstructionType::PUSH(target) => Ok(self.push(target)),
             InstructionType::POP(target) => Ok(self.pop(target)),
@@ -99,13 +103,22 @@ impl CPU {
             InstructionType::BIT(bit_type) => Ok(self.bit(bit_type)),
             //InstructionType::RETI => todo!(),
             //InstructionType::DAA => self.daa(),
-            InstructionType::RL(target) => Ok(self.rl(target)),
+            InstructionType::RL(target) => {
+                Ok(self.bitwise_rotate(target, RotateDirection::Left, false)) 
+            },
+            InstructionType::RLC(target) => {
+                Ok(self.bitwise_rotate(target, RotateDirection::Left, true)) 
+            },
             InstructionType::RLA => Ok(self.rla()),
+            InstructionType::RLCA => Ok(self.rlca()),
+            InstructionType::SRA(target) => Ok(self.sla(target)),
+            InstructionType::SLA(target) => Ok(self.sra(target)),
+            InstructionType::SRL(target) => Ok(self.srl(target)),
+            InstructionType::SWAP(target) => Ok(self.swap(target)),
             InstructionType::EI => Ok(self.ei()),
             InstructionType::DI => Ok(self.di()),
             InstructionType::RES(target) => Ok(self.res_set(target, false)),
             InstructionType::SET(target) => Ok(self.res_set(target, true)),
-            _ => { Err(Error::new(ErrorKind::Other, "Unsupported instruction")) }
         };
 
         executed_cycles
@@ -275,6 +288,18 @@ impl CPU {
         self.sp = self.regs.get_hl();
 
         ClockCycles::Two
+    }
+
+    fn ldspa16(&mut self) -> ClockCycles {
+        let address = self.read_next_word(self.pc);
+
+        let lsb = (self.sp & 0x00FF) as u8;
+        let msb = ((self.sp & 0xFF00) >> 8) as u8;
+
+        self.mmu.write_byte(address, lsb);
+        self.mmu.write_byte(address.wrapping_add(1), msb);
+
+        ClockCycles::Five
     }
 
     pub(super) fn read_next_byte(&self, address: Address) -> u8 {

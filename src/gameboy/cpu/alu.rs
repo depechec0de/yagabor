@@ -312,7 +312,7 @@ impl CPU {
         let source = s;
 
         let i = get_position_by_bittarget(target);
-        let value = self.get_bitsource_val(source.clone());
+        let value = self.get_register_indirect_val(source.clone());
         let bit_value = get_bit_val(i, value);
 
         self.regs.flags.zero = !bit_value;
@@ -323,7 +323,7 @@ impl CPU {
         }             
     }
 
-    fn get_bitsource_val(&self, source: RegistersIndirect) -> u8 {
+    fn get_register_indirect_val(&self, source: RegistersIndirect) -> u8 {
         match source {
             RegistersIndirect::A => self.regs.a,
             RegistersIndirect::B => self.regs.b,
@@ -350,24 +350,83 @@ impl CPU {
         }
     }
 
+    // RLA, RRA, ... are legacy instructions made for compatibility with 8080
+    // No zero flag is set
     pub(super) fn rla(&mut self) -> ClockCycles {
+        self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Left, false);
         self.regs.flags.zero = false;
-        self.regs.flags.subtract = false;
-        self.regs.flags.half_carry = false;
-
-        self.shift_left_register(&RegistersIndirect::A);
 
         ClockCycles::One
     }
 
-    pub(super) fn rl(&mut self, target: RegistersIndirect) -> ClockCycles {
+    pub(super) fn rlca(&mut self) -> ClockCycles {
+        self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Left, true);
+        self.regs.flags.zero = false;
+
+        ClockCycles::One
+    }
+
+    pub(super) fn sla(&mut self, target: RegistersIndirect) -> ClockCycles {
+        self.bitwise_rotate(target.clone(), RotateDirection::Left, true);
+        self.res_set(ResSetType::Registers(BitTarget::Zero, target), false);
+
+        ClockCycles::Two
+    }
+
+    pub(super) fn sra(&mut self, target: RegistersIndirect) -> ClockCycles {
+        let value = self.get_register_indirect_val(target.clone());
+        let bit7 = get_bit_val(7, value);
+
+        self.bitwise_rotate(target.clone(), RotateDirection::Right, true);
+        self.res_set(ResSetType::Registers(BitTarget::Seven, target), bit7);
+
+        ClockCycles::Two
+    }
+
+    pub(super) fn srl(&mut self, target: RegistersIndirect) -> ClockCycles {
+        self.bitwise_rotate(target.clone(), RotateDirection::Right, true);
+        self.res_set(ResSetType::Registers(BitTarget::Seven, target), false);
+
+        ClockCycles::Two
+    }
+
+    pub(super) fn swap(&mut self, target: RegistersIndirect) -> ClockCycles {
+        let value = self.get_register_indirect_val(target.clone());
+
+        let low = value & 0x0F;
+        let high = value & 0xF0;
+
+        let new_value = low << 4 + high >> 4;
+
+        match target {
+            RegistersIndirect::A => { self.regs.a = new_value; },
+            RegistersIndirect::B => { self.regs.b = new_value; },
+            RegistersIndirect::C => { self.regs.c = new_value; },
+            RegistersIndirect::D => { self.regs.d = new_value; },
+            RegistersIndirect::E => { self.regs.e = new_value; },
+            RegistersIndirect::H => { self.regs.h = new_value; },
+            RegistersIndirect::L => { self.regs.l = new_value; },
+            RegistersIndirect::HLI => {
+                self.mmu.write_byte(self.regs.get_hl(), new_value);
+            }
+        };
+
+        ClockCycles::Two
+    }
+
+    // RR r and RL r instructions
+    // If is_rc is true we consider the RLC and RRC instructions, otherwise the RL and RR
+    pub(super) fn bitwise_rotate(&mut self, target: RegistersIndirect, direction: RotateDirection, is_rc: bool) -> ClockCycles {
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
 
-        self.shift_left_register(&target);
-
+        match direction {
+            RotateDirection::Left => self.shift_left_register(&target, is_rc),
+            RotateDirection::Right => self.shift_right_register(&target, is_rc),
+        }
+        
         match target {
-            RegistersIndirect::A => { self.regs.flags.zero = self.regs.a == 0; },
+            RegistersIndirect::A => { self.regs.flags.zero = false; },
             RegistersIndirect::B => { self.regs.flags.zero = self.regs.b == 0; },
             RegistersIndirect::C => { self.regs.flags.zero = self.regs.c == 0; },
             RegistersIndirect::D => { self.regs.flags.zero = self.regs.d == 0; },
@@ -383,30 +442,81 @@ impl CPU {
         }
     }
 
-    fn shift_left_register(&mut self, target: &RegistersIndirect) {
-        let old_carry = self.regs.flags.carry;
+    fn shift_left_register(&mut self, target: &RegistersIndirect, is_rlc: bool) {
+        let new_bit0;
+        let prev_bit7;
 
         match target {
-            RegistersIndirect::A => self.regs.flags.carry = get_bit_val(7,self.regs.a),
-            RegistersIndirect::B => self.regs.flags.carry = get_bit_val(7,self.regs.b),
-            RegistersIndirect::C => self.regs.flags.carry = get_bit_val(7,self.regs.c),
-            RegistersIndirect::D => self.regs.flags.carry = get_bit_val(7,self.regs.d),
-            RegistersIndirect::E => self.regs.flags.carry = get_bit_val(7,self.regs.e),
-            RegistersIndirect::H   => self.regs.flags.carry = get_bit_val(7,self.regs.h),
-            RegistersIndirect::L   => self.regs.flags.carry = get_bit_val(7,self.regs.l),
-            RegistersIndirect::HLI => self.regs.flags.carry = get_bit_val(7,self.mmu.read_byte(self.regs.get_hl()))
+            RegistersIndirect::A => prev_bit7 = get_bit_val(7,self.regs.a),
+            RegistersIndirect::B => prev_bit7 = get_bit_val(7,self.regs.b),
+            RegistersIndirect::C => prev_bit7 = get_bit_val(7,self.regs.c),
+            RegistersIndirect::D => prev_bit7 = get_bit_val(7,self.regs.d),
+            RegistersIndirect::E => prev_bit7 = get_bit_val(7,self.regs.e),
+            RegistersIndirect::H   => prev_bit7 = get_bit_val(7,self.regs.h),
+            RegistersIndirect::L   => prev_bit7 = get_bit_val(7,self.regs.l),
+            RegistersIndirect::HLI => { 
+                let hl_value = self.mmu.read_byte(self.regs.get_hl());
+                prev_bit7 = get_bit_val(7,hl_value);
+            }
         };
 
+        if is_rlc {
+            new_bit0 = prev_bit7;
+            self.regs.flags.carry = prev_bit7;
+        }else{
+            new_bit0 = self.regs.flags.carry;
+            self.regs.flags.carry = prev_bit7;
+        }
+
         match target {
-            RegistersIndirect::A => { self.regs.a = (self.regs.a << 1) + old_carry as u8; },
-            RegistersIndirect::B => { self.regs.b = (self.regs.b << 1) + old_carry as u8; },
-            RegistersIndirect::C => { self.regs.c = (self.regs.c << 1) + old_carry as u8; },
-            RegistersIndirect::D => { self.regs.d = (self.regs.d << 1) + old_carry as u8; },
-            RegistersIndirect::E => { self.regs.e = (self.regs.e << 1) + old_carry as u8; },
-            RegistersIndirect::H => { self.regs.h = (self.regs.h << 1) + old_carry as u8; },
-            RegistersIndirect::L => { self.regs.l = (self.regs.l << 1) + old_carry as u8; },
+            RegistersIndirect::A => { self.regs.a = (self.regs.a << 1) + new_bit0 as u8; },
+            RegistersIndirect::B => { self.regs.b = (self.regs.b << 1) + new_bit0 as u8; },
+            RegistersIndirect::C => { self.regs.c = (self.regs.c << 1) + new_bit0 as u8; },
+            RegistersIndirect::D => { self.regs.d = (self.regs.d << 1) + new_bit0 as u8; },
+            RegistersIndirect::E => { self.regs.e = (self.regs.e << 1) + new_bit0 as u8; },
+            RegistersIndirect::H => { self.regs.h = (self.regs.h << 1) + new_bit0 as u8; },
+            RegistersIndirect::L => { self.regs.l = (self.regs.l << 1) + new_bit0 as u8; },
             RegistersIndirect::HLI => {
-                let new_val = (self.mmu.read_byte(self.regs.get_hl()) << 1) + old_carry as u8;
+                let new_val = (self.mmu.read_byte(self.regs.get_hl()) << 1) + new_bit0 as u8;
+                self.mmu.write_byte(self.regs.get_hl(), new_val);
+            }
+        };
+
+    }
+
+    fn shift_right_register(&mut self, target: &RegistersIndirect, is_rrc: bool) {
+        let new_bit7;
+        let prev_bit0;
+
+        match target {
+            RegistersIndirect::A => prev_bit0 = get_bit_val(0,self.regs.a),
+            RegistersIndirect::B => prev_bit0 = get_bit_val(0,self.regs.b),
+            RegistersIndirect::C => prev_bit0 = get_bit_val(0,self.regs.c),
+            RegistersIndirect::D => prev_bit0 = get_bit_val(0,self.regs.d),
+            RegistersIndirect::E => prev_bit0 = get_bit_val(0,self.regs.e),
+            RegistersIndirect::H   => prev_bit0 = get_bit_val(0,self.regs.h),
+            RegistersIndirect::L   => prev_bit0 = get_bit_val(0,self.regs.l),
+            RegistersIndirect::HLI => prev_bit0 = get_bit_val(0,self.mmu.read_byte(self.regs.get_hl()))
+        };
+
+        if is_rrc {
+            new_bit7 = prev_bit0;
+            self.regs.flags.carry = prev_bit0;
+        }else{
+            new_bit7 = self.regs.flags.carry;
+            self.regs.flags.carry = prev_bit0;
+        }
+
+        match target {
+            RegistersIndirect::A => { self.regs.a = (self.regs.a >> 1) + (new_bit7 as u8) << 7; },
+            RegistersIndirect::B => { self.regs.b = (self.regs.b >> 1) + (new_bit7 as u8) << 7; },
+            RegistersIndirect::C => { self.regs.c = (self.regs.c >> 1) + (new_bit7 as u8) << 7; },
+            RegistersIndirect::D => { self.regs.d = (self.regs.d >> 1) + (new_bit7 as u8) << 7; },
+            RegistersIndirect::E => { self.regs.e = (self.regs.e >> 1) + (new_bit7 as u8) << 7; },
+            RegistersIndirect::H => { self.regs.h = (self.regs.h >> 1) + (new_bit7 as u8) << 7; },
+            RegistersIndirect::L => { self.regs.l = (self.regs.l >> 1) + (new_bit7 as u8) << 7; },
+            RegistersIndirect::HLI => {
+                let new_val = (self.mmu.read_byte(self.regs.get_hl()) >> 1) + (new_bit7 as u8) << 7;
                 self.mmu.write_byte(self.regs.get_hl(), new_val);
             }
         };
