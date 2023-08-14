@@ -36,14 +36,14 @@ impl CPU {
         let byte1 = self.mmu.read_byte(self.pc+2);
 
         if let Some(instruction) = Instruction::parse_instruction(instruction_byte, byte0, byte1) {
-            println!("{:?}", instruction);
+            //println!("{:?}", instruction);
             match self.execute(instruction.clone()) {
                 Ok(cycles) => {
                     //println!("pc {:#04x} | {:x} ({:?} cycles) {:?} {:?} SP:{:x}", self.pc, instruction_byte, u64::from(cycles.clone()) , instruction, self.regs, self.sp);
-                    //if self.pc > 0xFF {
+                    if self.pc > 0xFF {
                         println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:02X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}", 
                                 self.regs.a, u8::from(self.regs.flags.clone()), self.regs.b, self.regs.c, self.regs.d, self.regs.e, self.regs.h, self.regs.l, self.sp, self.pc, self.mmu.read_byte(self.pc), self.mmu.read_byte(self.pc+1), self.mmu.read_byte(self.pc+2), self.mmu.read_byte(self.pc+3) );
-                    //}
+                    }
                     Ok(cycles)
                 },
                 Err(error) => {
@@ -102,15 +102,15 @@ impl CPU {
             //InstructionType::RST(target) => todo!(),
             InstructionType::BIT(bit_type) => Ok(self.bit(bit_type)),
             //InstructionType::RETI => todo!(),
-            //InstructionType::DAA => self.daa(),
-            InstructionType::RL(target) => {
-                Ok(self.bitwise_rotate(target, RotateDirection::Left, false)) 
-            },
-            InstructionType::RLC(target) => {
-                Ok(self.bitwise_rotate(target, RotateDirection::Left, true)) 
-            },
+            InstructionType::DAA => Ok(self.daa()),
+            InstructionType::RL(target) => Ok(self.rl(target)),
+            InstructionType::RLC(target) => Ok(self.rlc(target)),
+            InstructionType::RR(target) => Ok(self.rr(target)),
+            InstructionType::RRC(target) => Ok(self.rrc(target)),
             InstructionType::RLA => Ok(self.rla()),
             InstructionType::RLCA => Ok(self.rlca()),
+            InstructionType::RRA => Ok(self.rra()),
+            InstructionType::RRCA => Ok(self.rrca()),
             InstructionType::SRA(target) => Ok(self.sla(target)),
             InstructionType::SLA(target) => Ok(self.sra(target)),
             InstructionType::SRL(target) => Ok(self.srl(target)),
@@ -208,30 +208,27 @@ impl CPU {
         ClockCycles::One
     }
 
-    fn daa(&self) -> ClockCycles {
-        // https://ehaskins.com/2018-01-30%20Z80%20DAA/
-        // let correction = 0;
-      
-        // let setFlagC = 0;
-        // if (flagH || (!flagN && (value & 0xf) > 9)) {
-        //   correction |= 0x6;
-        // }
-      
-        // if (flagC || (!flagN && value > 0x99)) {
-        //   correction |= 0x60;
-        //   setFlagC = FLAG_C;
-        // }
-      
-        // value += flagN ? -correction : correction;
-      
-        // value &= 0xff;
-      
-        // const setFlagZ = value === 0 ? FLAG_Z : 0;
-      
-        // regF &= ~(FLAG_H | FLAG_Z | FLAG_C);
-        // regF |= setFlagC | setFlagZ;
-      
-        // return { output, carry, zero };
+    // https://forums.nesdev.org/viewtopic.php?t=15944
+    fn daa(&mut self) -> ClockCycles {
+        if !self.regs.flags.subtract {  // after an addition, adjust if (half-)carry occurred or if result is out of bounds
+            if self.regs.flags.carry || self.regs.a > 0x99 { 
+                self.regs.a = self.regs.a.wrapping_add(0x60);
+                self.regs.flags.carry = true; 
+            }
+            if self.regs.flags.half_carry || (self.regs.a & 0x0f) > 0x09 { 
+                self.regs.a = self.regs.a.wrapping_add(0x6); 
+            }
+        } else {  // after a subtraction, only adjust if (half-)carry occurred
+            if self.regs.flags.carry { 
+                self.regs.a = self.regs.a.wrapping_sub(0x60);
+            }
+            if self.regs.flags.half_carry { 
+                self.regs.a = self.regs.a.wrapping_sub(0x06);
+            }
+        }
+        // these flags are always updated
+        self.regs.flags.zero = self.regs.a == 0; // the usual z flag
+        self.regs.flags.half_carry = false; // h flag is always cleared
 
         ClockCycles::One
     }

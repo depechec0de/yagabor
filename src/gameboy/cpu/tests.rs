@@ -160,7 +160,27 @@ fn sbc_with_carry() {
     assert_eq!(cpu.regs.flags.subtract, true);
     assert_eq!(cpu.regs.flags.zero, false);
     assert_eq!(cpu.regs.flags.carry, true);
-    assert_eq!(cpu.regs.flags.half_carry, false);
+    assert_eq!(cpu.regs.flags.half_carry, true);
+}
+
+#[test]
+fn sbc_with_half_carry() {
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
+    let mut cpu = CPU::new(mmu);
+
+    cpu.regs.a = 0x0;
+
+    cpu.regs.flags.carry = true;
+
+    let inst = Instruction::parse_instruction(0xDE, 0x01, 0x0).unwrap();
+
+    cpu.execute(inst);
+
+    assert_eq!(cpu.regs.a, 0xFF);
+    assert_eq!(cpu.regs.flags.subtract, true);
+    assert_eq!(cpu.regs.flags.zero, false);
+    assert_eq!(cpu.regs.flags.carry, true);
+    assert_eq!(cpu.regs.flags.half_carry, true);
 }
 
 #[test]
@@ -296,4 +316,46 @@ fn rlca() {
     assert_eq!(cpu.regs.flags.zero, false);
     assert_eq!(cpu.regs.flags.carry, false);
     assert_eq!(cpu.regs.flags.half_carry, false);
+}
+
+#[test]
+fn srl() {
+    let mmu = MMU::new(ROM::empty(), Cartridge::empty(), IO::new(), PPU::new());
+    let mut cpu = CPU::new(mmu);
+
+    cpu.regs.b = 0xFF;
+
+    cpu.regs.flags.zero = false;
+    cpu.regs.flags.carry = false;
+    cpu.regs.flags.half_carry = false;
+    cpu.regs.flags.subtract = false;
+
+    let inst = Instruction::parse_instruction(0xCB, 0x38, 0x0).unwrap();
+
+    cpu.execute(inst);
+
+    assert_eq!(cpu.regs.b, 0x7F);
+    assert_eq!(cpu.regs.flags.subtract, false);
+    assert_eq!(cpu.regs.flags.zero, false);
+    assert_eq!(cpu.regs.flags.carry, true);
+    assert_eq!(cpu.regs.flags.half_carry, false);
+
+    // Zero flag
+    cpu.regs.b = 0x01;
+
+    cpu.regs.flags.zero = false;
+    cpu.regs.flags.carry = false;
+    cpu.regs.flags.half_carry = false;
+    cpu.regs.flags.subtract = false;
+
+    let inst = Instruction::parse_instruction(0xCB, 0x38, 0x0).unwrap();
+
+    cpu.execute(inst);
+
+    assert_eq!(cpu.regs.b, 0x00);
+    assert_eq!(cpu.regs.flags.subtract, false);
+    assert_eq!(cpu.regs.flags.zero, true);
+    assert_eq!(cpu.regs.flags.carry, true);
+    assert_eq!(cpu.regs.flags.half_carry, false);
+
 }

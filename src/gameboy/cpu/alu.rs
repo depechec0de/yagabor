@@ -30,7 +30,7 @@ impl CPU {
         self.regs.flags.zero = false;
         self.regs.flags.subtract = false;
         self.regs.flags.carry = did_overflow;
-        self.regs.flags.half_carry = (self.sp & 0xF) + (value & 0xF) > 0xF;
+        self.regs.flags.half_carry = (self.sp & 0xfff).wrapping_add(value & 0xfff) > 0xfff; 
         self.sp = new_value;
 
         ClockCycles::Four
@@ -47,7 +47,8 @@ impl CPU {
         let (new_value, did_overflow) = self.regs.get_hl().overflowing_add(value);
         self.regs.flags.subtract = false;
         self.regs.flags.carry = did_overflow;
-        self.regs.flags.half_carry = (self.regs.get_hl() & 0xF) + (value & 0xF) > 0xF;
+        // This works for 16 bit
+        self.regs.flags.half_carry = (self.regs.get_hl() & 0xfff).wrapping_add(value & 0xfff) > 0xfff; 
         self.regs.set_hl(new_value);
 
         ClockCycles::Two
@@ -57,7 +58,6 @@ impl CPU {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         let (new_value1, did_overflow1) = self.regs.a.overflowing_add(value);
-
         let (new_value2, did_overflow2) = new_value1.overflowing_add(self.regs.flags.carry as u8);
 
         self.regs.flags.zero = new_value2 == 0;
@@ -92,16 +92,20 @@ impl CPU {
     }
 
     pub(super) fn sbc(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> ClockCycles {
+
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         let (new_value1, did_overflow1) = self.regs.a.overflowing_sub(self.regs.flags.carry as u8);
         let (new_value2, did_overflow2) = new_value1.overflowing_sub(value);
 
+        let half_carry_step1 = ((self.regs.a & 0xF).wrapping_sub(self.regs.flags.carry as u8 & 0xF) & 0x10) == 0x10;
+        let half_carry_step2 = ((new_value1 & 0xF).wrapping_sub(value & 0xF) & 0x10) == 0x10;
+
+        self.regs.flags.half_carry = half_carry_step1 || half_carry_step2;
         self.regs.flags.zero = new_value2 == 0;
         self.regs.flags.subtract = true;
         self.regs.flags.carry = did_overflow1 || did_overflow2;
-        let (new_value_low, _) = (new_value2 & 0xF).overflowing_sub(value & 0xF);
-        self.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
+        
         self.regs.a = new_value2;
 
         match target {
@@ -366,9 +370,24 @@ impl CPU {
         ClockCycles::One
     }
 
+    pub(super) fn rra(&mut self) -> ClockCycles {
+        self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Right, false);
+        self.regs.flags.zero = false;
+
+        ClockCycles::One
+    }
+
+    pub(super) fn rrca(&mut self) -> ClockCycles {
+        self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Right, true);
+        self.regs.flags.zero = false;
+
+        ClockCycles::One
+    }
+
     pub(super) fn sla(&mut self, target: RegistersIndirect) -> ClockCycles {
         self.bitwise_rotate(target.clone(), RotateDirection::Left, true);
-        self.res_set(ResSetType::Registers(BitTarget::Zero, target), false);
+        self.res_set(ResSetType::Registers(BitTarget::Zero, target.clone()), false);
+        self.set_flag_zero(target);
 
         ClockCycles::Two
     }
@@ -378,14 +397,44 @@ impl CPU {
         let bit7 = get_bit_val(7, value);
 
         self.bitwise_rotate(target.clone(), RotateDirection::Right, true);
-        self.res_set(ResSetType::Registers(BitTarget::Seven, target), bit7);
+        self.res_set(ResSetType::Registers(BitTarget::Seven, target.clone()), bit7);
+        self.set_flag_zero(target);
 
         ClockCycles::Two
     }
 
     pub(super) fn srl(&mut self, target: RegistersIndirect) -> ClockCycles {
         self.bitwise_rotate(target.clone(), RotateDirection::Right, true);
-        self.res_set(ResSetType::Registers(BitTarget::Seven, target), false);
+        self.res_set(ResSetType::Registers(BitTarget::Seven, target.clone()), false);
+        self.set_flag_zero(target);
+
+        ClockCycles::Two
+    }
+
+    pub(super) fn rr(&mut self, target: RegistersIndirect) -> ClockCycles {
+        self.bitwise_rotate(target.clone(), RotateDirection::Right, false);
+        self.set_flag_zero(target);
+
+        ClockCycles::Two
+    }
+
+    pub(super) fn rrc(&mut self, target: RegistersIndirect) -> ClockCycles {
+        self.bitwise_rotate(target.clone(), RotateDirection::Right, true);
+        self.set_flag_zero(target);
+
+        ClockCycles::Two
+    }
+
+    pub(super) fn rl(&mut self, target: RegistersIndirect) -> ClockCycles {
+        self.bitwise_rotate(target.clone(), RotateDirection::Left, false);
+        self.set_flag_zero(target);
+
+        ClockCycles::Two
+    }
+
+    pub(super) fn rlc(&mut self, target: RegistersIndirect) -> ClockCycles {
+        self.bitwise_rotate(target.clone(), RotateDirection::Left, true);
+        self.set_flag_zero(target);
 
         ClockCycles::Two
     }
@@ -396,7 +445,7 @@ impl CPU {
         let low = value & 0x0F;
         let high = value & 0xF0;
 
-        let new_value = low << 4 + high >> 4;
+        let new_value = (low << 4).wrapping_add(high >> 4);
 
         match target {
             RegistersIndirect::A => { self.regs.a = new_value; },
@@ -416,7 +465,7 @@ impl CPU {
 
     // RR r and RL r instructions
     // If is_rc is true we consider the RLC and RRC instructions, otherwise the RL and RR
-    pub(super) fn bitwise_rotate(&mut self, target: RegistersIndirect, direction: RotateDirection, is_rc: bool) -> ClockCycles {
+    fn bitwise_rotate(&mut self, target: RegistersIndirect, direction: RotateDirection, is_rc: bool) -> ClockCycles {
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
 
@@ -424,18 +473,7 @@ impl CPU {
             RotateDirection::Left => self.shift_left_register(&target, is_rc),
             RotateDirection::Right => self.shift_right_register(&target, is_rc),
         }
-        
-        match target {
-            RegistersIndirect::A => { self.regs.flags.zero = false; },
-            RegistersIndirect::B => { self.regs.flags.zero = self.regs.b == 0; },
-            RegistersIndirect::C => { self.regs.flags.zero = self.regs.c == 0; },
-            RegistersIndirect::D => { self.regs.flags.zero = self.regs.d == 0; },
-            RegistersIndirect::E => { self.regs.flags.zero = self.regs.e == 0; },
-            RegistersIndirect::H => { self.regs.flags.zero = self.regs.h == 0; },
-            RegistersIndirect::L => { self.regs.flags.zero = self.regs.l == 0; },
-            RegistersIndirect::HLI => { self.regs.flags.zero = self.mmu.read_byte(self.regs.get_hl()) == 0; }
-        };
-        
+
         match target {
             RegistersIndirect::HLI => ClockCycles::Four,
             _ => ClockCycles::Two,
@@ -506,25 +544,26 @@ impl CPU {
             new_bit7 = self.regs.flags.carry;
             self.regs.flags.carry = prev_bit0;
         }
-
+        
         match target {
-            RegistersIndirect::A => { self.regs.a = (self.regs.a >> 1) + (new_bit7 as u8) << 7; },
-            RegistersIndirect::B => { self.regs.b = (self.regs.b >> 1) + (new_bit7 as u8) << 7; },
-            RegistersIndirect::C => { self.regs.c = (self.regs.c >> 1) + (new_bit7 as u8) << 7; },
-            RegistersIndirect::D => { self.regs.d = (self.regs.d >> 1) + (new_bit7 as u8) << 7; },
-            RegistersIndirect::E => { self.regs.e = (self.regs.e >> 1) + (new_bit7 as u8) << 7; },
-            RegistersIndirect::H => { self.regs.h = (self.regs.h >> 1) + (new_bit7 as u8) << 7; },
-            RegistersIndirect::L => { self.regs.l = (self.regs.l >> 1) + (new_bit7 as u8) << 7; },
+            RegistersIndirect::A => { self.regs.a = (self.regs.a >> 1) + ((new_bit7 as u8) << 7); },
+            RegistersIndirect::B => { self.regs.b = (self.regs.b >> 1) + ((new_bit7 as u8) << 7); },
+            RegistersIndirect::C => { self.regs.c = (self.regs.c >> 1) + ((new_bit7 as u8) << 7); },
+            RegistersIndirect::D => { self.regs.d = (self.regs.d >> 1) + ((new_bit7 as u8) << 7); },
+            RegistersIndirect::E => { self.regs.e = (self.regs.e >> 1) + ((new_bit7 as u8) << 7); },
+            RegistersIndirect::H => { self.regs.h = (self.regs.h >> 1) + ((new_bit7 as u8) << 7); },
+            RegistersIndirect::L => { self.regs.l = (self.regs.l >> 1) + ((new_bit7 as u8) << 7); },
             RegistersIndirect::HLI => {
                 let new_val = (self.mmu.read_byte(self.regs.get_hl()) >> 1) + (new_bit7 as u8) << 7;
                 self.mmu.write_byte(self.regs.get_hl(), new_val);
             }
         };
+
     }
 
     pub(super) fn res_set(&mut self, target: ResSetType, value: bool) -> ClockCycles {
         let ResSetType::Registers(bt, register) = target;
-
+        
         let i = get_position_by_bittarget(bt);
 
         match register {
@@ -545,6 +584,19 @@ impl CPU {
             RegistersIndirect::HLI => ClockCycles::Four,
             _ => ClockCycles::Two,
         }
+    }
+
+    fn set_flag_zero(&mut self, target: RegistersIndirect) {
+        match target {
+            RegistersIndirect::A => { self.regs.flags.zero = false; },
+            RegistersIndirect::B => { self.regs.flags.zero = self.regs.b == 0; },
+            RegistersIndirect::C => { self.regs.flags.zero = self.regs.c == 0; },
+            RegistersIndirect::D => { self.regs.flags.zero = self.regs.d == 0; },
+            RegistersIndirect::E => { self.regs.flags.zero = self.regs.e == 0; },
+            RegistersIndirect::H => { self.regs.flags.zero = self.regs.h == 0; },
+            RegistersIndirect::L => { self.regs.flags.zero = self.regs.l == 0; },
+            RegistersIndirect::HLI => { self.regs.flags.zero = self.mmu.read_byte(self.regs.get_hl()) == 0; }
+        };
     }
 }
 
