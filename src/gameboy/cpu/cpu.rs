@@ -119,6 +119,7 @@ impl CPU {
             InstructionType::DI => Ok(self.di()),
             InstructionType::RES(target) => Ok(self.res_set(target, false)),
             InstructionType::SET(target) => Ok(self.res_set(target, true)),
+            _ => { Err(Error::new(ErrorKind::Other, "Unsupported instruction")) }
         };
 
         executed_cycles
