@@ -8,7 +8,7 @@ use clap::Parser;
 use emulation::Emulation;
 use gameboy::GameBoy;
 
-use crate::gameboy::cartridge::Cartridge;
+use crate::gameboy::{cartridge::Cartridge, serial::DummySerialPort};
 
 #[derive(Parser)]
 struct Cli {
@@ -24,7 +24,10 @@ fn main() -> Result<(), Error> {
     }else{
         cartridge = Cartridge::empty();
     }
-    let gb: GameBoy = GameBoy::new(cartridge);
+
+    let serial = DummySerialPort::new();
+
+    let gb: GameBoy<_> = GameBoy::new(cartridge, serial);
 
     let mut emu = Emulation::new(gb);
 

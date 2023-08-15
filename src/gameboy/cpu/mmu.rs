@@ -2,7 +2,7 @@ use std::fmt;
 
 use pretty_hex::*;
 
-use crate::gameboy::{ppu::*, rom::*, cartridge::Cartridge};
+use crate::gameboy::{ppu::*, rom::*, cartridge::Cartridge, serial::Serializable};
 
 use super::{io::*, cpu::Address};
 
@@ -18,6 +18,10 @@ const GAMEROM_0_SIZE: usize = (GAMEROM_0_END - GAMEROM_0_BEGIN + 1) as usize;
 const GAMEROM_N_BEGIN: Address = 0x4000;
 const GAMEROM_N_END: Address = 0x7FFF;
 const GAMEROM_N_SIZE: usize = (GAMEROM_N_END - GAMEROM_N_BEGIN + 1) as usize;
+
+const EXTRAM_BEGIN: Address = 0xA000;
+const EXTRAM_END: Address = 0xBFFF;
+const EXTRAM_SIZE: usize = (EXTRAM_END - EXTRAM_BEGIN + 1) as usize;
 
 const WRAM_BEGIN: Address = 0xC000;
 const WRAM_END: Address = 0xDFFF;
@@ -35,26 +39,31 @@ const HRAM_SIZE: usize = (HRAM_END - HRAM_BEGIN + 1) as usize;
 
 const INTERRUPT_ADDRESS: Address = 0xFFFF;
 
-pub(crate) struct MMU {
+pub(crate) struct MMU<S: Serializable> {
     is_boot_rom_mapped: bool,
     bootrom: ROM,
     cartridge: Cartridge,
-    io: IO,
+    io: IO<S>,
     ppu: PPU,
     interrupt: u8,
+    eram: [u8; EXTRAM_SIZE],
     wram: [u8; WRAM_SIZE],
     hram: [u8; HRAM_SIZE],
 }
 
-impl MMU {
-    pub fn new(bootrom: ROM, cartridge: Cartridge, io: IO, ppu: PPU) -> MMU {
+impl<S: Serializable> MMU<S> {
+    pub fn new(cartridge: Cartridge, serial: S) -> Self {
+        let bootrom = ROM::dmg();
+        let io = IO::new(serial);
+        let ppu = PPU::new();
         MMU { 
             is_boot_rom_mapped: true, 
             cartridge,
             bootrom,
             io,
-            ppu, 
+            ppu,
             interrupt: 0x0,
+            eram: [0; EXTRAM_SIZE], 
             wram: [0; WRAM_SIZE], 
             hram: [0; HRAM_SIZE],
         }
@@ -76,6 +85,7 @@ impl MMU {
             },
             GAMEROM_N_BEGIN ..= GAMEROM_N_END => self.cartridge.read_byte(address),
             VRAM_BEGIN ..= VRAM_END => self.read_vram(address),
+            EXTRAM_BEGIN ..= EXTRAM_END => self.read_eram(address),
             WRAM_BEGIN ..= WRAM_END => self.read_wram(address),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited read 0x{:x} to echo ram", address),
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited read 0x{:x}", address),
@@ -91,6 +101,7 @@ impl MMU {
             GAMEROM_0_BEGIN ..= GAMEROM_0_END => panic!("Writing in ROM is not possible"),
             GAMEROM_N_BEGIN ..= GAMEROM_N_END => panic!("Writing in ROM is not possible"),
             VRAM_BEGIN ..= VRAM_END => self.write_vram(address, value),
+            EXTRAM_BEGIN ..= EXTRAM_END => self.write_eram(address, value),
             WRAM_BEGIN ..= WRAM_END => self.write_wram(address, value),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited write 0x{:x} to echo ram", address),
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited write 0x{:x}", address),
@@ -113,6 +124,10 @@ impl MMU {
         self.io.read_byte(address)     
     }
 
+    fn read_eram(&self, address: Address) -> u8 {
+        self.eram[address as usize - EXTRAM_BEGIN as usize]
+    }
+
     fn read_hram(&self, address: Address) -> u8 {
         self.hram[address as usize - HRAM_BEGIN as usize]
     }
@@ -123,6 +138,10 @@ impl MMU {
 
     fn write_wram(&mut self, address: Address, value: u8) {
         self.wram[address as usize - WRAM_BEGIN as usize] = value;
+    }
+
+    fn write_eram(&mut self, address: Address, value: u8) {
+        self.eram[address as usize - EXTRAM_BEGIN as usize] = value;
     }
 
     fn write_io(&mut self, address: Address, value: u8) {
@@ -140,7 +159,7 @@ impl MMU {
 
 }
 
-impl fmt::Display for MMU {
+impl<S: Serializable> fmt::Display for MMU<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         //write!(f, "{}", self.bootrom)?;
         //write!(f, "{}", "\n")?;

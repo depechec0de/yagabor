@@ -1,13 +1,14 @@
-pub mod cartridge;
+pub(super) mod cartridge;
 mod ppu;
 mod rom;
 mod cpu;
+pub(super) mod serial;
 
-use self::{cartridge::Cartridge, rom::ROM, cpu::{mmu::MMU, io::IO, cpu::CPU}, ppu::PPU};
+use self::{cartridge::Cartridge, rom::ROM, cpu::{mmu::MMU, io::IO, cpu::CPU}, ppu::PPU, serial::{DummySerialPort, Serializable}};
 use std::io::{Error, ErrorKind};
 
-pub struct GameBoy {
-    cpu: CPU,
+pub struct GameBoy<S: Serializable> {
+    cpu: CPU<S>,
     cycles_passed: u64,
     cycles_executed: u64
 }
@@ -18,13 +19,10 @@ pub enum ClockCycles {
     One, Two, Three, Four, Five, Six
 }
 
-impl GameBoy {
-    pub fn new(cartridge: Cartridge) -> GameBoy {
-        let bootrom = ROM::dmg();
-        let io = IO::new();
-        let ppu = PPU::new();
-        let mut mmu = MMU::new(bootrom, cartridge, io, ppu);
-        let mut cpu = CPU::new(mmu);
+impl<S: Serializable> GameBoy<S> {
+    pub fn new(cartridge: Cartridge, serial: S) -> Self {
+        let mmu = MMU::new(cartridge, serial);
+        let cpu = CPU::new(mmu);
 
         GameBoy { cpu, cycles_passed: 0, cycles_executed: 0 }
     }

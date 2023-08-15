@@ -2,16 +2,16 @@ use std::{time::{Duration, SystemTime, Instant}, io::Error};
 
 use sdl2::{Sdl};
 
-use crate::{gameboy::GameBoy};
+use crate::{gameboy::{GameBoy, serial::Serializable}};
 
 pub const CPU_CLOCK_HZ: usize = 4_194_304;
 pub const FPS: f32 = 59.7;
 pub const CPU_CYCLES_PER_FRAME: usize = (CPU_CLOCK_HZ as f32 / FPS) as usize;
 
 
-pub struct Emulation {
+pub struct Emulation<S: Serializable> {
     running: bool,
-    gameboy: GameBoy,
+    gameboy: GameBoy<S>,
     sdl_context: Sdl
 }
 
@@ -22,8 +22,8 @@ pub(crate) struct EmulationReport {
     pub(crate) result: Result<(), Error>,
 }
 
-impl Emulation {
-    pub(crate) fn new(gameboy: GameBoy) -> Emulation {
+impl<S: Serializable> Emulation<S> {
+    pub(crate) fn new(gameboy: GameBoy<S>) -> Self {
 
         let sdl_context = sdl2::init().unwrap();
 

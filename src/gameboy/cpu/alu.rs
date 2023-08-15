@@ -1,8 +1,8 @@
-use crate::gameboy::ClockCycles;
+use crate::gameboy::{ClockCycles, serial::Serializable};
 
 use super::{instructions::*, cpu::{CPU, ProgramCounter}};
 
-impl CPU {
+impl<S: Serializable> CPU<S> {
     pub(super) fn add(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> ClockCycles {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 

@@ -7,7 +7,7 @@ pub(super) const BOOT_END: u16 = 0x00FF;
 pub(super) const BOOT_SIZE: usize = (BOOT_END - BOOT_BEGIN + 1) as usize;
 
 // 16-bit address ROM
-pub struct ROM {
+pub(crate) struct ROM {
     data: [u8; BOOT_SIZE]
 }
 

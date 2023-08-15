@@ -44,8 +44,8 @@ impl Cartridge {
         self.data[address as usize]
     }
 
-    pub fn test_cpu_instrs() -> Cartridge {
-        let buffer = include_bytes!("../../assets/cpu_instrs.gb");
+    pub fn cpu_instrs() -> Cartridge {
+        let buffer = include_bytes!("../../assets/gb-test-roms/cpu_instrs/individual/01-special.gb");
         let data = buffer.to_vec();
         let title = parse_title(&data);
     

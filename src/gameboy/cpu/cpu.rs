@@ -1,7 +1,7 @@
 use core::panic;
 use std::io::{Error, ErrorKind};
 
-use crate::gameboy::ClockCycles;
+use crate::gameboy::{ClockCycles, serial::Serializable};
 
 use super::{registers::Registers, mmu::MMU, instructions::*};
 
@@ -9,18 +9,18 @@ pub(super) type ProgramCounter = u16;
 pub(super) type StackPointer = u16;
 pub(crate) type Address = u16;
 
-pub(crate) struct CPU{
+pub(crate) struct CPU<S: Serializable>{
     pub(super) regs: Registers,
     pub(super) sp: StackPointer,
     pub(super) pc: ProgramCounter,
     pub(super) is_halted: bool,
-    pub(super) mmu: MMU,
+    pub(super) mmu: MMU<S>,
     pub(super) ime: bool,
 }
 
-impl CPU {
-    pub fn new(mmu: MMU) -> CPU {
-        CPU { 
+impl<S: Serializable> CPU<S> {
+    pub fn new(mmu: MMU<S>) -> Self {
+        Self { 
             regs: Registers::new(), 
             sp: 0b0, 
             pc: 0b0,  
@@ -41,8 +41,8 @@ impl CPU {
                 Ok(cycles) => {
                     //println!("pc {:#04x} | {:x} ({:?} cycles) {:?} {:?} SP:{:x}", self.pc, instruction_byte, u64::from(cycles.clone()) , instruction, self.regs, self.sp);
                     if self.pc > 0xFF {
-                        println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:02X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}", 
-                                self.regs.a, u8::from(self.regs.flags.clone()), self.regs.b, self.regs.c, self.regs.d, self.regs.e, self.regs.h, self.regs.l, self.sp, self.pc, self.mmu.read_byte(self.pc), self.mmu.read_byte(self.pc+1), self.mmu.read_byte(self.pc+2), self.mmu.read_byte(self.pc+3) );
+                        // println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:02X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}", 
+                        //         self.regs.a, u8::from(self.regs.flags.clone()), self.regs.b, self.regs.c, self.regs.d, self.regs.e, self.regs.h, self.regs.l, self.sp, self.pc, self.mmu.read_byte(self.pc), self.mmu.read_byte(self.pc+1), self.mmu.read_byte(self.pc+2), self.mmu.read_byte(self.pc+3) );                        
                     }
                     Ok(cycles)
                 },

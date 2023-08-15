@@ -1,6 +1,6 @@
 use core::fmt;
 
-use crate::gameboy::cpu::cpu::Address;
+use crate::gameboy::{cpu::cpu::Address, serial::Serializable};
 
 use pretty_hex::*;
 
@@ -8,22 +8,24 @@ pub(super) const IO_BEGIN: Address = 0xFF00;
 pub(super) const IO_END: Address = 0xFF7F;
 const IO_SIZE: usize = (IO_END - IO_BEGIN + 1) as usize;
 
-const BOOT_SWITCH: Address = 0xFF50;
+const BOOT_SWITCH_ADDRESS: Address = 0xFF50;
+const SERIAL_DATA_ADDRESS: Address = 0xFF01;
 
 const LCD_CONTROL_BEGIN: Address = 0xFF40;
 const LCD_CONTROL_END: Address = 0xFF4B;
 
-pub(crate) struct IO {
+pub(crate) struct IO<S: Serializable> {
     data: [u8; IO_SIZE],
+    serial: S,
 }
 
 pub(super) enum IOEvent {
     BootSwitched(bool)
 }
 
-impl IO {
-    pub(crate) fn new() -> IO {
-        IO{ data:[0; IO_SIZE] }
+impl<S: Serializable> IO<S> {
+    pub(crate) fn new(serial: S) -> Self {
+        Self{ data:[0; IO_SIZE], serial }
     }
 
     pub(super) fn read_byte(&self, address: Address) -> u8 {
@@ -37,13 +39,17 @@ impl IO {
         self.data[(address - IO_BEGIN) as usize] = value;
 
         match address {
-            BOOT_SWITCH => Some(IOEvent::BootSwitched(value == 0)),
+            SERIAL_DATA_ADDRESS => { 
+                self.serial.send(value); 
+                None
+            },
+            BOOT_SWITCH_ADDRESS => Some(IOEvent::BootSwitched(value == 0)),
             _ => None
         }
     }
 }
 
-impl fmt::Display for IO {
+impl<S: Serializable> fmt::Display for IO<S> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} {:x}-{:x}\n", "IO", IO_BEGIN, IO_END)?;
         write!(f, "{}", pretty_hex(&self.data))
