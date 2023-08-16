@@ -1,7 +1,7 @@
 use core::panic;
 use std::io::{Error, ErrorKind};
 
-use crate::gameboy::{ClockCycles, serial::Serializable};
+use crate::gameboy::serial::Serializable;
 
 use super::{registers::Registers, mmu::MMU, instructions::*};
 
@@ -482,5 +482,25 @@ impl<S: Serializable> CPU<S> {
         self.sp = self.sp.wrapping_add(1);
 
         (msb << 8) | lsb
+    }
+}
+
+// We use machine cycles for reference, but in the translation we multiply by 4
+#[derive(Debug, Clone)]
+pub(crate) enum ClockCycles {
+    One, Two, Three, Four, Five, Six
+}
+
+impl std::convert::From<ClockCycles> for u64  {
+    fn from(cycles: ClockCycles) -> u64 {
+        let machine_cycles = match cycles {
+            ClockCycles::One => 1,
+            ClockCycles::Two => 2,
+            ClockCycles::Three => 3,
+            ClockCycles::Four => 4,
+            ClockCycles::Five => 5,
+            ClockCycles::Six => 6
+        };
+        machine_cycles*4
     }
 }

@@ -1,6 +1,6 @@
-use crate::gameboy::{ClockCycles, serial::Serializable};
+use crate::gameboy::{serial::Serializable};
 
-use super::{instructions::*, cpu::{CPU, ProgramCounter}};
+use super::{instructions::*, cpu::{CPU, ProgramCounter, ClockCycles}};
 
 impl<S: Serializable> CPU<S> {
     pub(super) fn add(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> ClockCycles {
