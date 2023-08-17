@@ -3,12 +3,12 @@ mod gameboy;
 mod clock;
 
 use std::io::Error;
+use std::rc::Rc;
 
 use clap::Parser;
 use emulation::Emulation;
-use gameboy::GameBoy;
 
-use crate::gameboy::{cartridge::Cartridge, serial::TestSerialPort};
+use crate::gameboy::{cartridge::Cartridge, serial::DummySerialPort, gameboy::GameBoy};
 
 #[derive(Parser)]
 struct Cli {
@@ -25,9 +25,9 @@ fn main() -> Result<(), Error> {
         cartridge = Cartridge::empty();
     }
 
-    let serial = TestSerialPort::new();
+    let serial: DummySerialPort = DummySerialPort::new();
 
-    let gb: GameBoy<_> = GameBoy::new(cartridge, serial);
+    let gb: GameBoy<_> = GameBoy::new(cartridge, Rc::new(&serial));
 
     let mut emu = Emulation::new(gb);
 

@@ -1,4 +1,5 @@
 use core::fmt;
+use std::rc::Rc;
 
 use crate::gameboy::{cpu::cpu::Address, serial::Serializable};
 
@@ -16,7 +17,7 @@ const LCD_CONTROL_END: Address = 0xFF4B;
 
 pub(crate) struct IO<S: Serializable> {
     data: [u8; IO_SIZE],
-    serial: S,
+    serial: Rc<S>,
 }
 
 pub(super) enum IOEvent {
@@ -24,7 +25,7 @@ pub(super) enum IOEvent {
 }
 
 impl<S: Serializable> IO<S> {
-    pub(crate) fn new(serial: S) -> Self {
+    pub(crate) fn new(serial: Rc<S>) -> Self {
         Self{ data:[0; IO_SIZE], serial }
     }
 

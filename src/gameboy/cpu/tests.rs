@@ -1,8 +1,37 @@
-use crate::gameboy::{*, cpu::instructions::Instruction};
+use std::rc::Rc;
+
+use crate::gameboy::{*, cpu::{instructions::Instruction, cpu::CPU, mmu::MMU}, serial::Serializable, cartridge::Cartridge, gameboy::GameBoy};
+
+struct TestSerialPort {
+    sent_data: Vec<char>
+}
+
+impl TestSerialPort {
+    fn new() -> TestSerialPort {
+        TestSerialPort { sent_data: Vec::new() }
+    }   
+
+    fn test_finished(&self) -> Option<bool> {
+        let result = self.sent_data.iter().cloned().collect::<String>();
+        if result.contains("Passed") {
+            Some(true)
+        } else if result.contains("Failed") {
+            Some(false)
+        }else{
+            None
+        }
+    }
+}
+
+impl Serializable for TestSerialPort {
+    fn send(&mut self, value: u8) {
+        self.sent_data.push(value as char);
+    }
+}
 
 #[test]
 fn add_without_carry() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
 
     cpu.pc = 0x100;
@@ -23,7 +52,7 @@ fn add_without_carry() {
 
 #[test]
 fn add_with_half_carry() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
 
     cpu.pc = 0x100;
@@ -43,7 +72,7 @@ fn add_with_half_carry() {
 }
 #[test]
 fn add_with_carry() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
 
     cpu.pc = 0x100;
@@ -64,7 +93,7 @@ fn add_with_carry() {
 
 #[test]
 fn adc_with_carry() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
 
     cpu.pc = 0x100;
@@ -86,7 +115,7 @@ fn adc_with_carry() {
 
 #[test]
 fn adc_with_half_carry() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
 
     cpu.pc = 0x100;
@@ -108,7 +137,7 @@ fn adc_with_half_carry() {
 
 #[test]
 fn sub_with_carry() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
 
     cpu.pc = 0x100;
@@ -129,7 +158,7 @@ fn sub_with_carry() {
 
 #[test]
 fn sub_with_half_carry() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
 
     cpu.pc = 0x100;
@@ -150,7 +179,7 @@ fn sub_with_half_carry() {
 
 #[test]
 fn sbc_with_carry() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
 
     cpu.pc = 0x100;
@@ -173,7 +202,7 @@ fn sbc_with_carry() {
 
 #[test]
 fn sbc_with_half_carry() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
 
     cpu.pc = 0x100;
@@ -194,7 +223,7 @@ fn sbc_with_half_carry() {
 
 #[test]
 fn get_af() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
 
     cpu.pc = 0x100;
@@ -210,7 +239,7 @@ fn get_af() {
 
 #[test]
 fn set_af() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
 
     cpu.pc = 0x100;
@@ -225,7 +254,7 @@ fn set_af() {
 
 #[test]
 fn stack_push() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
 
     cpu.pc = 0x100;
@@ -247,7 +276,7 @@ fn stack_push() {
 
 #[test]
 fn stack_push_pop() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
     cpu.sp = 0xDFFF;
     cpu.pc = 0x100;
@@ -264,7 +293,7 @@ fn stack_push_pop() {
 
 #[test]
 fn rla() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
 
     cpu.pc = 0x100;
@@ -301,7 +330,7 @@ fn rla() {
 
 #[test]
 fn rlca() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
 
     cpu.pc = 0x100;
@@ -338,7 +367,7 @@ fn rlca() {
 
 #[test]
 fn srl() {
-    let mmu = MMU::new(Cartridge::empty(), TestSerialPort::new());
+    let mmu = MMU::new(Cartridge::empty(), Rc::new(TestSerialPort::new()));
     let mut cpu = CPU::new(mmu);
 
     cpu.pc = 0x100;
@@ -385,18 +414,18 @@ fn cpu_instrs_01() {
     let cartridge = Cartridge::cpu_instrs_01();
     let serial = TestSerialPort::new();
 
-    let mut gb: GameBoy<_> = GameBoy::new(cartridge, serial);
+    let mut gb: GameBoy<_> = GameBoy::new(cartridge, Rc::new(&serial));
 
     loop {
         let _ = gb.tick();
 
-        // match &serial.test_finished() {
-        //     Some(result) => {
-        //         assert_eq!(*result, true);
-        //         break
-        //     },
-        //     None => {}
-        // }
+        match (&serial).test_finished() {
+            Some(result) => {
+                assert!(result);
+                break
+            },
+            None => {}
+        }
     }
 
 }

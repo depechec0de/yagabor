@@ -1,4 +1,5 @@
 use std::fmt;
+use std::rc::Rc;
 
 use pretty_hex::*;
 
@@ -52,7 +53,7 @@ pub(crate) struct MMU<S: Serializable> {
 }
 
 impl<S: Serializable> MMU<S> {
-    pub fn new(cartridge: Cartridge, serial: S) -> Self {
+    pub fn new(cartridge: Cartridge, serial: Rc<S>) -> Self {
         let bootrom = ROM::dmg();
         let io = IO::new(serial);
         let ppu = PPU::new();

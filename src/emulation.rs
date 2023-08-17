@@ -1,8 +1,8 @@
-use std::{time::{Duration, SystemTime, Instant}, io::Error};
+use std::{time::{Duration, Instant}, io::Error};
 
-use sdl2::{Sdl};
+use sdl2::Sdl;
 
-use crate::{gameboy::{GameBoy, serial::Serializable}};
+use crate::gameboy::{serial::Serializable, gameboy::GameBoy};
 
 pub const CPU_CLOCK_HZ: usize = 4_194_304;
 pub const FPS: f32 = 59.7;

@@ -1,7 +1,3 @@
-use crate::gameboy::ClockCycles;
-
-use crate::gameboy::cpu::cpu::ProgramCounter;
-
 #[derive(Debug, Clone)]
 pub(super) struct Instruction {
     pub(super) op: InstructionType,
