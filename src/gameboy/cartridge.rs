@@ -51,6 +51,86 @@ impl Cartridge {
     
         Cartridge{ data, title }
     }
+
+    pub fn cpu_instrs_02() -> Cartridge {
+        let buffer = include_bytes!("../../assets/gb-test-roms/cpu_instrs/individual/02-interrupts.gb");
+        let data = buffer.to_vec();
+        let title = parse_title(&data);
+    
+        Cartridge{ data, title }
+    }
+
+    pub fn cpu_instrs_03() -> Cartridge {
+        let buffer = include_bytes!("../../assets/gb-test-roms/cpu_instrs/individual/03-op sp,hl.gb");
+        let data = buffer.to_vec();
+        let title = parse_title(&data);
+    
+        Cartridge{ data, title }
+    }
+
+    pub fn cpu_instrs_04() -> Cartridge {
+        let buffer = include_bytes!("../../assets/gb-test-roms/cpu_instrs/individual/04-op r,imm.gb");
+        let data = buffer.to_vec();
+        let title = parse_title(&data);
+    
+        Cartridge{ data, title }
+    }
+
+    pub fn cpu_instrs_05() -> Cartridge {
+        let buffer = include_bytes!("../../assets/gb-test-roms/cpu_instrs/individual/05-op rp.gb");
+        let data = buffer.to_vec();
+        let title = parse_title(&data);
+    
+        Cartridge{ data, title }
+    }
+
+    pub fn cpu_instrs_06() -> Cartridge {
+        let buffer = include_bytes!("../../assets/gb-test-roms/cpu_instrs/individual/06-ld r,r.gb");
+        let data = buffer.to_vec();
+        let title = parse_title(&data);
+    
+        Cartridge{ data, title }
+    }
+
+    pub fn cpu_instrs_07() -> Cartridge {
+        let buffer = include_bytes!("../../assets/gb-test-roms/cpu_instrs/individual/07-jr,jp,call,ret,rst.gb");
+        let data = buffer.to_vec();
+        let title = parse_title(&data);
+    
+        Cartridge{ data, title }
+    }
+
+    pub fn cpu_instrs_08() -> Cartridge {
+        let buffer = include_bytes!("../../assets/gb-test-roms/cpu_instrs/individual/08-misc instrs.gb");
+        let data = buffer.to_vec();
+        let title = parse_title(&data);
+    
+        Cartridge{ data, title }
+    }
+
+    pub fn cpu_instrs_09() -> Cartridge {
+        let buffer = include_bytes!("../../assets/gb-test-roms/cpu_instrs/individual/09-op r,r.gb");
+        let data = buffer.to_vec();
+        let title = parse_title(&data);
+    
+        Cartridge{ data, title }
+    }
+
+    pub fn cpu_instrs_10() -> Cartridge {
+        let buffer = include_bytes!("../../assets/gb-test-roms/cpu_instrs/individual/10-bit ops.gb");
+        let data = buffer.to_vec();
+        let title = parse_title(&data);
+    
+        Cartridge{ data, title }
+    }
+
+    pub fn cpu_instrs_11() -> Cartridge {
+        let buffer = include_bytes!("../../assets/gb-test-roms/cpu_instrs/individual/11-op a,(hl).gb");
+        let data = buffer.to_vec();
+        let title = parse_title(&data);
+    
+        Cartridge{ data, title }
+    }
 }
 
 fn parse_title(buffer: &Vec<u8>) -> String {

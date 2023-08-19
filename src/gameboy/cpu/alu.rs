@@ -460,6 +460,12 @@ impl CPU {
             }
         };
 
+        self.regs.flags.subtract = false;
+        self.regs.flags.half_carry = false;
+        self.regs.flags.carry = false;
+
+        self.set_flag_zero(target);
+
         Ok(ClockCycles::Two)
     }
 
@@ -588,7 +594,7 @@ impl CPU {
 
     fn set_flag_zero(&mut self, target: RegistersIndirect) {
         match target {
-            RegistersIndirect::A => { self.regs.flags.zero = false; },
+            RegistersIndirect::A => { self.regs.flags.zero = self.regs.a == 0; },
             RegistersIndirect::B => { self.regs.flags.zero = self.regs.b == 0; },
             RegistersIndirect::C => { self.regs.flags.zero = self.regs.c == 0; },
             RegistersIndirect::D => { self.regs.flags.zero = self.regs.d == 0; },

@@ -9,6 +9,7 @@ A Game Boy (DMG) emulator writen in Rust for educational purposes. The current s
 | Sound            | ⬜      |
 | Graphics         | ⬜      |
 | Serial           | ⬜      |
+| Interrupts       | ⬜      |
 
 # Tests
 
@@ -32,6 +33,6 @@ This will run the following tests:
 | 06-ld r,r.gb             | ✅      |
 | 07-jr,jp,call,ret,rst.gb | ⬜      |
 | 08-misc instrs.gb        | ⬜      |
-| 09-op r,r.gb             | ⬜      |
+| 09-op r,r.gb             | ✅      |
 | 10-bit ops.gb            | ⬜      |
 | 11-op a,(hl).gb          | ⬜      |

@@ -10,7 +10,8 @@ use crate::gameboy::{cartridge::Cartridge, gameboy::GameBoy};
 
 #[derive(Parser)]
 struct Cli {
-    cartridge: Option<std::path::PathBuf>
+    cartridge: Option<std::path::PathBuf>,
+    debug: Option<bool>
 }
 
 fn main() -> Result<(), Error> {
@@ -23,12 +24,19 @@ fn main() -> Result<(), Error> {
         cartridge = Cartridge::empty();
     }
 
+    let debug: bool;
+    if let Some(val) = args.debug {
+        debug = val;
+    }else{
+        debug = false;
+    }
+
     let gb: GameBoy = GameBoy::new(cartridge);
 
-    let mut emu = Emulation::new(gb);
+    let mut emu = Emulation::new(gb, debug);
 
     let report = emu.run();
-    println!("Emulation terminated in {} seconds, total executed cyles: {} with result {:?}", report.execution_time.as_secs_f32() , report.total_cycles, report.result);
+    //println!("Emulation terminated in {} seconds, total executed cyles: {} with result {:?}", report.execution_time.as_secs_f32() , report.total_cycles, report.result);
     
     Ok(())
     

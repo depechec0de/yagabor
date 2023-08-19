@@ -150,6 +150,7 @@ impl MMU {
 
     fn write_wram(&mut self, address: Address, value: u8) -> Option<IOEvent> {
         self.wram[address as usize - WRAM_BEGIN as usize] = value;
+        println!("WRITE {:x} {:x}", address, value);
         None
     }
 

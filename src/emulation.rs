@@ -12,6 +12,7 @@ pub const CPU_CYCLES_PER_FRAME: usize = (CPU_CLOCK_HZ as f32 / FPS) as usize;
 pub struct Emulation {
     running: bool,
     gameboy: GameBoy,
+    debug: bool,
     sdl_context: Sdl
 }
 
@@ -23,13 +24,14 @@ pub(crate) struct EmulationReport {
 }
 
 impl Emulation {
-    pub(crate) fn new(gameboy: GameBoy) -> Self {
+    pub(crate) fn new(gameboy: GameBoy, debug: bool) -> Self {
 
         let sdl_context = sdl2::init().unwrap();
 
         Emulation { 
             running: false, 
             gameboy,
+            debug,
             sdl_context
         }
     }

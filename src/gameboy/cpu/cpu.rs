@@ -3,7 +3,7 @@ use std::io::{Error, ErrorKind};
 
 use crate::gameboy::{interrupts::Interruption, serial::SerialControl};
 
-use super::{registers::Registers, mmu::MMU, instructions::*, io::SERIAL_CONTROL_ADDRESS};
+use super::{registers::Registers, mmu::MMU, instructions::*, io::{SERIAL_CONTROL_ADDRESS, SERIAL_DATA_ADDRESS}};
 
 pub(super) type ProgramCounter = u16;
 pub(super) type StackPointer = u16;
@@ -41,10 +41,10 @@ impl CPU {
             match self.execute(instruction.clone()) {
                 Ok(result) => {
                     //println!("pc {:#04x} | {:x} ({:?} cycles) {:?} {:?} SP:{:x}", self.pc, instruction_byte, u64::from(cycles.clone()) , instruction, self.regs, self.sp);
-                    // if self.pc > 0xFF {
-                        // println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:02X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}", 
-                        //         self.regs.a, u8::from(self.regs.flags.clone()), self.regs.b, self.regs.c, self.regs.d, self.regs.e, self.regs.h, self.regs.l, self.sp, self.pc, self.mmu.read_byte(self.pc), self.mmu.read_byte(self.pc+1), self.mmu.read_byte(self.pc+2), self.mmu.read_byte(self.pc+3) );                        
-                    // }
+                    if self.pc > 0xFF {
+                        println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:02X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}", 
+                                self.regs.a, u8::from(self.regs.flags.clone()), self.regs.b, self.regs.c, self.regs.d, self.regs.e, self.regs.h, self.regs.l, self.sp, self.pc, self.mmu.read_byte(self.pc), self.mmu.read_byte(self.pc+1), self.mmu.read_byte(self.pc+2), self.mmu.read_byte(self.pc+3) );                        
+                    }
 
                     
                     
@@ -115,8 +115,8 @@ impl CPU {
             InstructionType::RLCA => self.rlca(),
             InstructionType::RRA => self.rra(),
             InstructionType::RRCA => self.rrca(),
-            InstructionType::SRA(target) => self.sla(target),
-            InstructionType::SLA(target) => self.sra(target),
+            InstructionType::SRA(target) => self.sra(target),
+            InstructionType::SLA(target) => self.sla(target),
             InstructionType::SRL(target) => self.srl(target),
             InstructionType::SWAP(target) => self.swap(target),
             InstructionType::EI => self.ei(),
@@ -402,7 +402,8 @@ impl CPU {
                 }
             },
             LoadType::AFromDirect => {
-                self.regs.a = self.mmu.read_byte(self.read_next_word(current_pc));
+                let address = self.read_next_word(current_pc);
+                self.regs.a = self.mmu.read_byte(address);
             },
             LoadType::DirectFromA => {
                 self.mmu.write_byte(self.read_next_word(current_pc), self.regs.a);
@@ -495,6 +496,13 @@ impl CPU {
 
     pub(crate) fn read_serial_control(&self) -> u8 {
         self.mmu.read_byte(SERIAL_CONTROL_ADDRESS)
+    }
+
+    pub(crate) fn read_serial_data(&mut self) -> u8 {
+        let data = self.mmu.read_byte(SERIAL_DATA_ADDRESS);
+        self.mmu.write_byte(SERIAL_CONTROL_ADDRESS, 0x01);
+
+        data
     }
 }
 

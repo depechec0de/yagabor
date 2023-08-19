@@ -41,6 +41,10 @@ impl GameBoy {
             SerialControl::Undefined
         }
     }
+
+    pub(crate) fn serial_data(&mut self) -> u8 {
+        self.cpu.read_serial_data()
+    }
     
 }
 
