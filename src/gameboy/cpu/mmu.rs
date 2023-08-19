@@ -1,9 +1,8 @@
 use std::fmt;
-use std::rc::Rc;
 
 use pretty_hex::*;
 
-use crate::gameboy::{ppu::*, rom::*, cartridge::Cartridge, serial::Serializable};
+use crate::gameboy::{ppu::*, rom::*, cartridge::Cartridge};
 
 use super::{io::*, cpu::Address};
 
@@ -34,17 +33,21 @@ const ERAM_END: Address = 0xFDFF;
 const NOTUSABLE_BEGIN: Address = 0xFEA0;
 const NOTUSABLE_END: Address = 0xFEFF;
 
+pub(crate) const IO_BEGIN: Address = 0xFF00;
+pub(crate) const IO_END: Address = 0xFF7F;
+pub(crate) const IO_SIZE: usize = (IO_END - IO_BEGIN + 1) as usize;
+
 const HRAM_BEGIN: Address = 0xFF80;
 const HRAM_END: Address = 0xFFFE;
 const HRAM_SIZE: usize = (HRAM_END - HRAM_BEGIN + 1) as usize;
 
 const INTERRUPT_ADDRESS: Address = 0xFFFF;
 
-pub(crate) struct MMU<S: Serializable> {
+pub(crate) struct MMU {
     is_boot_rom_mapped: bool,
     bootrom: ROM,
     cartridge: Cartridge,
-    io: IO<S>,
+    io: IO,
     ppu: PPU,
     interrupt: u8,
     eram: [u8; EXTRAM_SIZE],
@@ -52,10 +55,14 @@ pub(crate) struct MMU<S: Serializable> {
     hram: [u8; HRAM_SIZE],
 }
 
-impl<S: Serializable> MMU<S> {
-    pub fn new(cartridge: Cartridge, serial: Rc<S>) -> Self {
+pub(crate) enum MMUEvent {
+    IO(IOEvent)
+}
+
+impl MMU {
+    pub fn new(cartridge: Cartridge) -> Self {
         let bootrom = ROM::dmg();
-        let io = IO::new(serial);
+        let io = IO::new();
         let ppu = PPU::new();
         MMU { 
             is_boot_rom_mapped: true, 
@@ -97,7 +104,7 @@ impl<S: Serializable> MMU<S> {
         }
     }
 
-    pub(super) fn write_byte(&mut self, address: Address, value: u8) {
+    pub(super) fn write_byte(&mut self, address: Address, value: u8) -> Option<MMUEvent> {
         match address {
             GAMEROM_0_BEGIN ..= GAMEROM_0_END => panic!("Writing in ROM is not possible"),
             GAMEROM_N_BEGIN ..= GAMEROM_N_END => panic!("Writing in ROM is not possible"),
@@ -108,7 +115,10 @@ impl<S: Serializable> MMU<S> {
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited write 0x{:x}", address),
             IO_BEGIN ..= IO_END => self.write_io(address, value),
             HRAM_BEGIN ..= HRAM_END => self.write_hram(address, value),
-            INTERRUPT_ADDRESS => self.interrupt = value,
+            INTERRUPT_ADDRESS => {
+                self.interrupt = value;
+                None
+            }
             _ => panic!("unmapped write {:x}", address),
         }
     }
@@ -133,34 +143,44 @@ impl<S: Serializable> MMU<S> {
         self.hram[address as usize - HRAM_BEGIN as usize]
     }
 
-    fn write_vram(&mut self, address: Address, value: u8) {
+    fn write_vram(&mut self, address: Address, value: u8) -> Option<MMUEvent> {
         self.ppu.write_vram(address - VRAM_BEGIN, value);
+        None
     }
 
-    fn write_wram(&mut self, address: Address, value: u8) {
+    fn write_wram(&mut self, address: Address, value: u8) -> Option<MMUEvent> {
         self.wram[address as usize - WRAM_BEGIN as usize] = value;
+        None
     }
 
-    fn write_eram(&mut self, address: Address, value: u8) {
+    fn write_eram(&mut self, address: Address, value: u8) -> Option<MMUEvent> {
         self.eram[address as usize - EXTRAM_BEGIN as usize] = value;
+        None
     }
 
-    fn write_io(&mut self, address: Address, value: u8) {
+    fn write_io(&mut self, address: Address, value: u8) -> Option<MMUEvent> {
         let result: Option<IOEvent> = self.io.write_byte(address, value);
         
         match result {
-            Some(IOEvent::BootSwitched(new_val)) => self.is_boot_rom_mapped = new_val,
-            None => {}
+            Some(IOEvent::BootSwitched(new_val)) => {
+                self.is_boot_rom_mapped = new_val;
+                None
+            },
+            Some(IOEvent::SerialOutput(value)) => { 
+                Some(MMUEvent::IO(IOEvent::SerialOutput(value)))
+            }
+            None => None
         }
     }
 
-    fn write_hram(&mut self, address: Address, value: u8) {
+    fn write_hram(&mut self, address: Address, value: u8) -> Option<MMUEvent> {
         self.hram[address as usize - HRAM_BEGIN as usize] = value;
+        None
     }
 
 }
 
-impl<S: Serializable> fmt::Display for MMU<S> {
+impl fmt::Display for MMU {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         //write!(f, "{}", self.bootrom)?;
         //write!(f, "{}", "\n")?;

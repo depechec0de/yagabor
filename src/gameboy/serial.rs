@@ -1,17 +1,12 @@
-pub trait Serializable {
-    fn send(&mut self, value: u8);
+pub(crate) struct SerialPort {
 }
 
-pub(crate) struct DummySerialPort {
-}
-
-impl DummySerialPort {
+impl SerialPort {
     pub(crate) fn new() -> Self {
         Self {}
     }  
-}
 
-impl Serializable for DummySerialPort {
-    fn send(&mut self, value: u8) {
+    pub(crate) fn send(&self, value: u8) {
+        
     }
 }

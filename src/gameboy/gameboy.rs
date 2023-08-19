@@ -1,27 +1,46 @@
 use std::io::Error;
-use std::rc::Rc;
 
 use super::cartridge::Cartridge;
 use super::cpu::cpu::{CPU, ClockCycles};
 use super::cpu::mmu::MMU;
-use super::serial::Serializable;
 
-pub(crate) struct GameBoy<S: Serializable> {
-    cpu: CPU<S>,
-    cycles_passed: u64,
-    cycles_executed: u64
+pub(crate) struct GameBoy {
+    cpu: CPU,
 }
 
-impl<S: Serializable> GameBoy<S> {
-    pub(crate) fn new(cartridge: Cartridge, serial: Rc<S>) -> Self {
-        let mmu = MMU::new(cartridge, serial);
+pub(crate) struct ExecuteOutput {
+    pub(crate) exec_cycles: ClockCycles,
+    pub(crate) output: Option<u8>,
+}
+
+impl ExecuteOutput {
+    pub(crate) fn new(exec_cycles: ClockCycles, output: Option<u8>) -> Self {
+        ExecuteOutput { exec_cycles, output }
+    }
+}
+
+impl GameBoy {
+    pub(crate) fn new(cartridge: Cartridge) -> Self {
+        let mmu = MMU::new(cartridge);
         let cpu = CPU::new(mmu);
 
-        GameBoy { cpu, cycles_passed: 0, cycles_executed: 0 }
+        GameBoy { cpu }
     }
 
-    pub(crate) fn tick(&mut self) -> Result<ClockCycles, Error> {
-        self.cpu.step()
+    pub(crate) fn tick(&mut self) -> Result<ExecuteOutput, Error> {
+        let cpu_result = self.cpu.step();
+
+        if self.cpu.interrupts_enabled() {
+
+        }
+    
+        cpu_result
     }
+
+    pub(crate) fn joypad_down(&mut self) {
+        
+    }
+
+    
 }
 

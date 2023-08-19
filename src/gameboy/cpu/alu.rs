@@ -1,9 +1,11 @@
-use crate::gameboy::{serial::Serializable};
+use std::io::{Error, ErrorKind};
+
+use crate::gameboy::gameboy::ExecuteOutput;
 
 use super::{instructions::*, cpu::{CPU, ProgramCounter, ClockCycles}};
 
-impl<S: Serializable> CPU<S> {
-    pub(super) fn add(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> ClockCycles {
+impl CPU {
+    pub(super) fn add(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecuteOutput, Error> {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         let (new_value, did_overflow) = self.regs.a.overflowing_add(value);
@@ -17,13 +19,13 @@ impl<S: Serializable> CPU<S> {
         self.regs.a = new_value;
 
         match target {
-            RegistersIndDir::HLI => ClockCycles::Two,
-            RegistersIndDir::D8 => ClockCycles::Two,
-            _ => ClockCycles::One,
+            RegistersIndDir::HLI => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            RegistersIndDir::D8 => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            _ => Ok(ExecuteOutput::new(ClockCycles::One, None)),
         }
     }
 
-    pub(super) fn addsp8(&mut self, current_pc: ProgramCounter) -> ClockCycles {
+    pub(super) fn addsp8(&mut self, current_pc: ProgramCounter) -> Result<ExecuteOutput, Error> {
         let value = self.read_next_byte(current_pc) as u16;
 
         let (new_value, did_overflow) = self.sp.overflowing_add(value);
@@ -33,10 +35,10 @@ impl<S: Serializable> CPU<S> {
         self.regs.flags.half_carry = (self.sp & 0xfff).wrapping_add(value & 0xfff) > 0xfff; 
         self.sp = new_value;
 
-        ClockCycles::Four
+        Ok(ExecuteOutput::new(ClockCycles::Four, None))
     }
 
-    pub(super) fn add16(&mut self, target: WordRegister) -> ClockCycles {
+    pub(super) fn add16(&mut self, target: WordRegister) -> Result<ExecuteOutput, Error> {
         let value = match target {
             WordRegister::BC => self.regs.get_bc(),
             WordRegister::DE => self.regs.get_de(),
@@ -51,10 +53,10 @@ impl<S: Serializable> CPU<S> {
         self.regs.flags.half_carry = (self.regs.get_hl() & 0xfff).wrapping_add(value & 0xfff) > 0xfff; 
         self.regs.set_hl(new_value);
 
-        ClockCycles::Two
+        Ok(ExecuteOutput::new(ClockCycles::Two, None))
     }
 
-    pub(super) fn adc(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> ClockCycles {
+    pub(super) fn adc(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecuteOutput, Error> {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         let (new_value1, did_overflow1) = self.regs.a.overflowing_add(value);
@@ -67,13 +69,13 @@ impl<S: Serializable> CPU<S> {
         self.regs.a = new_value2;
 
         match target {
-            RegistersIndDir::HLI => ClockCycles::Two,
-            RegistersIndDir::D8 => ClockCycles::Two,
-            _ => ClockCycles::One,
+            RegistersIndDir::HLI => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            RegistersIndDir::D8 => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            _ => Ok(ExecuteOutput::new(ClockCycles::One, None)),
         }
     }
 
-    pub(super) fn sub(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> ClockCycles {
+    pub(super) fn sub(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecuteOutput, Error> {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         let (new_value, did_overflow) = self.regs.a.overflowing_sub(value);
@@ -85,13 +87,13 @@ impl<S: Serializable> CPU<S> {
         self.regs.a = new_value;
 
         match target {
-            RegistersIndDir::HLI => ClockCycles::Two,
-            RegistersIndDir::D8 => ClockCycles::Two,
-            _ => ClockCycles::One,
+            RegistersIndDir::HLI => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            RegistersIndDir::D8 => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            _ => Ok(ExecuteOutput::new(ClockCycles::One, None)),
         }
     }
 
-    pub(super) fn sbc(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> ClockCycles {
+    pub(super) fn sbc(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecuteOutput, Error> {
 
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
@@ -109,13 +111,13 @@ impl<S: Serializable> CPU<S> {
         self.regs.a = new_value2;
 
         match target {
-            RegistersIndDir::HLI => ClockCycles::Two,
-            RegistersIndDir::D8 => ClockCycles::Two,
-            _ => ClockCycles::One,
+            RegistersIndDir::HLI => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            RegistersIndDir::D8 => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            _ => Ok(ExecuteOutput::new(ClockCycles::One, None)),
         }
     }
 
-    pub(super) fn and(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> ClockCycles {
+    pub(super) fn and(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecuteOutput, Error> {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         self.regs.a = self.regs.a & value;
@@ -125,13 +127,13 @@ impl<S: Serializable> CPU<S> {
         self.regs.flags.carry = false;
 
         match target {
-            RegistersIndDir::HLI => ClockCycles::Two,
-            RegistersIndDir::D8 => ClockCycles::Two,
-            _ => ClockCycles::One,
+            RegistersIndDir::HLI => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            RegistersIndDir::D8 => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            _ => Ok(ExecuteOutput::new(ClockCycles::One, None)),
         }
     }
 
-    pub(super) fn xor(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> ClockCycles {
+    pub(super) fn xor(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecuteOutput, Error> {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         self.regs.a = self.regs.a ^ value;
@@ -141,13 +143,13 @@ impl<S: Serializable> CPU<S> {
         self.regs.flags.carry = false;
 
         match target {
-            RegistersIndDir::HLI => ClockCycles::Two,
-            RegistersIndDir::D8 => ClockCycles::Two,
-            _ => ClockCycles::One,
+            RegistersIndDir::HLI => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            RegistersIndDir::D8 => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            _ => Ok(ExecuteOutput::new(ClockCycles::One, None)),
         }
     }
 
-    pub(super) fn or(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> ClockCycles {
+    pub(super) fn or(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecuteOutput, Error> {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         self.regs.a = self.regs.a | value;
@@ -157,13 +159,13 @@ impl<S: Serializable> CPU<S> {
         self.regs.flags.carry = false;
 
         match target {
-            RegistersIndDir::HLI => ClockCycles::Two,
-            RegistersIndDir::D8 => ClockCycles::Two,
-            _ => ClockCycles::One,
+            RegistersIndDir::HLI => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            RegistersIndDir::D8 => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            _ => Ok(ExecuteOutput::new(ClockCycles::One, None)),
         }
     }
 
-    pub(super) fn cp(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> ClockCycles {
+    pub(super) fn cp(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecuteOutput, Error> {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         let (result, did_overflow) = self.regs.a.overflowing_sub(value);
@@ -174,13 +176,13 @@ impl<S: Serializable> CPU<S> {
         self.regs.flags.carry = did_overflow;
 
         match target {
-            RegistersIndDir::HLI => ClockCycles::Two,
-            RegistersIndDir::D8 => ClockCycles::Two,
-            _ => ClockCycles::One,
+            RegistersIndDir::HLI => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            RegistersIndDir::D8 => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
+            _ => Ok(ExecuteOutput::new(ClockCycles::One, None)),
         }
     }
 
-    pub(super) fn inc(&mut self, target: RegistersIndirect) -> ClockCycles {
+    pub(super) fn inc(&mut self, target: RegistersIndirect) -> Result<ExecuteOutput, Error> {
         self.regs.flags.subtract = false;
 
         match target {
@@ -229,12 +231,12 @@ impl<S: Serializable> CPU<S> {
         };
 
         match target {
-            RegistersIndirect::HLI => ClockCycles::Three,
-            _ => ClockCycles::One,
+            RegistersIndirect::HLI => Ok(ExecuteOutput::new(ClockCycles::Three, None)),
+            _ => Ok(ExecuteOutput::new(ClockCycles::One, None)),
         }
     }
 
-    pub(super) fn dec(&mut self, target: RegistersIndirect) -> ClockCycles {
+    pub(super) fn dec(&mut self, target: RegistersIndirect) -> Result<ExecuteOutput, Error> {
         self.regs.flags.subtract = true;
 
         match target {
@@ -283,12 +285,12 @@ impl<S: Serializable> CPU<S> {
         };
 
         match target {
-            RegistersIndirect::HLI => ClockCycles::Three,
-            _ => ClockCycles::One,
+            RegistersIndirect::HLI => Ok(ExecuteOutput::new(ClockCycles::Three, None)),
+            _ => Ok(ExecuteOutput::new(ClockCycles::One, None)),
         }
     }
 
-    pub(super) fn inc16(&mut self, target: WordRegister) -> ClockCycles {
+    pub(super) fn inc16(&mut self, target: WordRegister) -> Result<ExecuteOutput, Error> {
         match target {
             WordRegister::BC => self.regs.set_bc(self.regs.get_bc().wrapping_add(1)),
             WordRegister::DE => self.regs.set_de(self.regs.get_de().wrapping_add(1)),
@@ -296,10 +298,10 @@ impl<S: Serializable> CPU<S> {
             WordRegister::SP => self.sp = self.sp.wrapping_add(1),
         };
 
-        ClockCycles::Two
+        Ok(ExecuteOutput::new(ClockCycles::Two, None))
     }
 
-    pub(super) fn dec16(&mut self, target: WordRegister) -> ClockCycles {
+    pub(super) fn dec16(&mut self, target: WordRegister) -> Result<ExecuteOutput, Error> {
         match target {
             WordRegister::BC => self.regs.set_bc(self.regs.get_bc().wrapping_sub(1)),
             WordRegister::DE => self.regs.set_de(self.regs.get_de().wrapping_sub(1)),
@@ -307,10 +309,10 @@ impl<S: Serializable> CPU<S> {
             WordRegister::SP => self.sp = self.sp.wrapping_sub(1),
         };
 
-        ClockCycles::Two
+        Ok(ExecuteOutput::new(ClockCycles::Two, None))
     }
 
-    pub(super) fn bit(&mut self, bit_type: BitType) -> ClockCycles {
+    pub(super) fn bit(&mut self, bit_type: BitType) -> Result<ExecuteOutput, Error> {
         let BitType::Registers(t, s) = bit_type;
         let target = t;
         let source = s;
@@ -322,8 +324,8 @@ impl<S: Serializable> CPU<S> {
         self.regs.flags.zero = !bit_value;
 
         match source {
-            RegistersIndirect::HLI => ClockCycles::Three,
-            _ => ClockCycles::Two,
+            RegistersIndirect::HLI => Ok(ExecuteOutput::new(ClockCycles::Three, None)),
+            _ => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
         }             
     }
 
@@ -356,43 +358,43 @@ impl<S: Serializable> CPU<S> {
 
     // RLA, RRA, ... are legacy instructions made for compatibility with 8080
     // No zero flag is set
-    pub(super) fn rla(&mut self) -> ClockCycles {
+    pub(super) fn rla(&mut self) -> Result<ExecuteOutput, Error> {
         self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Left, false);
         self.regs.flags.zero = false;
 
-        ClockCycles::One
+        Ok(ExecuteOutput::new(ClockCycles::One, None))
     }
 
-    pub(super) fn rlca(&mut self) -> ClockCycles {
+    pub(super) fn rlca(&mut self) -> Result<ExecuteOutput, Error> {
         self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Left, true);
         self.regs.flags.zero = false;
 
-        ClockCycles::One
+        Ok(ExecuteOutput::new(ClockCycles::One, None))
     }
 
-    pub(super) fn rra(&mut self) -> ClockCycles {
+    pub(super) fn rra(&mut self) -> Result<ExecuteOutput, Error> {
         self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Right, false);
         self.regs.flags.zero = false;
 
-        ClockCycles::One
+        Ok(ExecuteOutput::new(ClockCycles::One, None))
     }
 
-    pub(super) fn rrca(&mut self) -> ClockCycles {
+    pub(super) fn rrca(&mut self) -> Result<ExecuteOutput, Error> {
         self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Right, true);
         self.regs.flags.zero = false;
 
-        ClockCycles::One
+        Ok(ExecuteOutput::new(ClockCycles::One, None))
     }
 
-    pub(super) fn sla(&mut self, target: RegistersIndirect) -> ClockCycles {
+    pub(super) fn sla(&mut self, target: RegistersIndirect) -> Result<ExecuteOutput, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Left, true);
         self.res_set(ResSetType::Registers(BitTarget::Zero, target.clone()), false);
         self.set_flag_zero(target);
 
-        ClockCycles::Two
+        Ok(ExecuteOutput::new(ClockCycles::Two, None))
     }
 
-    pub(super) fn sra(&mut self, target: RegistersIndirect) -> ClockCycles {
+    pub(super) fn sra(&mut self, target: RegistersIndirect) -> Result<ExecuteOutput, Error> {
         let value = self.get_register_indirect_val(target.clone());
         let bit7 = get_bit_val(7, value);
 
@@ -400,46 +402,46 @@ impl<S: Serializable> CPU<S> {
         self.res_set(ResSetType::Registers(BitTarget::Seven, target.clone()), bit7);
         self.set_flag_zero(target);
 
-        ClockCycles::Two
+        Ok(ExecuteOutput::new(ClockCycles::Two, None))
     }
 
-    pub(super) fn srl(&mut self, target: RegistersIndirect) -> ClockCycles {
+    pub(super) fn srl(&mut self, target: RegistersIndirect) -> Result<ExecuteOutput, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Right, true);
         self.res_set(ResSetType::Registers(BitTarget::Seven, target.clone()), false);
         self.set_flag_zero(target);
 
-        ClockCycles::Two
+        Ok(ExecuteOutput::new(ClockCycles::Two, None))
     }
 
-    pub(super) fn rr(&mut self, target: RegistersIndirect) -> ClockCycles {
+    pub(super) fn rr(&mut self, target: RegistersIndirect) -> Result<ExecuteOutput, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Right, false);
         self.set_flag_zero(target);
 
-        ClockCycles::Two
+        Ok(ExecuteOutput::new(ClockCycles::Two, None))
     }
 
-    pub(super) fn rrc(&mut self, target: RegistersIndirect) -> ClockCycles {
+    pub(super) fn rrc(&mut self, target: RegistersIndirect) -> Result<ExecuteOutput, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Right, true);
         self.set_flag_zero(target);
 
-        ClockCycles::Two
+        Ok(ExecuteOutput::new(ClockCycles::Two, None))
     }
 
-    pub(super) fn rl(&mut self, target: RegistersIndirect) -> ClockCycles {
+    pub(super) fn rl(&mut self, target: RegistersIndirect) -> Result<ExecuteOutput, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Left, false);
         self.set_flag_zero(target);
 
-        ClockCycles::Two
+        Ok(ExecuteOutput::new(ClockCycles::Two, None))
     }
 
-    pub(super) fn rlc(&mut self, target: RegistersIndirect) -> ClockCycles {
+    pub(super) fn rlc(&mut self, target: RegistersIndirect) -> Result<ExecuteOutput, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Left, true);
         self.set_flag_zero(target);
 
-        ClockCycles::Two
+        Ok(ExecuteOutput::new(ClockCycles::Two, None))
     }
 
-    pub(super) fn swap(&mut self, target: RegistersIndirect) -> ClockCycles {
+    pub(super) fn swap(&mut self, target: RegistersIndirect) -> Result<ExecuteOutput, Error> {
         let value = self.get_register_indirect_val(target.clone());
 
         let low = value & 0x0F;
@@ -460,12 +462,12 @@ impl<S: Serializable> CPU<S> {
             }
         };
 
-        ClockCycles::Two
+        Ok(ExecuteOutput::new(ClockCycles::Two, None))
     }
 
     // RR r and RL r instructions
     // If is_rc is true we consider the RLC and RRC instructions, otherwise the RL and RR
-    fn bitwise_rotate(&mut self, target: RegistersIndirect, direction: RotateDirection, is_rc: bool) -> ClockCycles {
+    fn bitwise_rotate(&mut self, target: RegistersIndirect, direction: RotateDirection, is_rc: bool) -> Result<ExecuteOutput, Error> {
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
 
@@ -475,8 +477,8 @@ impl<S: Serializable> CPU<S> {
         }
 
         match target {
-            RegistersIndirect::HLI => ClockCycles::Four,
-            _ => ClockCycles::Two,
+            RegistersIndirect::HLI => Ok(ExecuteOutput::new(ClockCycles::Four, None)),
+            _ => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
         }
     }
 
@@ -561,7 +563,7 @@ impl<S: Serializable> CPU<S> {
 
     }
 
-    pub(super) fn res_set(&mut self, target: ResSetType, value: bool) -> ClockCycles {
+    pub(super) fn res_set(&mut self, target: ResSetType, value: bool) -> Result<ExecuteOutput, Error> {
         let ResSetType::Registers(bt, register) = target;
         
         let i = get_position_by_bittarget(bt);
@@ -576,13 +578,13 @@ impl<S: Serializable> CPU<S> {
             RegistersIndirect::L   => self.regs.l = set_bit_val(i, value, self.regs.l),
             RegistersIndirect::HLI => {
                 let new_value = set_bit_val(i, value, self.mmu.read_byte(self.regs.get_hl()));
-                self.mmu.write_byte(self.regs.get_hl(), new_value)
+                self.mmu.write_byte(self.regs.get_hl(), new_value);
             }
         };
 
         match register {
-            RegistersIndirect::HLI => ClockCycles::Four,
-            _ => ClockCycles::Two,
+            RegistersIndirect::HLI => Ok(ExecuteOutput::new(ClockCycles::Four, None)),
+            _ => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
         }
     }
 

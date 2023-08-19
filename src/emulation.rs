@@ -1,17 +1,17 @@
 use std::{time::{Duration, Instant}, io::Error};
 
-use sdl2::Sdl;
+use sdl2::{Sdl, event::Event, keyboard::Keycode};
 
-use crate::gameboy::{serial::Serializable, gameboy::GameBoy};
+use crate::gameboy::gameboy::GameBoy;
 
 pub const CPU_CLOCK_HZ: usize = 4_194_304;
 pub const FPS: f32 = 59.7;
 pub const CPU_CYCLES_PER_FRAME: usize = (CPU_CLOCK_HZ as f32 / FPS) as usize;
 
 
-pub struct Emulation<S: Serializable> {
+pub struct Emulation {
     running: bool,
-    gameboy: GameBoy<S>,
+    gameboy: GameBoy,
     sdl_context: Sdl
 }
 
@@ -22,8 +22,8 @@ pub(crate) struct EmulationReport {
     pub(crate) result: Result<(), Error>,
 }
 
-impl<S: Serializable> Emulation<S> {
-    pub(crate) fn new(gameboy: GameBoy<S>) -> Self {
+impl Emulation {
+    pub(crate) fn new(gameboy: GameBoy) -> Self {
 
         let sdl_context = sdl2::init().unwrap();
 
@@ -49,7 +49,7 @@ impl<S: Serializable> Emulation<S> {
         // canvas.set_draw_color(Color::RGB(0, 0, 0));
         // canvas.clear();
 
-        // let mut event_pump = self.sdl_context.event_pump().unwrap();
+        let mut event_pump = self.sdl_context.event_pump().unwrap();
 
         let mut total_cycles: u64 = 0;
         let mut execution_time = Duration::from_secs(0);
@@ -60,13 +60,13 @@ impl<S: Serializable> Emulation<S> {
             let mut frame_cycles: usize = 0;
             
             while frame_cycles < CPU_CYCLES_PER_FRAME {
-                let result = self.gameboy.tick();
+                let stepresult = self.gameboy.tick();
 
                 let mut executed_cycles: u64 = 0;
 
-                match result {
-                    Ok(cycles) => {
-                        executed_cycles += u64::from(cycles);
+                match stepresult {
+                    Ok(result) => {
+                        executed_cycles += u64::from(result.exec_cycles);
                         frame_cycles += executed_cycles as usize;
                         total_cycles += executed_cycles;
                     },
@@ -86,15 +86,18 @@ impl<S: Serializable> Emulation<S> {
     
             // canvas.clear();
 
-            // for event in event_pump.poll_iter() {
-            //     match event {
-            //         Event::Quit {..} |
-            //         Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-            //             break 'running EmulationReport { executed_time: self.executed_time, result: Ok(()) }
-            //         },
-            //         _ => {}
-            //     }
-            // }
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::Quit {..} |
+                    Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                        break 'running EmulationReport { execution_time, total_cycles, result: Ok(()) }
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
+                        self.gameboy.joypad_down()
+                    },
+                    _ => {}
+                }
+            }
             
         }
     }
