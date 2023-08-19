@@ -1,3 +1,9 @@
+pub(crate) enum SerialControl {
+    TransferStartInternal,
+    TransferStartExternal,
+    Undefined
+}
+
 pub(crate) struct SerialPort {
 }
 

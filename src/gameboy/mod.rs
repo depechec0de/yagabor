@@ -4,3 +4,4 @@ mod ppu;
 mod rom;
 mod cpu;
 mod interrupts;
+mod serial;

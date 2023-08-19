@@ -65,8 +65,8 @@ impl Emulation {
                 let mut executed_cycles: u64 = 0;
 
                 match stepresult {
-                    Ok(result) => {
-                        executed_cycles += u64::from(result.exec_cycles);
+                    Ok(cycles) => {
+                        executed_cycles += u64::from(cycles);
                         frame_cycles += executed_cycles as usize;
                         total_cycles += executed_cycles;
                     },

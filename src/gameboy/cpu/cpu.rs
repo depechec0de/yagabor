@@ -1,9 +1,9 @@
 use core::panic;
 use std::io::{Error, ErrorKind};
 
-use crate::gameboy::{gameboy::ExecuteOutput, interrupts::Interruption};
+use crate::gameboy::{interrupts::Interruption, serial::SerialControl};
 
-use super::{registers::Registers, mmu::MMU, instructions::*};
+use super::{registers::Registers, mmu::MMU, instructions::*, io::SERIAL_CONTROL_ADDRESS};
 
 pub(super) type ProgramCounter = u16;
 pub(super) type StackPointer = u16;
@@ -30,7 +30,7 @@ impl CPU {
         }
     }
 
-    pub(crate) fn step(&mut self) -> Result<ExecuteOutput, Error> {
+    pub(crate) fn step(&mut self) -> Result<ClockCycles, Error> {
 
         let instruction_byte = self.mmu.read_byte(self.pc);
         let byte0 = self.mmu.read_byte(self.pc+1);
@@ -62,7 +62,7 @@ impl CPU {
     }   
 
     // Returns the next PC to execute and the cycles consumed
-    pub(super) fn execute(&mut self, instruction: Instruction) -> Result<ExecuteOutput, Error> {
+    pub(super) fn execute(&mut self, instruction: Instruction) -> Result<ClockCycles, Error> {
 
         let inst_type = instruction.op.clone();
         let inst_size = instruction.size_bytes();
@@ -70,7 +70,7 @@ impl CPU {
         let prev_pc = self.pc;
         self.pc = self.pc.wrapping_add(inst_size as u16);
 
-        let exec_result = match inst_type {
+        match inst_type {
             // This instructions never return and change directly the PC
             InstructionType::CALL(test) => self.call(test, prev_pc),
             InstructionType::RET(test) => self.ret(test),
@@ -124,13 +124,10 @@ impl CPU {
             InstructionType::RES(target) => self.res_set(target, false),
             InstructionType::SET(target) => self.res_set(target, true),
             _ => { Err(Error::new(ErrorKind::Other, "Unsupported instruction")) }
-        };
-
-        exec_result
-        
+        }
     }
 
-    fn jump(&mut self, test: JumpTest, current_pc: ProgramCounter) -> Result<ExecuteOutput, Error> {
+    fn jump(&mut self, test: JumpTest, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
         let should_jump = self.should_jump(test);
      
         if should_jump {
@@ -140,29 +137,29 @@ impl CPU {
             let most_significant_byte = self.mmu.read_byte(current_pc + 2) as u16;
             self.pc = (most_significant_byte << 8) | least_significant_byte;
 
-            Ok(ExecuteOutput::new(ClockCycles::Four, None))
+            Ok(ClockCycles::Four)
         } else {
-            Ok(ExecuteOutput::new(ClockCycles::Three, None))
+            Ok(ClockCycles::Three)
         }
     }
 
-    fn jump_relative(&mut self, test: JumpTest, current_pc: ProgramCounter) -> Result<ExecuteOutput, Error> {
+    fn jump_relative(&mut self, test: JumpTest, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
         let should_jump = self.should_jump(test);
      
         if should_jump {
             let offset: i8 = self.read_next_byte(current_pc) as i8;
             self.pc = current_pc.wrapping_add(2i8.wrapping_add(offset) as u16);
 
-            Ok(ExecuteOutput::new(ClockCycles::Three, None))
+            Ok(ClockCycles::Three)
         } else {
-            Ok(ExecuteOutput::new(ClockCycles::Two, None))
+            Ok(ClockCycles::Two)
         }
     }
 
-    fn jump_hl(&mut self) -> Result<ExecuteOutput, Error> {
+    fn jump_hl(&mut self) -> Result<ClockCycles, Error> {
         self.pc = self.regs.get_hl();
 
-        Ok(ExecuteOutput::new(ClockCycles::One, None))
+        Ok(ClockCycles::One)
     }   
 
     fn should_jump(&self, test: JumpTest) -> bool {
@@ -175,46 +172,46 @@ impl CPU {
         }
     }
 
-    fn nop(&self) -> Result<ExecuteOutput, Error> {
-        Ok(ExecuteOutput::new(ClockCycles::One, None))
+    fn nop(&self) -> Result<ClockCycles, Error> {
+        Ok(ClockCycles::One)
     }
 
-    fn ei(&mut self) -> Result<ExecuteOutput, Error> {
+    fn ei(&mut self) -> Result<ClockCycles, Error> {
         self.ime = true;
-        Ok(ExecuteOutput::new(ClockCycles::One, None))
+        Ok(ClockCycles::One)
     }
 
-    fn di(&mut self) -> Result<ExecuteOutput, Error> {
+    fn di(&mut self) -> Result<ClockCycles, Error> {
         self.ime = false;
-        Ok(ExecuteOutput::new(ClockCycles::One, None))
+        Ok(ClockCycles::One)
     }
 
-    fn scf(&mut self) -> Result<ExecuteOutput, Error> {
+    fn scf(&mut self) -> Result<ClockCycles, Error> {
         self.regs.flags.carry = true;
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
 
-        Ok(ExecuteOutput::new(ClockCycles::One, None))
+        Ok(ClockCycles::One)
     }
 
-    fn cpl(&mut self) -> Result<ExecuteOutput, Error> {
+    fn cpl(&mut self) -> Result<ClockCycles, Error> {
         self.regs.a = !self.regs.a; 
         self.regs.flags.subtract = true;
         self.regs.flags.half_carry = true;
 
-        Ok(ExecuteOutput::new(ClockCycles::One, None))
+        Ok(ClockCycles::One)
     }
 
-    fn ccf(&mut self) -> Result<ExecuteOutput, Error> {
+    fn ccf(&mut self) -> Result<ClockCycles, Error> {
         self.regs.flags.carry = !self.regs.flags.carry;
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
 
-        Ok(ExecuteOutput::new(ClockCycles::One, None))
+        Ok(ClockCycles::One)
     }
 
     // https://forums.nesdev.org/viewtopic.php?t=15944
-    fn daa(&mut self) -> Result<ExecuteOutput, Error> {
+    fn daa(&mut self) -> Result<ClockCycles, Error> {
         if !self.regs.flags.subtract {  // after an addition, adjust if (half-)carry occurred or if result is out of bounds
             if self.regs.flags.carry || self.regs.a > 0x99 { 
                 self.regs.a = self.regs.a.wrapping_add(0x60);
@@ -235,44 +232,44 @@ impl CPU {
         self.regs.flags.zero = self.regs.a == 0; // the usual z flag
         self.regs.flags.half_carry = false; // h flag is always cleared
 
-        Ok(ExecuteOutput::new(ClockCycles::One, None))
+        Ok(ClockCycles::One)
     }
 
-    fn halt(&mut self) -> Result<ExecuteOutput, Error> {
+    fn halt(&mut self) -> Result<ClockCycles, Error> {
         self.is_halted = true;
 
-        Ok(ExecuteOutput::new(ClockCycles::One, None))
+        Ok(ClockCycles::One)
     }
 
-    fn call(&mut self, test: JumpTest, current_pc: ProgramCounter) -> Result<ExecuteOutput, Error> {
+    fn call(&mut self, test: JumpTest, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
         let should_jump = self.should_jump(test);
 
         if should_jump {
             self.push_value(current_pc.wrapping_add(3));
             self.pc = self.read_next_word(current_pc);
 
-            Ok(ExecuteOutput::new(ClockCycles::Six, None))
+            Ok(ClockCycles::Six)
         } else {
-            Ok(ExecuteOutput::new(ClockCycles::Three, None))
+            Ok(ClockCycles::Three)
         }
     }
     
-    fn ret(&mut self, test: JumpTest) -> Result<ExecuteOutput, Error> {
+    fn ret(&mut self, test: JumpTest) -> Result<ClockCycles, Error> {
         let jump_condition = self.should_jump(test);
         self.return_(jump_condition)
     }
 
-    fn return_(&mut self, should_jump: bool) -> Result<ExecuteOutput, Error> {
+    fn return_(&mut self, should_jump: bool) -> Result<ClockCycles, Error> {
         if should_jump {
             self.pc = self.pop_value();
 
-            Ok(ExecuteOutput::new(ClockCycles::Five, None))
+            Ok(ClockCycles::Five)
         } else {
-            Ok(ExecuteOutput::new(ClockCycles::Two, None))
+            Ok(ClockCycles::Two)
         }
     }
 
-    fn ldsig(&mut self, current_pc: ProgramCounter) -> Result<ExecuteOutput, Error> {
+    fn ldsig(&mut self, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
         let value: i16 = self.read_next_byte(current_pc) as i16;
         let (new_value, did_overflow) = self.sp.overflowing_add_signed(value);
 
@@ -284,16 +281,16 @@ impl CPU {
 
         self.regs.set_hl(new_value);
 
-        Ok(ExecuteOutput::new(ClockCycles::Three, None))        
+        Ok(ClockCycles::Three)        
     }
 
-    fn ldsphl(&mut self) -> Result<ExecuteOutput, Error> {
+    fn ldsphl(&mut self) -> Result<ClockCycles, Error> {
         self.sp = self.regs.get_hl();
 
-        Ok(ExecuteOutput::new(ClockCycles::Two, None))
+        Ok(ClockCycles::Two)
     }
 
-    fn ldspa16(&mut self) -> Result<ExecuteOutput, Error> {
+    fn ldspa16(&mut self) -> Result<ClockCycles, Error> {
         let address = self.read_next_word(self.pc);
 
         let lsb = (self.sp & 0x00FF) as u8;
@@ -302,7 +299,7 @@ impl CPU {
         self.mmu.write_byte(address, lsb);
         self.mmu.write_byte(address.wrapping_add(1), msb);
 
-        Ok(ExecuteOutput::new(ClockCycles::Five, None))
+        Ok(ClockCycles::Five)
     }
 
     pub(super) fn read_next_byte(&self, address: Address) -> u8 {
@@ -313,7 +310,8 @@ impl CPU {
         ((self.mmu.read_byte(address+2) as u16) << 8) | self.mmu.read_byte(address+1) as u16
     }
 
-    fn load(&mut self, current_pc: ProgramCounter, load_type: LoadType) -> Result<ExecuteOutput, Error> {
+    fn load(&mut self, current_pc: ProgramCounter, load_type: LoadType) -> Result<ClockCycles, Error> {
+
         match &load_type {
             LoadType::Byte(target, source) => {
                 let source_value = match source {
@@ -411,44 +409,46 @@ impl CPU {
             }
         }
 
+        // Result
         match load_type {
-            LoadType::Byte(_,RegistersIndDir::HLI) => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
-            LoadType::Byte(RegistersIndirect::HLI, _) => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
-            LoadType::AFromIndirect(_) => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
-            LoadType::IndirectFromA(_) => Ok(ExecuteOutput::new(ClockCycles::Two, None)),
-            LoadType::Word(_) => Ok(ExecuteOutput::new(ClockCycles::Three, None)),
-            LoadType::AFromDirect => Ok(ExecuteOutput::new(ClockCycles::Four, None)),
-            LoadType::DirectFromA => Ok(ExecuteOutput::new(ClockCycles::Four, None)),
-            _ => Ok(ExecuteOutput::new(ClockCycles::One, None)),
+            LoadType::Byte(_,RegistersIndDir::HLI) => Ok(ClockCycles::Two),
+            LoadType::Byte(RegistersIndirect::HLI, _) => Ok(ClockCycles::Two),
+            LoadType::AFromIndirect(_) => Ok(ClockCycles::Two),
+            LoadType::IndirectFromA(_) => Ok(ClockCycles::Two),
+            LoadType::Word(_) => Ok(ClockCycles::Three),
+            LoadType::AFromDirect => Ok(ClockCycles::Four),
+            LoadType::DirectFromA => Ok(ClockCycles::Four),
+            _ => Ok(ClockCycles::One),
         }
     }
     
-    fn ldff(&mut self, load_type: LoadFFType, current_pc: Address) -> Result<ExecuteOutput, Error> {
+    fn ldff(&mut self, load_type: LoadFFType, current_pc: Address) -> Result<ClockCycles, Error> {
+
         match load_type {
             LoadFFType::AtoFFC => { 
                 let addr: u16 = 0xFF00 + self.regs.c as u16;        
                 self.mmu.write_byte(addr, self.regs.a);
-                Ok(ExecuteOutput::new(ClockCycles::Two, None))
+                Ok(ClockCycles::Two)
             },
             LoadFFType::FFCtoA => {
                 let addr: u16 = 0xFF00 + self.regs.c as u16;        
                 self.regs.a = self.mmu.read_byte(addr);
-                Ok(ExecuteOutput::new(ClockCycles::Two, None))
+                Ok(ClockCycles::Two)
             },
             LoadFFType::AtoFFa8 => {
                 let addr: u16 = 0xFF00 + self.read_next_byte(current_pc) as u16;        
                 self.mmu.write_byte(addr, self.regs.a);
-                Ok(ExecuteOutput::new(ClockCycles::Three, None))
+                Ok(ClockCycles::Three)
             },
             LoadFFType::FFa8toA => {
                 let addr: u16 = 0xFF00 + self.read_next_byte(current_pc) as u16;        
                 self.regs.a = self.mmu.read_byte(addr);
-                Ok(ExecuteOutput::new(ClockCycles::Three, None))
+                Ok(ClockCycles::Three)
             }
         }
     }
 
-    pub(super) fn push(&mut self, target: StackTarget) -> Result<ExecuteOutput, Error> {
+    pub(super) fn push(&mut self, target: StackTarget) -> Result<ClockCycles, Error> {
         let value = match target {
             StackTarget::BC => self.regs.get_bc(),
             StackTarget::DE => self.regs.get_de(),
@@ -457,10 +457,10 @@ impl CPU {
         };
         self.push_value(value);
 
-        Ok(ExecuteOutput::new(ClockCycles::Four, None))
+        Ok(ClockCycles::Four)
     }
 
-    pub(super) fn pop(&mut self, target: StackTarget) -> Result<ExecuteOutput, Error> {
+    pub(super) fn pop(&mut self, target: StackTarget) -> Result<ClockCycles, Error> {
         let result = self.pop_value();
         match target {
             StackTarget::BC => self.regs.set_bc(result),
@@ -469,7 +469,7 @@ impl CPU {
             StackTarget::AF => self.regs.set_af(result),
         };
 
-        Ok(ExecuteOutput::new(ClockCycles::Three, None))
+        Ok(ClockCycles::Three)
     }
 
     fn push_value(&mut self, value: u16) {
@@ -491,6 +491,10 @@ impl CPU {
 
     pub(crate) fn interrupts_enabled(&self) -> bool {
         self.ime
+    }
+
+    pub(crate) fn read_serial_control(&self) -> u8 {
+        self.mmu.read_byte(SERIAL_CONTROL_ADDRESS)
     }
 }
 

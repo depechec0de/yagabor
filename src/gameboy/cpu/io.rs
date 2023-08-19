@@ -6,13 +6,13 @@ use pretty_hex::*;
 
 use super::mmu::{IO_END, IO_BEGIN, IO_SIZE};
 
-const JOYPAD_INPUT_ADDRESS: Address = 0xFF00;
-const SERIAL_DATA_ADDRESS: Address = 0xFF01;
-const SERIAL_CONTROL_ADDRESS: Address = 0xFF02;
+pub(crate) const JOYPAD_INPUT_ADDRESS: Address = 0xFF00;
+pub(crate) const SERIAL_DATA_ADDRESS: Address = 0xFF01;
+pub(crate) const SERIAL_CONTROL_ADDRESS: Address = 0xFF02;
 
-const LCD_CONTROL_BEGIN: Address = 0xFF40;
-const LCD_CONTROL_END: Address = 0xFF4B;
-const BOOT_SWITCH_ADDRESS: Address = 0xFF50;
+pub(crate) const LCD_CONTROL_BEGIN: Address = 0xFF40;
+pub(crate) const LCD_CONTROL_END: Address = 0xFF4B;
+pub(crate) const BOOT_SWITCH_ADDRESS: Address = 0xFF50;
 
 pub(crate) struct IO {
     data: [u8; IO_SIZE]

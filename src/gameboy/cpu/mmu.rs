@@ -104,7 +104,7 @@ impl MMU {
         }
     }
 
-    pub(super) fn write_byte(&mut self, address: Address, value: u8) -> Option<MMUEvent> {
+    pub(super) fn write_byte(&mut self, address: Address, value: u8) -> Option<IOEvent> {
         match address {
             GAMEROM_0_BEGIN ..= GAMEROM_0_END => panic!("Writing in ROM is not possible"),
             GAMEROM_N_BEGIN ..= GAMEROM_N_END => panic!("Writing in ROM is not possible"),
@@ -143,22 +143,22 @@ impl MMU {
         self.hram[address as usize - HRAM_BEGIN as usize]
     }
 
-    fn write_vram(&mut self, address: Address, value: u8) -> Option<MMUEvent> {
+    fn write_vram(&mut self, address: Address, value: u8) -> Option<IOEvent> {
         self.ppu.write_vram(address - VRAM_BEGIN, value);
         None
     }
 
-    fn write_wram(&mut self, address: Address, value: u8) -> Option<MMUEvent> {
+    fn write_wram(&mut self, address: Address, value: u8) -> Option<IOEvent> {
         self.wram[address as usize - WRAM_BEGIN as usize] = value;
         None
     }
 
-    fn write_eram(&mut self, address: Address, value: u8) -> Option<MMUEvent> {
+    fn write_eram(&mut self, address: Address, value: u8) -> Option<IOEvent> {
         self.eram[address as usize - EXTRAM_BEGIN as usize] = value;
         None
     }
 
-    fn write_io(&mut self, address: Address, value: u8) -> Option<MMUEvent> {
+    fn write_io(&mut self, address: Address, value: u8) -> Option<IOEvent> {
         let result: Option<IOEvent> = self.io.write_byte(address, value);
         
         match result {
@@ -167,13 +167,13 @@ impl MMU {
                 None
             },
             Some(IOEvent::SerialOutput(value)) => { 
-                Some(MMUEvent::IO(IOEvent::SerialOutput(value)))
+                Some(IOEvent::SerialOutput(value))
             }
             None => None
         }
     }
 
-    fn write_hram(&mut self, address: Address, value: u8) -> Option<MMUEvent> {
+    fn write_hram(&mut self, address: Address, value: u8) -> Option<IOEvent> {
         self.hram[address as usize - HRAM_BEGIN as usize] = value;
         None
     }
