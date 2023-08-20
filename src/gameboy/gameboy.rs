@@ -1,50 +1,44 @@
 use std::io::Error;
 
 use super::cartridge::Cartridge;
-use super::cpu::cpu::{CPU, ClockCycles};
-use super::cpu::mmu::MMU;
-use super::serial::SerialControl;
+use super::cpu::cpu::{CPU, ExecResult};
+use super::io::interrupts::Interruption;
+use super::io::io::IO;
+use super::io::timers::Timers;
+use super::mmu::MMU;
+use super::serial::SerialOutput;
 
 pub(crate) struct GameBoy {
     cpu: CPU,
+    timers: Timers,
 }
 
 impl GameBoy {
-    pub(crate) fn new(cartridge: Cartridge) -> Self {
-        
-        let cpu = CPU::new(cartridge);
+    pub(crate) fn new(cartridge: Cartridge, soutput: SerialOutput) -> Self {
+        let io = IO::new(soutput);
+        let mmu = MMU::new(cartridge, io);
+        let cpu = CPU::new(mmu);
+        let timers = Timers::new();
 
-        GameBoy { cpu }
+        GameBoy { cpu, timers }
     }
 
-    pub(crate) fn tick(&mut self) -> Result<ClockCycles, Error> {
-        let cpu_result = self.cpu.step();
+    pub(crate) fn tick(&mut self) -> Result<ExecResult, Error> {
+        let result = self.cpu.step()?;
+
+        let interrupt: Option<Interruption> = self.timers.move_timers(result.cycles.clone());
 
         if self.cpu.interrupts_enabled() {
 
         }
-    
-        cpu_result
+
+        Ok(result)
     }
 
     pub(crate) fn joypad_down(&mut self) {
         
     }
 
-    // https://gbdev.io/pandocs/Serial_Data_Transfer_(Link_Cable).html
-    pub(crate) fn serial_control(&mut self) -> SerialControl {
-        if self.cpu.read_serial_control() == 0x81 {
-            SerialControl::TransferStartInternal
-        } else if self.cpu.read_serial_control() == 0x80 {
-            SerialControl::TransferStartExternal
-        }else {
-            SerialControl::Undefined
-        }
-    }
-
-    pub(crate) fn serial_data(&mut self) -> u8 {
-        self.cpu.read_serial_data()
-    }
     
 }
 

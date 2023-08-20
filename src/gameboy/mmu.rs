@@ -4,7 +4,9 @@ use pretty_hex::*;
 
 use crate::gameboy::{ppu::*, rom::*, cartridge::Cartridge};
 
-use super::{io::*, cpu::Address};
+use super::io::io::{IOEvent, IO};
+
+pub(crate) type Address = u16;
 
 const MEM_SIZE: usize = 0xFFFF;
 
@@ -60,9 +62,8 @@ pub(crate) enum MMUEvent {
 }
 
 impl MMU {
-    pub fn new(cartridge: Cartridge) -> Self {
+    pub fn new(cartridge: Cartridge, io: IO) -> Self {
         let bootrom = ROM::dmg();
-        let io = IO::new();
         let ppu = PPU::new();
         MMU { 
             is_boot_rom_mapped: true, 

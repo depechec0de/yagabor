@@ -1,19 +1,15 @@
-#[derive(Debug)]
-pub(crate) enum SerialControl {
-    TransferStartInternal,
-    TransferStartExternal,
-    Undefined
+pub(crate) struct SerialOutput {
+    send_buffer: Vec<u8>
 }
 
-pub(crate) struct SerialPort {
-}
-
-impl SerialPort {
+impl SerialOutput {
     pub(crate) fn new() -> Self {
-        Self {}
+        Self { send_buffer: Vec::new() }
     }  
 
     pub(crate) fn send(&self, value: u8) {
         
     }
+
+    
 }

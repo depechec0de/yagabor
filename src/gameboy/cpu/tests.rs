@@ -1,8 +1,8 @@
-use crate::gameboy::{*, cpu::{instructions::Instruction, cpu::CPU, mmu::MMU}, cartridge::Cartridge, gameboy::GameBoy};
+use crate::gameboy::{cartridge::Cartridge, cpu::{cpu::CPU, instructions::Instruction}, gameboy::GameBoy, serial::SerialOutput, mmu::MMU, io::io::{IO, IOEvent}};
 
 #[test]
 fn add_without_carry() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
 
     cpu.pc = 0x100;
     cpu.regs.a = 0b00000001;    
@@ -22,7 +22,7 @@ fn add_without_carry() {
 
 #[test]
 fn add_with_half_carry() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
 
     cpu.pc = 0x100;
     cpu.regs.a = 0b00001111;
@@ -41,7 +41,7 @@ fn add_with_half_carry() {
 }
 #[test]
 fn add_with_carry() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
 
     cpu.pc = 0x100;
     cpu.regs.a = 0b11111111;
@@ -61,7 +61,7 @@ fn add_with_carry() {
 
 #[test]
 fn adc_with_carry() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
 
     cpu.pc = 0x100;
     cpu.regs.a = 0b11111110;
@@ -82,7 +82,7 @@ fn adc_with_carry() {
 
 #[test]
 fn adc_with_half_carry() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
 
     cpu.pc = 0x100;
     cpu.regs.a = 0b00001110;
@@ -103,7 +103,7 @@ fn adc_with_half_carry() {
 
 #[test]
 fn sub_with_carry() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
 
     cpu.pc = 0x100;
     cpu.regs.a = 0b00001111;
@@ -123,7 +123,7 @@ fn sub_with_carry() {
 
 #[test]
 fn sub_with_half_carry() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
 
     cpu.pc = 0x100;
     cpu.regs.a = 0x1;
@@ -143,7 +143,7 @@ fn sub_with_half_carry() {
 
 #[test]
 fn sbc_with_carry() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
 
     cpu.pc = 0x100;
     cpu.regs.a = 0b00001111;
@@ -165,7 +165,7 @@ fn sbc_with_carry() {
 
 #[test]
 fn sbc_with_half_carry() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
 
     cpu.pc = 0x100;
     cpu.regs.a = 0x0;
@@ -185,7 +185,7 @@ fn sbc_with_half_carry() {
 
 #[test]
 fn get_af() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
 
     cpu.pc = 0x100;
 
@@ -200,7 +200,7 @@ fn get_af() {
 
 #[test]
 fn set_af() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
 
     cpu.pc = 0x100;
     cpu.regs.set_af(0b0101010101010000);
@@ -214,7 +214,7 @@ fn set_af() {
 
 #[test]
 fn stack_push() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
 
     cpu.pc = 0x100;
     let init_sp = 0xDFFF;
@@ -235,7 +235,7 @@ fn stack_push() {
 
 #[test]
 fn stack_push_pop() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
     cpu.sp = 0xDFFF;
     cpu.pc = 0x100;
 
@@ -251,7 +251,7 @@ fn stack_push_pop() {
 
 #[test]
 fn rla() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
 
     cpu.pc = 0x100;
 
@@ -287,7 +287,7 @@ fn rla() {
 
 #[test]
 fn rlca() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
 
     cpu.pc = 0x100;
 
@@ -323,7 +323,7 @@ fn rlca() {
 
 #[test]
 fn srl() {
-    let mut cpu = CPU::new(Cartridge::empty());
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new(SerialOutput::new())));
 
     cpu.pc = 0x100;
 
@@ -365,27 +365,30 @@ fn srl() {
 }
 
 fn assert_serial_result(gb: &mut GameBoy, result: &mut Vec<char>) {
+    let mut serial_buffer = Vec::<char>::new();
     loop {
+        let execresult = gb.tick();
 
-        let _ = gb.tick();
-        let sc = gb.serial_control();
-        
-        match sc {
-            serial::SerialControl::TransferStartInternal | 
-            serial::SerialControl::TransferStartExternal => {
-                result.push(gb.serial_data() as char)
-            },
-            _ => {}
-        };
+        if let Ok(execresult) = execresult {
+            if let Some(event) = execresult.event {
+                match event {
+                    IOEvent::SerialOutput(byte) => {
+                        serial_buffer.push(byte as char);   
 
-        let result_str = result.iter().cloned().collect::<String>();
-        
-        if result_str.contains("Passed") {
-            assert!(true);
-            break
-        }else if result_str.contains("Failed") {
-            assert!(false);
-            break
+                        let result_str = serial_buffer.iter().cloned().collect::<String>();
+                        
+                        if result_str.contains("Passed") {
+                            assert!(true);
+                            break
+                        }else if result_str.contains("Failed") {
+                            assert!(false);
+                            break
+                        }
+                    },
+                    _ => {}
+                }   
+                
+            }
         }
     }
 }
@@ -394,7 +397,8 @@ fn assert_serial_result(gb: &mut GameBoy, result: &mut Vec<char>) {
 fn cpu_instrs_01() {
     let cartridge = Cartridge::cpu_instrs_01();
 
-    let mut gb: GameBoy = GameBoy::new(cartridge);
+    let soutput = SerialOutput::new();
+    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -404,7 +408,8 @@ fn cpu_instrs_01() {
 fn cpu_instrs_02() {
     let cartridge = Cartridge::cpu_instrs_02();
 
-    let mut gb: GameBoy = GameBoy::new(cartridge);
+    let soutput = SerialOutput::new();
+    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -414,7 +419,8 @@ fn cpu_instrs_02() {
 fn cpu_instrs_03() {
     let cartridge = Cartridge::cpu_instrs_03();
 
-    let mut gb: GameBoy = GameBoy::new(cartridge);
+    let soutput = SerialOutput::new();
+    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -424,7 +430,8 @@ fn cpu_instrs_03() {
 fn cpu_instrs_04() {
     let cartridge = Cartridge::cpu_instrs_04();
 
-    let mut gb: GameBoy = GameBoy::new(cartridge);
+    let soutput = SerialOutput::new();
+    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -434,7 +441,8 @@ fn cpu_instrs_04() {
 fn cpu_instrs_05() {
     let cartridge = Cartridge::cpu_instrs_05();
 
-    let mut gb: GameBoy = GameBoy::new(cartridge);
+    let soutput = SerialOutput::new();
+    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -444,7 +452,8 @@ fn cpu_instrs_05() {
 fn cpu_instrs_06() {
     let cartridge = Cartridge::cpu_instrs_06();
 
-    let mut gb: GameBoy = GameBoy::new(cartridge);
+    let soutput = SerialOutput::new();
+    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -454,7 +463,8 @@ fn cpu_instrs_06() {
 fn cpu_instrs_07() {
     let cartridge = Cartridge::cpu_instrs_07();
 
-    let mut gb: GameBoy = GameBoy::new(cartridge);
+    let soutput = SerialOutput::new();
+    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -464,7 +474,8 @@ fn cpu_instrs_07() {
 fn cpu_instrs_08() {
     let cartridge = Cartridge::cpu_instrs_08();
 
-    let mut gb: GameBoy = GameBoy::new(cartridge);
+    let soutput = SerialOutput::new();
+    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -474,7 +485,8 @@ fn cpu_instrs_08() {
 fn cpu_instrs_09() {
     let cartridge = Cartridge::cpu_instrs_09();
 
-    let mut gb: GameBoy = GameBoy::new(cartridge);
+    let soutput = SerialOutput::new();
+    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -484,7 +496,8 @@ fn cpu_instrs_09() {
 fn cpu_instrs_10() {
     let cartridge = Cartridge::cpu_instrs_10();
 
-    let mut gb: GameBoy = GameBoy::new(cartridge);
+    let soutput = SerialOutput::new();
+    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -494,7 +507,8 @@ fn cpu_instrs_10() {
 fn cpu_instrs_11() {
     let cartridge = Cartridge::cpu_instrs_11();
 
-    let mut gb: GameBoy = GameBoy::new(cartridge);
+    let soutput = SerialOutput::new();
+    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);

@@ -1,9 +1,9 @@
 use std::io::{Error, ErrorKind};
 
-use super::{instructions::*, cpu::{CPU, ProgramCounter, ClockCycles}};
+use super::{instructions::*, cpu::{CPU, ProgramCounter, ClockCycles, ExecResult}};
 
 impl CPU {
-    pub(super) fn add(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
+    pub(super) fn add(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecResult, Error> {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         let (new_value, did_overflow) = self.regs.a.overflowing_add(value);
@@ -17,13 +17,13 @@ impl CPU {
         self.regs.a = new_value;
 
         match target {
-            RegistersIndDir::HLI => Ok(ClockCycles::Two),
-            RegistersIndDir::D8 => Ok(ClockCycles::Two),
-            _ => Ok(ClockCycles::One),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
+            _ => Ok(ExecResult::new(None, ClockCycles::One)),
         }
     }
 
-    pub(super) fn addsps8(&mut self, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
+    pub(super) fn addsps8(&mut self, current_pc: ProgramCounter) -> Result<ExecResult, Error> {
         // To preserve the sign
         let value = self.read_next_byte(current_pc) as i8 as i16 as u16;
 
@@ -34,10 +34,10 @@ impl CPU {
         self.regs.flags.half_carry = (self.sp & 0xF).wrapping_add(value & 0xF) > 0xF; 
         self.sp = new_value;
 
-        Ok(ClockCycles::Four)
+        Ok(ExecResult::new(None, ClockCycles::Four))
     }
 
-    pub(super) fn add16(&mut self, target: WordRegister) -> Result<ClockCycles, Error> {
+    pub(super) fn add16(&mut self, target: WordRegister) -> Result<ExecResult, Error> {
         let value = match target {
             WordRegister::BC => self.regs.get_bc(),
             WordRegister::DE => self.regs.get_de(),
@@ -52,10 +52,10 @@ impl CPU {
         self.regs.flags.half_carry = (self.regs.get_hl() & 0xfff).wrapping_add(value & 0xfff) > 0xfff; 
         self.regs.set_hl(new_value);
 
-        Ok(ClockCycles::Two)
+        Ok(ExecResult::new(None, ClockCycles::Two))
     }
 
-    pub(super) fn adc(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
+    pub(super) fn adc(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecResult, Error> {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         let (new_value1, did_overflow1) = self.regs.a.overflowing_add(value);
@@ -68,13 +68,13 @@ impl CPU {
         self.regs.a = new_value2;
 
         match target {
-            RegistersIndDir::HLI => Ok(ClockCycles::Two),
-            RegistersIndDir::D8 => Ok(ClockCycles::Two),
-            _ => Ok(ClockCycles::One),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
+            _ => Ok(ExecResult::new(None, ClockCycles::One)),
         }
     }
 
-    pub(super) fn sub(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
+    pub(super) fn sub(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecResult, Error> {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         let (new_value, did_overflow) = self.regs.a.overflowing_sub(value);
@@ -86,13 +86,13 @@ impl CPU {
         self.regs.a = new_value;
 
         match target {
-            RegistersIndDir::HLI => Ok(ClockCycles::Two),
-            RegistersIndDir::D8 => Ok(ClockCycles::Two),
-            _ => Ok(ClockCycles::One),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
+            _ => Ok(ExecResult::new(None, ClockCycles::One)),
         }
     }
 
-    pub(super) fn sbc(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
+    pub(super) fn sbc(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecResult, Error> {
 
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
@@ -110,13 +110,13 @@ impl CPU {
         self.regs.a = new_value2;
 
         match target {
-            RegistersIndDir::HLI => Ok(ClockCycles::Two),
-            RegistersIndDir::D8 => Ok(ClockCycles::Two),
-            _ => Ok(ClockCycles::One),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
+            _ => Ok(ExecResult::new(None, ClockCycles::One)),
         }
     }
 
-    pub(super) fn and(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
+    pub(super) fn and(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecResult, Error> {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         self.regs.a = self.regs.a & value;
@@ -126,13 +126,13 @@ impl CPU {
         self.regs.flags.carry = false;
 
         match target {
-            RegistersIndDir::HLI => Ok(ClockCycles::Two),
-            RegistersIndDir::D8 => Ok(ClockCycles::Two),
-            _ => Ok(ClockCycles::One),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
+            _ => Ok(ExecResult::new(None, ClockCycles::One)),
         }
     }
 
-    pub(super) fn xor(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
+    pub(super) fn xor(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecResult, Error> {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         self.regs.a = self.regs.a ^ value;
@@ -142,13 +142,13 @@ impl CPU {
         self.regs.flags.carry = false;
 
         match target {
-            RegistersIndDir::HLI => Ok(ClockCycles::Two),
-            RegistersIndDir::D8 => Ok(ClockCycles::Two),
-            _ => Ok(ClockCycles::One),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
+            _ => Ok(ExecResult::new(None, ClockCycles::One)),
         }
     }
 
-    pub(super) fn or(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
+    pub(super) fn or(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecResult, Error> {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         self.regs.a = self.regs.a | value;
@@ -158,13 +158,13 @@ impl CPU {
         self.regs.flags.carry = false;
 
         match target {
-            RegistersIndDir::HLI => Ok(ClockCycles::Two),
-            RegistersIndDir::D8 => Ok(ClockCycles::Two),
-            _ => Ok(ClockCycles::One),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
+            _ => Ok(ExecResult::new(None, ClockCycles::One)),
         }
     }
 
-    pub(super) fn cp(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
+    pub(super) fn cp(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecResult, Error> {
         let value = self.get_arithmetic_target_val(&target, current_pc);
 
         let (result, did_overflow) = self.regs.a.overflowing_sub(value);
@@ -175,13 +175,13 @@ impl CPU {
         self.regs.flags.carry = did_overflow;
 
         match target {
-            RegistersIndDir::HLI => Ok(ClockCycles::Two),
-            RegistersIndDir::D8 => Ok(ClockCycles::Two),
-            _ => Ok(ClockCycles::One),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
+            _ => Ok(ExecResult::new(None, ClockCycles::One)),
         }
     }
 
-    pub(super) fn inc(&mut self, target: RegistersIndirect) -> Result<ClockCycles, Error> {
+    pub(super) fn inc(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
         self.regs.flags.subtract = false;
 
         match target {
@@ -230,12 +230,12 @@ impl CPU {
         };
 
         match target {
-            RegistersIndirect::HLI => Ok(ClockCycles::Three),
-            _ => Ok(ClockCycles::One),
+            RegistersIndirect::HLI => Ok(ExecResult::new(None, ClockCycles::Three)),
+            _ => Ok(ExecResult::new(None, ClockCycles::One)),
         }
     }
 
-    pub(super) fn dec(&mut self, target: RegistersIndirect) -> Result<ClockCycles, Error> {
+    pub(super) fn dec(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
         self.regs.flags.subtract = true;
 
         match target {
@@ -284,12 +284,12 @@ impl CPU {
         };
 
         match target {
-            RegistersIndirect::HLI => Ok(ClockCycles::Three),
-            _ => Ok(ClockCycles::One),
+            RegistersIndirect::HLI => Ok(ExecResult::new(None, ClockCycles::Three)),
+            _ => Ok(ExecResult::new(None, ClockCycles::One)),
         }
     }
 
-    pub(super) fn inc16(&mut self, target: WordRegister) -> Result<ClockCycles, Error> {
+    pub(super) fn inc16(&mut self, target: WordRegister) -> Result<ExecResult, Error> {
         match target {
             WordRegister::BC => self.regs.set_bc(self.regs.get_bc().wrapping_add(1)),
             WordRegister::DE => self.regs.set_de(self.regs.get_de().wrapping_add(1)),
@@ -297,10 +297,10 @@ impl CPU {
             WordRegister::SP => self.sp = self.sp.wrapping_add(1),
         };
 
-        Ok(ClockCycles::Two)
+        Ok(ExecResult::new(None, ClockCycles::Two))
     }
 
-    pub(super) fn dec16(&mut self, target: WordRegister) -> Result<ClockCycles, Error> {
+    pub(super) fn dec16(&mut self, target: WordRegister) -> Result<ExecResult, Error> {
         match target {
             WordRegister::BC => self.regs.set_bc(self.regs.get_bc().wrapping_sub(1)),
             WordRegister::DE => self.regs.set_de(self.regs.get_de().wrapping_sub(1)),
@@ -308,10 +308,10 @@ impl CPU {
             WordRegister::SP => self.sp = self.sp.wrapping_sub(1),
         };
 
-        Ok(ClockCycles::Two)
+        Ok(ExecResult::new(None, ClockCycles::Two))
     }
 
-    pub(super) fn bit(&mut self, bit_type: BitType) -> Result<ClockCycles, Error> {
+    pub(super) fn bit(&mut self, bit_type: BitType) -> Result<ExecResult, Error> {
         let BitType::Registers(t, s) = bit_type;
         let target = t;
         let source = s;
@@ -325,8 +325,8 @@ impl CPU {
         self.regs.flags.half_carry = true;
         
         match source {
-            RegistersIndirect::HLI => Ok(ClockCycles::Three),
-            _ => Ok(ClockCycles::Two),
+            RegistersIndirect::HLI => Ok(ExecResult::new(None, ClockCycles::Three)),
+            _ => Ok(ExecResult::new(None, ClockCycles::Two)),
         }             
     }
 
@@ -359,43 +359,43 @@ impl CPU {
 
     // RLA, RRA, ... are legacy instructions made for compatibility with 8080
     // No zero flag is set
-    pub(super) fn rla(&mut self) -> Result<ClockCycles, Error> {
+    pub(super) fn rla(&mut self) -> Result<ExecResult, Error> {
         self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Left, false);
         self.regs.flags.zero = false;
 
-        Ok(ClockCycles::One)
+        Ok(ExecResult::new(None, ClockCycles::One))
     }
 
-    pub(super) fn rlca(&mut self) -> Result<ClockCycles, Error> {
+    pub(super) fn rlca(&mut self) -> Result<ExecResult, Error> {
         self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Left, true);
         self.regs.flags.zero = false;
 
-        Ok(ClockCycles::One)
+        Ok(ExecResult::new(None, ClockCycles::One))
     }
 
-    pub(super) fn rra(&mut self) -> Result<ClockCycles, Error> {
+    pub(super) fn rra(&mut self) -> Result<ExecResult, Error> {
         self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Right, false);
         self.regs.flags.zero = false;
 
-        Ok(ClockCycles::One)
+        Ok(ExecResult::new(None, ClockCycles::One))
     }
 
-    pub(super) fn rrca(&mut self) -> Result<ClockCycles, Error> {
+    pub(super) fn rrca(&mut self) -> Result<ExecResult, Error> {
         self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Right, true);
         self.regs.flags.zero = false;
 
-        Ok(ClockCycles::One)
+        Ok(ExecResult::new(None, ClockCycles::One))
     }
 
-    pub(super) fn sla(&mut self, target: RegistersIndirect) -> Result<ClockCycles, Error> {
+    pub(super) fn sla(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Left, true);
         self.res_set(ResSetType::Registers(BitTarget::Zero, target.clone()), false);
         self.set_flag_zero(target);
 
-        Ok(ClockCycles::Two)
+        Ok(ExecResult::new(None, ClockCycles::Two))
     }
 
-    pub(super) fn sra(&mut self, target: RegistersIndirect) -> Result<ClockCycles, Error> {
+    pub(super) fn sra(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
         let value = self.get_register_indirect_val(target.clone());
         let bit7 = get_bit_val(7, value);
 
@@ -403,46 +403,46 @@ impl CPU {
         self.res_set(ResSetType::Registers(BitTarget::Seven, target.clone()), bit7);
         self.set_flag_zero(target);
 
-        Ok(ClockCycles::Two)
+        Ok(ExecResult::new(None, ClockCycles::Two))
     }
 
-    pub(super) fn srl(&mut self, target: RegistersIndirect) -> Result<ClockCycles, Error> {
+    pub(super) fn srl(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Right, true);
         self.res_set(ResSetType::Registers(BitTarget::Seven, target.clone()), false);
         self.set_flag_zero(target);
 
-        Ok(ClockCycles::Two)
+        Ok(ExecResult::new(None, ClockCycles::Two))
     }
 
-    pub(super) fn rr(&mut self, target: RegistersIndirect) -> Result<ClockCycles, Error> {
+    pub(super) fn rr(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Right, false);
         self.set_flag_zero(target);
 
-        Ok(ClockCycles::Two)
+        Ok(ExecResult::new(None, ClockCycles::Two))
     }
 
-    pub(super) fn rrc(&mut self, target: RegistersIndirect) -> Result<ClockCycles, Error> {
+    pub(super) fn rrc(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Right, true);
         self.set_flag_zero(target);
 
-        Ok(ClockCycles::Two)
+        Ok(ExecResult::new(None, ClockCycles::Two))
     }
 
-    pub(super) fn rl(&mut self, target: RegistersIndirect) -> Result<ClockCycles, Error> {
+    pub(super) fn rl(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Left, false);
         self.set_flag_zero(target);
 
-        Ok(ClockCycles::Two)
+        Ok(ExecResult::new(None, ClockCycles::Two))
     }
 
-    pub(super) fn rlc(&mut self, target: RegistersIndirect) -> Result<ClockCycles, Error> {
+    pub(super) fn rlc(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Left, true);
         self.set_flag_zero(target);
 
-        Ok(ClockCycles::Two)
+        Ok(ExecResult::new(None, ClockCycles::Two))
     }
 
-    pub(super) fn swap(&mut self, target: RegistersIndirect) -> Result<ClockCycles, Error> {
+    pub(super) fn swap(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
         let value = self.get_register_indirect_val(target.clone());
 
         let low = value & 0x0F;
@@ -469,12 +469,12 @@ impl CPU {
 
         self.set_flag_zero(target);
 
-        Ok(ClockCycles::Two)
+        Ok(ExecResult::new(None, ClockCycles::Two))
     }
 
     // RR r and RL r instructions
     // If is_rc is true we consider the RLC and RRC instructions, otherwise the RL and RR
-    fn bitwise_rotate(&mut self, target: RegistersIndirect, direction: RotateDirection, is_rc: bool) -> Result<ClockCycles, Error> {
+    fn bitwise_rotate(&mut self, target: RegistersIndirect, direction: RotateDirection, is_rc: bool) -> Result<ExecResult, Error> {
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
 
@@ -484,8 +484,8 @@ impl CPU {
         }
 
         match target {
-            RegistersIndirect::HLI => Ok(ClockCycles::Four),
-            _ => Ok(ClockCycles::Two),
+            RegistersIndirect::HLI => Ok(ExecResult::new(None, ClockCycles::Four)),
+            _ => Ok(ExecResult::new(None, ClockCycles::Two)),
         }
     }
 
@@ -570,7 +570,7 @@ impl CPU {
 
     }
 
-    pub(super) fn res_set(&mut self, target: ResSetType, value: bool) -> Result<ClockCycles, Error> {
+    pub(super) fn res_set(&mut self, target: ResSetType, value: bool) -> Result<ExecResult, Error> {
         let ResSetType::Registers(bt, register) = target;
         
         let i = get_position_by_bittarget(bt);
@@ -590,8 +590,8 @@ impl CPU {
         };
 
         match register {
-            RegistersIndirect::HLI => Ok(ClockCycles::Four),
-            _ => Ok(ClockCycles::Two),
+            RegistersIndirect::HLI => Ok(ExecResult::new(None, ClockCycles::Four)),
+            _ => Ok(ExecResult::new(None, ClockCycles::Two)),
         }
     }
 

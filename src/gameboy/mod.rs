@@ -1,7 +1,8 @@
-pub(super) mod cartridge;
-pub(super) mod gameboy;
+pub(crate) mod cartridge;
+pub(crate) mod gameboy;
 mod ppu;
 mod rom;
 mod cpu;
-mod interrupts;
-mod serial;
+mod mmu;
+pub(crate) mod serial;
+mod io;

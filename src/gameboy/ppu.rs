@@ -2,7 +2,7 @@ use std::fmt;
 
 use pretty_hex::*;
 
-use super::cpu::cpu::Address;
+use super::mmu::Address;
 
 pub(super) const VRAM_BEGIN: Address = 0x8000;
 pub(super) const VRAM_END: Address = 0x9FFF;

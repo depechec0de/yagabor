@@ -5,6 +5,7 @@ A Game Boy (DMG) emulator writen in Rust for educational purposes. The current s
 | Module           | Status  |
 | ---------------- |:-------:|
 | CPU Instructions | ✅      |
+| Timers           | ⬜      |
 | Keypad           | ⬜      |
 | Sound            | ⬜      |
 | Graphics         | ⬜      |

@@ -1,4 +1,4 @@
-use super::cpu::cpu::Address;
+use crate::gameboy::mmu::Address;
 
 const SERIAL_HANDLER: Address = 0x0040;
 
