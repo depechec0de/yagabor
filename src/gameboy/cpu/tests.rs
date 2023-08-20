@@ -2,8 +2,7 @@ use crate::gameboy::{*, cpu::{instructions::Instruction, cpu::CPU, mmu::MMU}, ca
 
 #[test]
 fn add_without_carry() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
 
     cpu.pc = 0x100;
     cpu.regs.a = 0b00000001;    
@@ -12,7 +11,7 @@ fn add_without_carry() {
     // ADD A, B
     let inst = Instruction::parse_instruction(0x80, 0x0, 0x0).unwrap();
 
-    cpu.execute(inst);
+    let _ = cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b00000010);
     assert_eq!(cpu.regs.flags.subtract, false);
@@ -23,8 +22,7 @@ fn add_without_carry() {
 
 #[test]
 fn add_with_half_carry() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
 
     cpu.pc = 0x100;
     cpu.regs.a = 0b00001111;
@@ -33,7 +31,7 @@ fn add_with_half_carry() {
     // ADD A, B
     let inst = Instruction::parse_instruction(0x80, 0x0, 0x0).unwrap();
 
-    cpu.execute(inst);
+    let _ = cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b00010000);
     assert_eq!(cpu.regs.flags.subtract, false);
@@ -43,8 +41,7 @@ fn add_with_half_carry() {
 }
 #[test]
 fn add_with_carry() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
 
     cpu.pc = 0x100;
     cpu.regs.a = 0b11111111;
@@ -53,7 +50,7 @@ fn add_with_carry() {
     // ADD A, B
     let inst = Instruction::parse_instruction(0x80, 0x0, 0x0).unwrap();
 
-    cpu.execute(inst);
+    let _ = cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b0);
     assert_eq!(cpu.regs.flags.subtract, false);
@@ -64,8 +61,7 @@ fn add_with_carry() {
 
 #[test]
 fn adc_with_carry() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
 
     cpu.pc = 0x100;
     cpu.regs.a = 0b11111110;
@@ -75,7 +71,7 @@ fn adc_with_carry() {
     // ADC A, B
     let inst = Instruction::parse_instruction(0x88, 0x0, 0x0).unwrap();
 
-    cpu.execute(inst);
+    let _ = cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b0);
     assert_eq!(cpu.regs.flags.subtract, false);
@@ -86,8 +82,7 @@ fn adc_with_carry() {
 
 #[test]
 fn adc_with_half_carry() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
 
     cpu.pc = 0x100;
     cpu.regs.a = 0b00001110;
@@ -97,7 +92,7 @@ fn adc_with_half_carry() {
     // ADC A, B
     let inst = Instruction::parse_instruction(0x88, 0x0, 0x0).unwrap();
 
-    cpu.execute(inst);
+    let _ = cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b00010000);
     assert_eq!(cpu.regs.flags.subtract, false);
@@ -108,8 +103,7 @@ fn adc_with_half_carry() {
 
 #[test]
 fn sub_with_carry() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
 
     cpu.pc = 0x100;
     cpu.regs.a = 0b00001111;
@@ -118,7 +112,7 @@ fn sub_with_carry() {
     // SUB B
     let inst = Instruction::parse_instruction(0x90, 0x0, 0x0).unwrap();
 
-    cpu.execute(inst);
+    let _ = cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b10001111);
     assert_eq!(cpu.regs.flags.subtract, true);
@@ -129,8 +123,7 @@ fn sub_with_carry() {
 
 #[test]
 fn sub_with_half_carry() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
 
     cpu.pc = 0x100;
     cpu.regs.a = 0x1;
@@ -139,7 +132,7 @@ fn sub_with_half_carry() {
     // SUB B
     let inst = Instruction::parse_instruction(0x90, 0x0, 0x0).unwrap();
 
-    cpu.execute(inst);
+    let _ = cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0xF2);
     assert_eq!(cpu.regs.flags.subtract, true);
@@ -150,8 +143,7 @@ fn sub_with_half_carry() {
 
 #[test]
 fn sbc_with_carry() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
 
     cpu.pc = 0x100;
     cpu.regs.a = 0b00001111;
@@ -162,7 +154,7 @@ fn sbc_with_carry() {
     // SBC B
     let inst = Instruction::parse_instruction(0x98, 0x0, 0x0).unwrap();
 
-    cpu.execute(inst);
+    let _ = cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b10001111);
     assert_eq!(cpu.regs.flags.subtract, true);
@@ -173,8 +165,7 @@ fn sbc_with_carry() {
 
 #[test]
 fn sbc_with_half_carry() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
 
     cpu.pc = 0x100;
     cpu.regs.a = 0x0;
@@ -183,7 +174,7 @@ fn sbc_with_half_carry() {
 
     let inst = Instruction::parse_instruction(0xDE, 0x01, 0x0).unwrap();
 
-    cpu.execute(inst);
+    let _ = cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0xFF);
     assert_eq!(cpu.regs.flags.subtract, true);
@@ -194,8 +185,7 @@ fn sbc_with_half_carry() {
 
 #[test]
 fn get_af() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
 
     cpu.pc = 0x100;
 
@@ -210,8 +200,7 @@ fn get_af() {
 
 #[test]
 fn set_af() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
 
     cpu.pc = 0x100;
     cpu.regs.set_af(0b0101010101010000);
@@ -225,8 +214,7 @@ fn set_af() {
 
 #[test]
 fn stack_push() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
 
     cpu.pc = 0x100;
     let init_sp = 0xDFFF;
@@ -238,7 +226,7 @@ fn stack_push() {
 
     cpu.regs.set_bc(test_value);
 
-    cpu.push(crate::gameboy::cpu::instructions::StackTarget::BC);
+    let _ = cpu.push(crate::gameboy::cpu::instructions::StackTarget::BC);
 
     assert_eq!(cpu.sp, init_sp-2);
     assert_eq!(cpu.mmu.read_byte(init_sp-1), high);
@@ -247,8 +235,7 @@ fn stack_push() {
 
 #[test]
 fn stack_push_pop() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
     cpu.sp = 0xDFFF;
     cpu.pc = 0x100;
 
@@ -256,16 +243,15 @@ fn stack_push_pop() {
 
     cpu.regs.set_bc(test_value);
 
-    cpu.push(crate::gameboy::cpu::instructions::StackTarget::BC);
-    cpu.pop(crate::gameboy::cpu::instructions::StackTarget::HL);
+    let _ = cpu.push(crate::gameboy::cpu::instructions::StackTarget::BC);
+    let _ = cpu.pop(crate::gameboy::cpu::instructions::StackTarget::HL);
 
     assert_eq!(cpu.regs.get_hl(), cpu.regs.get_bc());
 }
 
 #[test]
 fn rla() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
 
     cpu.pc = 0x100;
 
@@ -275,7 +261,7 @@ fn rla() {
 
     let inst = Instruction::parse_instruction(0x17, 0x0, 0x0).unwrap();
 
-    cpu.execute(inst);
+    let _ = cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b00000001);
     assert_eq!(cpu.regs.flags.subtract, false);
@@ -290,7 +276,7 @@ fn rla() {
 
     let inst = Instruction::parse_instruction(0x17, 0x0, 0x0).unwrap();
 
-    cpu.execute(inst);
+    let _ = cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b00000000);
     assert_eq!(cpu.regs.flags.subtract, false);
@@ -301,8 +287,7 @@ fn rla() {
 
 #[test]
 fn rlca() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
 
     cpu.pc = 0x100;
 
@@ -312,7 +297,7 @@ fn rlca() {
 
     let inst = Instruction::parse_instruction(0x07, 0x0, 0x0).unwrap();
 
-    cpu.execute(inst);
+    let _ = cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b00000001);
     assert_eq!(cpu.regs.flags.subtract, false);
@@ -327,7 +312,7 @@ fn rlca() {
 
     let inst = Instruction::parse_instruction(0x07, 0x0, 0x0).unwrap();
 
-    cpu.execute(inst);
+    let _ = cpu.execute(inst);
 
     assert_eq!(cpu.regs.a, 0b10000010);
     assert_eq!(cpu.regs.flags.subtract, false);
@@ -338,8 +323,7 @@ fn rlca() {
 
 #[test]
 fn srl() {
-    let mmu = MMU::new(Cartridge::empty());
-    let mut cpu = CPU::new(mmu);
+    let mut cpu = CPU::new(Cartridge::empty());
 
     cpu.pc = 0x100;
 
@@ -352,7 +336,7 @@ fn srl() {
 
     let inst = Instruction::parse_instruction(0xCB, 0x38, 0x0).unwrap();
 
-    cpu.execute(inst);
+    let _ = cpu.execute(inst);
 
     assert_eq!(cpu.regs.b, 0x7F);
     assert_eq!(cpu.regs.flags.subtract, false);
@@ -370,7 +354,7 @@ fn srl() {
 
     let inst = Instruction::parse_instruction(0xCB, 0x38, 0x0).unwrap();
 
-    cpu.execute(inst);
+    let _ = cpu.execute(inst);
 
     assert_eq!(cpu.regs.b, 0x00);
     assert_eq!(cpu.regs.flags.subtract, false);

@@ -72,14 +72,14 @@ pub(super) enum InstructionType {
     XOR(RegistersIndDir),
     INC(RegistersIndirect),
     DEC(RegistersIndirect),
-    ADDSP8,
+    ADDSPS8,
     // 16-bit Arithmetic/Logic instructions
     ADD16(WordRegister),
     INC16(WordRegister),
     DEC16(WordRegister),
     // 8-bit load instructions
     LD(LoadType),
-    LDSIG,
+    LDHLSPD8,
     LDSPHL,
     LDFF(LoadFFType),
     LDSPA16,
@@ -207,7 +207,7 @@ impl InstructionType {
             InstructionType::ADD16(_) => InstructionSize::OneByte,
             InstructionType::INC16(_) => InstructionSize::OneByte,
             InstructionType::DEC16(_) => InstructionSize::OneByte,
-            InstructionType::ADDSP8 => InstructionSize::TwoBytes,
+            InstructionType::ADDSPS8 => InstructionSize::TwoBytes,
             InstructionType::SUB(atarget) => match atarget { RegistersIndDir::D8 => InstructionSize::TwoBytes, _ => InstructionSize::OneByte },
             InstructionType::SBC(atarget) => match atarget { RegistersIndDir::D8 => InstructionSize::TwoBytes, _ => InstructionSize::OneByte },
             InstructionType::AND(atarget) => match atarget { RegistersIndDir::D8 => InstructionSize::TwoBytes, _ => InstructionSize::OneByte },
@@ -225,7 +225,7 @@ impl InstructionType {
                                                         LoadType::AFromIndirect(_) => InstructionSize::OneByte,
                                                         LoadType::IndirectFromA(_) => InstructionSize::OneByte,
                                                     },
-            InstructionType::LDSIG => InstructionSize::TwoBytes,
+            InstructionType::LDHLSPD8 => InstructionSize::TwoBytes,
             InstructionType::LDSPHL => InstructionSize::OneByte,
             InstructionType::LDSPA16 => InstructionSize::ThreeBytes,
             InstructionType::LDFF(load_type) => match load_type {
@@ -588,7 +588,7 @@ impl InstructionType {
             0xD5 => Some(InstructionType::PUSH(StackTarget::DE)),
             0xE5 => Some(InstructionType::PUSH(StackTarget::HL)),
             0xF5 => Some(InstructionType::PUSH(StackTarget::AF)),
-            0xF8 => Some(InstructionType::LDSIG),
+            0xF8 => Some(InstructionType::LDHLSPD8),
             0xF9 => Some(InstructionType::LDSPHL),
             0x08 => Some(InstructionType::LDSPA16),
 
@@ -643,7 +643,7 @@ impl InstructionType {
             0x1B => Some(InstructionType::DEC16(WordRegister::DE)),
             0x2B => Some(InstructionType::DEC16(WordRegister::HL)),
             0x3B => Some(InstructionType::DEC16(WordRegister::SP)),
-            0xE8 => Some(InstructionType::ADDSP8),
+            0xE8 => Some(InstructionType::ADDSPS8),
             
             // 8-bit load InstructionTypes
             0x02 => Some(InstructionType::LD(LoadType::IndirectFromA(LoadIndirectSource::BC))),

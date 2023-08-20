@@ -106,8 +106,12 @@ impl MMU {
 
     pub(super) fn write_byte(&mut self, address: Address, value: u8) -> Option<IOEvent> {
         match address {
-            GAMEROM_0_BEGIN ..= GAMEROM_0_END => panic!("Writing in ROM is not possible"),
-            GAMEROM_N_BEGIN ..= GAMEROM_N_END => panic!("Writing in ROM is not possible"),
+            GAMEROM_0_BEGIN ..= GAMEROM_0_END => {
+                panic!("Writing in ROM {:x} is not possible", address);
+            },
+            GAMEROM_N_BEGIN ..= GAMEROM_N_END => {
+                panic!("Writing in ROM {:x} is not possible", address);
+            },
             VRAM_BEGIN ..= VRAM_END => self.write_vram(address, value),
             EXTRAM_BEGIN ..= EXTRAM_END => self.write_eram(address, value),
             WRAM_BEGIN ..= WRAM_END => self.write_wram(address, value),
@@ -150,7 +154,6 @@ impl MMU {
 
     fn write_wram(&mut self, address: Address, value: u8) -> Option<IOEvent> {
         self.wram[address as usize - WRAM_BEGIN as usize] = value;
-        println!("WRITE {:x} {:x}", address, value);
         None
     }
 

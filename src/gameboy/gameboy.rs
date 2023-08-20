@@ -11,8 +11,8 @@ pub(crate) struct GameBoy {
 
 impl GameBoy {
     pub(crate) fn new(cartridge: Cartridge) -> Self {
-        let mmu = MMU::new(cartridge);
-        let cpu = CPU::new(mmu);
+        
+        let cpu = CPU::new(cartridge);
 
         GameBoy { cpu }
     }

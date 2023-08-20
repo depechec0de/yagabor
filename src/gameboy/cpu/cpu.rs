@@ -1,7 +1,7 @@
 use core::panic;
 use std::io::{Error, ErrorKind};
 
-use crate::gameboy::{interrupts::Interruption, serial::SerialControl};
+use crate::gameboy::{interrupts::Interruption, serial::SerialControl, cartridge::{self, Cartridge}};
 
 use super::{registers::Registers, mmu::MMU, instructions::*, io::{SERIAL_CONTROL_ADDRESS, SERIAL_DATA_ADDRESS}};
 
@@ -19,7 +19,9 @@ pub(crate) struct CPU{
 }
 
 impl CPU {
-    pub fn new(mmu: MMU) -> Self {
+    pub fn new(cartridge: Cartridge) -> Self {
+        let mmu = MMU::new(cartridge);
+
         Self { 
             regs: Registers::new(), 
             sp: 0b0, 
@@ -41,13 +43,10 @@ impl CPU {
             match self.execute(instruction.clone()) {
                 Ok(result) => {
                     //println!("pc {:#04x} | {:x} ({:?} cycles) {:?} {:?} SP:{:x}", self.pc, instruction_byte, u64::from(cycles.clone()) , instruction, self.regs, self.sp);
-                    if self.pc > 0xFF {
-                        println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:02X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}", 
-                                self.regs.a, u8::from(self.regs.flags.clone()), self.regs.b, self.regs.c, self.regs.d, self.regs.e, self.regs.h, self.regs.l, self.sp, self.pc, self.mmu.read_byte(self.pc), self.mmu.read_byte(self.pc+1), self.mmu.read_byte(self.pc+2), self.mmu.read_byte(self.pc+3) );                        
-                    }
+                    
+                    // println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}", 
+                    //             self.regs.a, u8::from(self.regs.flags.clone()), self.regs.b, self.regs.c, self.regs.d, self.regs.e, self.regs.h, self.regs.l, self.sp, self.pc, self.mmu.read_byte(self.pc), self.mmu.read_byte(self.pc+1), self.mmu.read_byte(self.pc+2), self.mmu.read_byte(self.pc+3) );                        
 
-                    
-                    
                     Ok(result)
                 },
                 Err(error) => {
@@ -71,7 +70,6 @@ impl CPU {
         self.pc = self.pc.wrapping_add(inst_size as u16);
 
         match inst_type {
-            // This instructions never return and change directly the PC
             InstructionType::CALL(test) => self.call(test, prev_pc),
             InstructionType::RET(test) => self.ret(test),
             InstructionType::JP(test) => self.jump(test, prev_pc),
@@ -89,7 +87,7 @@ impl CPU {
             InstructionType::ADD16(target) => self.add16(target),
             InstructionType::INC16(target) => self.inc16(target),
             InstructionType::DEC16(target) => self.dec16(target),
-            InstructionType::ADDSP8 => self.addsp8(prev_pc),
+            InstructionType::ADDSPS8 => self.addsps8(prev_pc),
             InstructionType::SUB(target) => self.sub(target, prev_pc),
             InstructionType::SBC(target) => self.sbc(target, prev_pc),
             InstructionType::AND(target) => self.and(target, prev_pc),
@@ -97,15 +95,15 @@ impl CPU {
             InstructionType::OR(target) => self.or(target, prev_pc),
             InstructionType::CP(target) => self.cp(target, prev_pc),
             InstructionType::LD(load_type) => self.load(prev_pc, load_type),
-            InstructionType::LDSIG => self.ldsig(prev_pc),
+            InstructionType::LDHLSPD8 => self.ldhlspd8(prev_pc),
             InstructionType::LDSPHL => self.ldsphl(),
-            InstructionType::LDSPA16 => self.ldspa16(),
+            InstructionType::LDSPA16 => self.ldspa16(prev_pc),
             InstructionType::LDFF(load_type) => self.ldff(load_type, prev_pc),
             InstructionType::PUSH(target) => self.push(target),
             InstructionType::POP(target) => self.pop(target),
-            //InstructionType::RST(target) => todo!(),
+            InstructionType::RST(target) => self.rst(target, prev_pc),
             InstructionType::BIT(bit_type) => self.bit(bit_type),
-            //InstructionType::RETI => todo!(),
+            InstructionType::RETI => self.reti(),
             InstructionType::DAA => self.daa(),
             InstructionType::RL(target) => self.rl(target),
             InstructionType::RLC(target) => self.rlc(target),
@@ -123,7 +121,7 @@ impl CPU {
             InstructionType::DI => self.di(),
             InstructionType::RES(target) => self.res_set(target, false),
             InstructionType::SET(target) => self.res_set(target, true),
-            _ => { Err(Error::new(ErrorKind::Other, "Unsupported instruction")) }
+            _ => { Err(Error::new(ErrorKind::Other, format!("Unsupported instruction {:?}", inst_type))) }
         }
     }
 
@@ -259,6 +257,32 @@ impl CPU {
         self.return_(jump_condition)
     }
 
+    fn reti(&mut self) -> Result<ClockCycles, Error> {
+        self.pc = self.pop_value();
+        self.ime = true;
+
+        Ok(ClockCycles::Four)
+    }
+
+    fn rst(&mut self, target: BitTarget, current_pc: Address) -> Result<ClockCycles, Error> {
+        self.push_value(current_pc.wrapping_add(1));
+
+        let address: u16 = match target {
+            BitTarget::Zero => 0x0000,
+            BitTarget::One => 0x0008,
+            BitTarget::Two => 0x0010,
+            BitTarget::Three => 0x0018,
+            BitTarget::Four => 0x0020,
+            BitTarget::Five => 0x0028,
+            BitTarget::Six => 0x0030,
+            BitTarget::Seven => 0x0038,
+        };
+
+        self.pc = address; 
+
+        Ok(ClockCycles::Four)
+    }
+
     fn return_(&mut self, should_jump: bool) -> Result<ClockCycles, Error> {
         if should_jump {
             self.pc = self.pop_value();
@@ -269,14 +293,13 @@ impl CPU {
         }
     }
 
-    fn ldsig(&mut self, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
-        let value: i16 = self.read_next_byte(current_pc) as i16;
-        let (new_value, did_overflow) = self.sp.overflowing_add_signed(value);
+    fn ldhlspd8(&mut self, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
+        let value = self.read_next_byte(current_pc) as i8 as u16;
+        let new_value = self.sp.wrapping_add(value);
 
         self.regs.flags.zero = false;
         self.regs.flags.subtract = false;
-        self.regs.flags.carry = did_overflow;
-        // TODO: Not sure about half-carry with signed
+        self.regs.flags.carry = (self.sp & 0xFF).wrapping_add(value as u16 & 0xFF) > 0xFF;
         self.regs.flags.half_carry = (self.sp & 0xF) + (value as u16 & 0xF) > 0xF;
 
         self.regs.set_hl(new_value);
@@ -290,8 +313,8 @@ impl CPU {
         Ok(ClockCycles::Two)
     }
 
-    fn ldspa16(&mut self) -> Result<ClockCycles, Error> {
-        let address = self.read_next_word(self.pc);
+    fn ldspa16(&mut self, current_pc: Address) -> Result<ClockCycles, Error> {
+        let address = self.read_next_word(current_pc);
 
         let lsb = (self.sp & 0x00FF) as u8;
         let msb = ((self.sp & 0xFF00) >> 8) as u8;
@@ -307,7 +330,7 @@ impl CPU {
     }
 
     pub(super) fn read_next_word(&self, address: Address) -> u16 {
-        ((self.mmu.read_byte(address+2) as u16) << 8) | self.mmu.read_byte(address+1) as u16
+        ((self.mmu.read_byte(address+2) as u16) << 8) | (self.mmu.read_byte(address+1) as u16)
     }
 
     fn load(&mut self, current_pc: ProgramCounter, load_type: LoadType) -> Result<ClockCycles, Error> {

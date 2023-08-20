@@ -13,7 +13,7 @@ impl CPU {
         // Half Carry is set if adding the lower nibbles of the value and register A
         // together result in a value bigger than 0xF. If the result is larger than 0xF
         // than the addition caused a carry from the lower nibble to the upper nibble.
-        self.regs.flags.half_carry = (self.regs.a & 0xF) + (value & 0xF) > 0xF;
+        self.regs.flags.half_carry = (self.regs.a & 0xF).wrapping_add(value & 0xF) > 0xF;
         self.regs.a = new_value;
 
         match target {
@@ -23,14 +23,15 @@ impl CPU {
         }
     }
 
-    pub(super) fn addsp8(&mut self, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
-        let value = self.read_next_byte(current_pc) as u16;
+    pub(super) fn addsps8(&mut self, current_pc: ProgramCounter) -> Result<ClockCycles, Error> {
+        // To preserve the sign
+        let value = self.read_next_byte(current_pc) as i8 as i16 as u16;
 
-        let (new_value, did_overflow) = self.sp.overflowing_add(value);
+        let new_value = self.sp.wrapping_add(value);
         self.regs.flags.zero = false;
         self.regs.flags.subtract = false;
-        self.regs.flags.carry = did_overflow;
-        self.regs.flags.half_carry = (self.sp & 0xfff).wrapping_add(value & 0xfff) > 0xfff; 
+        self.regs.flags.carry = (self.sp & 0xFF).wrapping_add(value & 0xFF) > 0xFF;
+        self.regs.flags.half_carry = (self.sp & 0xF).wrapping_add(value & 0xF) > 0xF; 
         self.sp = new_value;
 
         Ok(ClockCycles::Four)
@@ -320,7 +321,9 @@ impl CPU {
         let bit_value = get_bit_val(i, value);
 
         self.regs.flags.zero = !bit_value;
-
+        self.regs.flags.subtract = false;
+        self.regs.flags.half_carry = true;
+        
         match source {
             RegistersIndirect::HLI => Ok(ClockCycles::Three),
             _ => Ok(ClockCycles::Two),
@@ -513,15 +516,15 @@ impl CPU {
         }
 
         match target {
-            RegistersIndirect::A => { self.regs.a = (self.regs.a << 1) + new_bit0 as u8; },
-            RegistersIndirect::B => { self.regs.b = (self.regs.b << 1) + new_bit0 as u8; },
-            RegistersIndirect::C => { self.regs.c = (self.regs.c << 1) + new_bit0 as u8; },
-            RegistersIndirect::D => { self.regs.d = (self.regs.d << 1) + new_bit0 as u8; },
-            RegistersIndirect::E => { self.regs.e = (self.regs.e << 1) + new_bit0 as u8; },
-            RegistersIndirect::H => { self.regs.h = (self.regs.h << 1) + new_bit0 as u8; },
-            RegistersIndirect::L => { self.regs.l = (self.regs.l << 1) + new_bit0 as u8; },
+            RegistersIndirect::A => { self.regs.a = (self.regs.a << 1).wrapping_add(new_bit0 as u8); },
+            RegistersIndirect::B => { self.regs.b = (self.regs.b << 1).wrapping_add(new_bit0 as u8); },
+            RegistersIndirect::C => { self.regs.c = (self.regs.c << 1).wrapping_add(new_bit0 as u8); },
+            RegistersIndirect::D => { self.regs.d = (self.regs.d << 1).wrapping_add(new_bit0 as u8); },
+            RegistersIndirect::E => { self.regs.e = (self.regs.e << 1).wrapping_add(new_bit0 as u8); },
+            RegistersIndirect::H => { self.regs.h = (self.regs.h << 1).wrapping_add(new_bit0 as u8); },
+            RegistersIndirect::L => { self.regs.l = (self.regs.l << 1).wrapping_add(new_bit0 as u8); },
             RegistersIndirect::HLI => {
-                let new_val = (self.mmu.read_byte(self.regs.get_hl()) << 1) + new_bit0 as u8;
+                let new_val = (self.mmu.read_byte(self.regs.get_hl()) << 1).wrapping_add(new_bit0 as u8);
                 self.mmu.write_byte(self.regs.get_hl(), new_val);
             }
         };
@@ -552,15 +555,15 @@ impl CPU {
         }
         
         match target {
-            RegistersIndirect::A => { self.regs.a = (self.regs.a >> 1) + ((new_bit7 as u8) << 7); },
-            RegistersIndirect::B => { self.regs.b = (self.regs.b >> 1) + ((new_bit7 as u8) << 7); },
-            RegistersIndirect::C => { self.regs.c = (self.regs.c >> 1) + ((new_bit7 as u8) << 7); },
-            RegistersIndirect::D => { self.regs.d = (self.regs.d >> 1) + ((new_bit7 as u8) << 7); },
-            RegistersIndirect::E => { self.regs.e = (self.regs.e >> 1) + ((new_bit7 as u8) << 7); },
-            RegistersIndirect::H => { self.regs.h = (self.regs.h >> 1) + ((new_bit7 as u8) << 7); },
-            RegistersIndirect::L => { self.regs.l = (self.regs.l >> 1) + ((new_bit7 as u8) << 7); },
+            RegistersIndirect::A => { self.regs.a = (self.regs.a >> 1).wrapping_add((new_bit7 as u8) << 7); },
+            RegistersIndirect::B => { self.regs.b = (self.regs.b >> 1).wrapping_add((new_bit7 as u8) << 7); },
+            RegistersIndirect::C => { self.regs.c = (self.regs.c >> 1).wrapping_add((new_bit7 as u8) << 7); },
+            RegistersIndirect::D => { self.regs.d = (self.regs.d >> 1).wrapping_add((new_bit7 as u8) << 7); },
+            RegistersIndirect::E => { self.regs.e = (self.regs.e >> 1).wrapping_add((new_bit7 as u8) << 7); },
+            RegistersIndirect::H => { self.regs.h = (self.regs.h >> 1).wrapping_add((new_bit7 as u8) << 7); },
+            RegistersIndirect::L => { self.regs.l = (self.regs.l >> 1).wrapping_add((new_bit7 as u8) << 7); },
             RegistersIndirect::HLI => {
-                let new_val = (self.mmu.read_byte(self.regs.get_hl()) >> 1) + (new_bit7 as u8) << 7;
+                let new_val = (self.mmu.read_byte(self.regs.get_hl()) >> 1).wrapping_add((new_bit7 as u8) << 7);
                 self.mmu.write_byte(self.regs.get_hl(), new_val);
             }
         };
