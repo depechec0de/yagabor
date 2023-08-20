@@ -11,16 +11,17 @@ use super::serial::SerialOutput;
 pub(crate) struct GameBoy {
     cpu: CPU,
     timers: Timers,
+    serialout: SerialOutput
 }
 
 impl GameBoy {
-    pub(crate) fn new(cartridge: Cartridge, soutput: SerialOutput) -> Self {
-        let io = IO::new(soutput);
+    pub(crate) fn new(cartridge: Cartridge, serialout: SerialOutput) -> Self {
+        let io = IO::new();
         let mmu = MMU::new(cartridge, io);
         let cpu = CPU::new(mmu);
         let timers = Timers::new();
 
-        GameBoy { cpu, timers }
+        GameBoy { cpu, timers, serialout }
     }
 
     pub(crate) fn tick(&mut self) -> Result<ExecResult, Error> {

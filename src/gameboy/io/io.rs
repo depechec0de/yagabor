@@ -13,8 +13,7 @@ pub(crate) const LCD_CONTROL_END: Address = 0xFF4B;
 pub(crate) const BOOT_SWITCH_ADDRESS: Address = 0xFF50;
 
 pub(crate) struct IO {
-    data: [u8; IO_SIZE],
-    serial_output: SerialOutput
+    data: [u8; IO_SIZE]
 }
 
 #[derive(Debug)]
@@ -30,8 +29,8 @@ pub(crate) enum IOEvent {
 }
 
 impl IO {
-    pub(crate) fn new(serial_output: SerialOutput) -> Self {
-        Self{ data:[0; IO_SIZE], serial_output }
+    pub(crate) fn new() -> Self {
+        Self{ data:[0; IO_SIZE] }
     }
 
     pub(crate) fn read_byte(&self, address: Address) -> u8 {
