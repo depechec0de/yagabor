@@ -4,7 +4,7 @@ use pretty_hex::*;
 
 use crate::gameboy::{ppu::*, rom::*, cartridge::Cartridge};
 
-use super::io::io::{IOEvent, IO};
+use super::{io::{io::{IOEvent, IO, INTERRUPT_ENABLE_ADDRESS}}};
 
 pub(crate) type Address = u16;
 
@@ -43,15 +43,12 @@ const HRAM_BEGIN: Address = 0xFF80;
 const HRAM_END: Address = 0xFFFE;
 const HRAM_SIZE: usize = (HRAM_END - HRAM_BEGIN + 1) as usize;
 
-const INTERRUPT_ADDRESS: Address = 0xFFFF;
-
 pub(crate) struct MMU {
     is_boot_rom_mapped: bool,
     bootrom: ROM,
     cartridge: Cartridge,
-    io: IO,
+    pub(crate) io: IO,
     ppu: PPU,
-    interrupt: u8,
     eram: [u8; EXTRAM_SIZE],
     wram: [u8; WRAM_SIZE],
     hram: [u8; HRAM_SIZE],
@@ -71,7 +68,6 @@ impl MMU {
             bootrom,
             io,
             ppu,
-            interrupt: 0x0,
             eram: [0; EXTRAM_SIZE], 
             wram: [0; WRAM_SIZE], 
             hram: [0; HRAM_SIZE],
@@ -98,9 +94,9 @@ impl MMU {
             WRAM_BEGIN ..= WRAM_END => self.read_wram(address),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited read 0x{:x} to echo ram", address),
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited read 0x{:x}", address),
-            IO_BEGIN ..= IO_END => self.read_io(address),
+            IO_BEGIN ..= IO_END => self.io.read_byte(address),
             HRAM_BEGIN ..= HRAM_END => self.read_hram(address),
-            INTERRUPT_ADDRESS => self.interrupt,
+            INTERRUPT_ENABLE_ADDRESS => self.io.read_byte(address),
             _ => panic!("unmapped read {:x}", address),
         }
     }
@@ -118,12 +114,9 @@ impl MMU {
             WRAM_BEGIN ..= WRAM_END => self.write_wram(address, value),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited write 0x{:x} to echo ram", address),
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited write 0x{:x}", address),
-            IO_BEGIN ..= IO_END => self.write_io(address, value),
+            IO_BEGIN ..= IO_END => self.io.write_byte(address, value),
             HRAM_BEGIN ..= HRAM_END => self.write_hram(address, value),
-            INTERRUPT_ADDRESS => {
-                self.interrupt = value;
-                None
-            }
+            INTERRUPT_ENABLE_ADDRESS => self.io.write_byte(address, value),
             _ => panic!("unmapped write {:x}", address),
         }
     }
@@ -134,10 +127,6 @@ impl MMU {
 
     fn read_wram(&self, address: Address) -> u8 {
         self.wram[address as usize - WRAM_BEGIN as usize]
-    }
-
-    fn read_io(&self, address: Address) -> u8 {
-        self.io.read_byte(address)     
     }
 
     fn read_eram(&self, address: Address) -> u8 {
@@ -163,21 +152,6 @@ impl MMU {
         None
     }
 
-    fn write_io(&mut self, address: Address, value: u8) -> Option<IOEvent> {
-        let result: Option<IOEvent> = self.io.write_byte(address, value);
-        
-        match result {
-            Some(IOEvent::BootSwitched(new_val)) => {
-                self.is_boot_rom_mapped = new_val;
-                None
-            },
-            Some(IOEvent::SerialOutput(value)) => { 
-                Some(IOEvent::SerialOutput(value))
-            }
-            None => None
-        }
-    }
-
     fn write_hram(&mut self, address: Address, value: u8) -> Option<IOEvent> {
         self.hram[address as usize - HRAM_BEGIN as usize] = value;
         None
@@ -195,9 +169,6 @@ impl fmt::Display for MMU {
 
         write!(f, "{} {:x}-{:x}\n", "WRAM", WRAM_BEGIN, WRAM_END)?;
         write!(f, "{}", pretty_hex(&self.wram))?;
-        write!(f, "{}", "\n\n")?;
-
-        write!(f, "{}", self.io)?;
         write!(f, "{}", "\n\n")?;
 
         write!(f, "{} {:x}-{:x}\n", "HRAM", HRAM_BEGIN, HRAM_END)?;

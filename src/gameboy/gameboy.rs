@@ -1,8 +1,7 @@
 use std::io::Error;
 
 use super::cartridge::Cartridge;
-use super::cpu::cpu::{CPU, ExecResult};
-use super::io::interrupts::Interruption;
+use super::cpu::cpu::{CPU, ExecResult, MachineCycles};
 use super::io::io::IO;
 use super::io::timers::Timers;
 use super::mmu::MMU;
@@ -25,13 +24,12 @@ impl GameBoy {
     }
 
     pub(crate) fn tick(&mut self) -> Result<ExecResult, Error> {
-        let result = self.cpu.step()?;
 
-        let interrupt: Option<Interruption> = self.timers.move_timers(result.cycles.clone());
+        let intmcycles = self.cpu.handle_interrupts() as MachineCycles;
 
-        if self.cpu.interrupts_enabled() {
+        let mut result = self.cpu.step()?;
 
-        }
+        result.mcycles += intmcycles;
 
         Ok(result)
     }

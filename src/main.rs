@@ -37,7 +37,7 @@ fn main() -> Result<(), Error> {
     let mut emu = Emulation::new(gb, debug);
 
     let report = emu.run();
-    println!("Emulation terminated in {} seconds, total executed cyles: {} with result {:?}", report.execution_time.as_secs_f32() , report.total_cycles, report.result);
+    //println!("Emulation terminated in {} seconds, total executed cyles: {} with result {:?}", report.execution_time.as_secs_f32() , report.total_cycles, report.result);
     
     Ok(())
     

@@ -1,4 +1,4 @@
-use crate::gameboy::cpu::cpu::ClockCycles;
+use crate::gameboy::cpu::{cpu::ClockCycles};
 
 use super::interrupts::Interruption;
 

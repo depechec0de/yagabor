@@ -1,29 +1,30 @@
 use std::io::{Error, ErrorKind};
 
-use crate::gameboy::{mmu::{MMU, Address}, io::io::{SERIAL_DATA_ADDRESS, IOEvent}};
+use crate::gameboy::{mmu::{MMU, Address}, io::io::{IOEvent}};
 
 use super::{registers::Registers, instructions::*};
 
-pub(super) type ProgramCounter = u16;
-pub(super) type StackPointer = u16;
+pub(crate) type ProgramCounter = u16;
+pub(crate) type StackPointer = u16;
+pub(crate) type MachineCycles = u64;
 
 pub(crate) struct CPU{
     pub(super) regs: Registers,
     pub(super) sp: StackPointer,
     pub(super) pc: ProgramCounter,
     pub(super) is_halted: bool,
-    pub(super) mmu: MMU,
     pub(super) ime: bool,
+    pub(super) mmu: MMU,
 }
 
 pub(crate) struct ExecResult{
     pub(crate) event: Option<IOEvent>,
-    pub(crate) cycles: ClockCycles,
+    pub(crate) mcycles: MachineCycles,
 }
 
 impl ExecResult {
     pub(crate) fn new(event: Option<IOEvent>, cycles: ClockCycles) -> Self {
-        ExecResult { event, cycles }
+        ExecResult { event, mcycles: cycles as MachineCycles }
     }
 }
 
@@ -34,8 +35,8 @@ impl CPU {
             sp: 0x0, 
             pc: 0x0,  
             is_halted: false,
+            ime: true,
             mmu,
-            ime: true
         }
     }
 
@@ -49,16 +50,9 @@ impl CPU {
             //println!("{:?}", instruction);
             match self.execute(instruction.clone()) {
                 Ok(result) => {
-                    //println!("pc {:#04x} | {:x} ({:?} cycles) {:?} {:?} SP:{:x}", self.pc, instruction_byte, u64::from(cycles.clone()) , instruction, self.regs, self.sp);
-                    
-                    // if self.pc > 0x00FF {
-                    //     println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}", 
-                    //             self.regs.a, u8::from(self.regs.flags.clone()), self.regs.b, self.regs.c, self.regs.d, self.regs.e, self.regs.h, self.regs.l, self.sp, self.pc, self.mmu.read_byte(self.pc), self.mmu.read_byte(self.pc+1), self.mmu.read_byte(self.pc+2), self.mmu.read_byte(self.pc+3) );                        
-                    // }
                     Ok(result)
                 },
                 Err(error) => {
-                    //println!("{}", self.mmu);
                     Err(Error::new(ErrorKind::Other, format!("Error during execution: {}", error)))
                 }
             }
@@ -131,6 +125,10 @@ impl CPU {
             InstructionType::SET(target) => self.res_set(target, true),
             _ => { Err(Error::new(ErrorKind::Other, format!("Unsupported instruction {:?}", inst_type))) }
         }
+    }
+
+    pub(crate) fn disable_interrupts(&mut self) {
+        self.ime = false;
     }
 
     fn jump(&mut self, test: JumpTest, current_pc: ProgramCounter) -> Result<ExecResult, Error> {
@@ -251,13 +249,17 @@ impl CPU {
         let should_jump = self.should_jump(test);
 
         if should_jump {
-            self.push_value(current_pc.wrapping_add(3));
-            self.pc = self.read_next_word(current_pc);
+            self.call_func(current_pc.wrapping_add(3), self.read_next_word(current_pc));
 
             Ok(ExecResult::new(None, ClockCycles::Six))
         } else {
             Ok(ExecResult::new(None, ClockCycles::Three))
         }
+    }
+
+    fn call_func(&mut self, current_pc: ProgramCounter, jump_addr: ProgramCounter){
+        self.push_value(current_pc);
+        self.pc = jump_addr;
     }
     
     fn ret(&mut self, test: JumpTest) -> Result<ExecResult, Error> {
@@ -527,8 +529,17 @@ impl CPU {
         (msb << 8) | lsb
     }
 
-    pub(crate) fn interrupts_enabled(&self) -> bool {
-        self.ime
+    pub(crate) fn handle_interrupts(&mut self) -> ClockCycles {
+        let cycles: MachineCycles;
+
+        if self.ime {
+            if let Some(interrupt) = self.mmu.io.interrupts.interrupt_to_handle(){
+                self.ime = false;
+                self.call_func(self.pc, interrupt.handler());
+            }
+        }
+
+        ClockCycles::Three
     }
 }
 
@@ -538,8 +549,8 @@ pub(crate) enum ClockCycles {
     One, Two, Three, Four, Five, Six
 }
 
-impl std::convert::From<ClockCycles> for u64  {
-    fn from(cycles: ClockCycles) -> u64 {
+impl std::convert::From<ClockCycles> for MachineCycles  {
+    fn from(cycles: ClockCycles) -> MachineCycles {
         let machine_cycles = match cycles {
             ClockCycles::One => 1,
             ClockCycles::Two => 2,
