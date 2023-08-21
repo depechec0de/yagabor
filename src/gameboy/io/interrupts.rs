@@ -1,6 +1,6 @@
 use crate::gameboy::{mmu::Address, io::io::IOEvent};
 
-use super::io::{INTERRUPT_ENABLE_ADDRESS, INTERRUPT_FLAG_ADDRESS};
+use super::io::INTERRUPT_FLAG_ADDRESS;
 
 const VBLANK_INT_HANDLER: Address = 0x0040;
 const LCD_INT_HANDLER: Address = 0x0048;

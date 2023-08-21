@@ -14,7 +14,6 @@ pub(crate) const LCD_CONTROL_BEGIN: Address = 0xFF40;
 pub(crate) const LCD_CONTROL_END: Address = 0xFF4B;
 pub(crate) const BOOT_SWITCH_ADDRESS: Address = 0xFF50;
 
-pub(crate) const INTERRUPT_ENABLE_ADDRESS: Address = 0xFFFF;
 pub(crate) const INTERRUPT_FLAG_ADDRESS: Address = 0xFF0F;
 
 pub(crate) struct IO {

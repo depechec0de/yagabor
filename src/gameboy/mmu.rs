@@ -4,14 +4,9 @@ use pretty_hex::*;
 
 use crate::gameboy::{ppu::*, rom::*, cartridge::Cartridge};
 
-use super::{io::{io::{IOEvent, IO, INTERRUPT_ENABLE_ADDRESS}}};
+use super::io::io::{IOEvent, IO};
 
 pub(crate) type Address = u16;
-
-const MEM_SIZE: usize = 0xFFFF;
-
-const ROM_BEGIN: Address = 0x0000;
-const ROM_END: Address = 0x7FFF;
 
 const GAMEROM_0_BEGIN: Address = 0x0000;
 const GAMEROM_0_END: Address = 0x3FFF;
@@ -32,6 +27,9 @@ const WRAM_SIZE: usize = (WRAM_END - WRAM_BEGIN + 1) as usize;
 const ERAM_BEGIN: Address = 0xE000;
 const ERAM_END: Address = 0xFDFF;
 
+const OAM_BEGIN: Address = 0xFE00;
+const OAM_END: Address = 0xFE9F;
+
 const NOTUSABLE_BEGIN: Address = 0xFEA0;
 const NOTUSABLE_END: Address = 0xFEFF;
 
@@ -43,6 +41,8 @@ const HRAM_BEGIN: Address = 0xFF80;
 const HRAM_END: Address = 0xFFFE;
 const HRAM_SIZE: usize = (HRAM_END - HRAM_BEGIN + 1) as usize;
 
+pub(crate) const INTERRUPT_ENABLE_ADDRESS: Address = 0xFFFF;
+
 pub(crate) struct MMU {
     is_boot_rom_mapped: bool,
     bootrom: ROM,
@@ -52,10 +52,6 @@ pub(crate) struct MMU {
     eram: [u8; EXTRAM_SIZE],
     wram: [u8; WRAM_SIZE],
     hram: [u8; HRAM_SIZE],
-}
-
-pub(crate) enum MMUEvent {
-    IO(IOEvent)
 }
 
 impl MMU {
