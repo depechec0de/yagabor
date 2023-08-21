@@ -36,7 +36,7 @@ impl IO {
     pub(crate) fn read_byte(&self, address: Address) -> u8 {
         match address {
             0xFF44 => 0x90,
-            
+            INTERRUPT_ENABLE_ADDRESS => self.interrupts.read_byte(address),
             // TODO: Map the rest
             _ => self.data[(address - IO_BEGIN) as usize]
         }
@@ -48,9 +48,9 @@ impl IO {
                 Some(IOEvent::SerialOutput(value))
             },
             BOOT_SWITCH_ADDRESS => Some(IOEvent::BootSwitched(value == 0)),
-            INTERRUPT_ENABLE_ADDRESS => self.interrupts.write_byte(address, value),
-            INTERRUPT_FLAG_ADDRESS => self.interrupts.write_byte(address, value),
-            _ => { self.data[(address - IO_BEGIN) as usize] = value; None }
+            // INTERRUPT_ENABLE_ADDRESS => self.interrupts.write_byte(address, value),
+            // INTERRUPT_FLAG_ADDRESS => self.interrupts.write_byte(address, value),
+            _ => None
         }
     }
 

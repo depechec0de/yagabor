@@ -94,7 +94,7 @@ impl MMU {
             WRAM_BEGIN ..= WRAM_END => self.read_wram(address),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited read 0x{:x} to echo ram", address),
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited read 0x{:x}", address),
-            IO_BEGIN ..= IO_END => self.io.read_byte(address),
+            IO_BEGIN ..= IO_END => self.read_io(address),
             HRAM_BEGIN ..= HRAM_END => self.read_hram(address),
             INTERRUPT_ENABLE_ADDRESS => self.io.read_byte(address),
             _ => panic!("unmapped read {:x}", address),
@@ -114,7 +114,7 @@ impl MMU {
             WRAM_BEGIN ..= WRAM_END => self.write_wram(address, value),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited write 0x{:x} to echo ram", address),
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited write 0x{:x}", address),
-            IO_BEGIN ..= IO_END => self.io.write_byte(address, value),
+            IO_BEGIN ..= IO_END => self.write_io(address, value),
             HRAM_BEGIN ..= HRAM_END => self.write_hram(address, value),
             INTERRUPT_ENABLE_ADDRESS => self.io.write_byte(address, value),
             _ => panic!("unmapped write {:x}", address),
@@ -137,6 +137,10 @@ impl MMU {
         self.hram[address as usize - HRAM_BEGIN as usize]
     }
 
+    fn read_io(&self, address: Address) -> u8 {
+        self.io.read_byte(address)     
+    }
+
     fn write_vram(&mut self, address: Address, value: u8) -> Option<IOEvent> {
         self.ppu.write_vram(address - VRAM_BEGIN, value);
         None
@@ -155,6 +159,24 @@ impl MMU {
     fn write_hram(&mut self, address: Address, value: u8) -> Option<IOEvent> {
         self.hram[address as usize - HRAM_BEGIN as usize] = value;
         None
+    }
+
+    fn write_io(&mut self, address: Address, value: u8) -> Option<IOEvent> {
+        let result: Option<IOEvent> = self.io.write_byte(address, value);
+        
+        match result {
+            Some(IOEvent::BootSwitched(new_val)) => {
+                self.is_boot_rom_mapped = new_val;
+                None
+            },
+            Some(IOEvent::SerialOutput(value)) => { 
+                Some(IOEvent::SerialOutput(value))
+            },
+            Some(IOEvent::Interrupt(interruption)) => { 
+                None
+            },
+            None => None
+        }
     }
 
 }
