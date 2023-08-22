@@ -34,7 +34,9 @@ impl GameBoy {
             external_event = self.cpu.handle_event(event);
         }
 
-        self.cpu.timers.handle_timers(cycles_consumed);
+        if self.cpu.timers.handle_timers(cycles_consumed) {
+            self.cpu.timer_interrupt();
+        }
 
         Ok(ExecResult{ event: external_event , clockcycles: cycles_consumed })
     }

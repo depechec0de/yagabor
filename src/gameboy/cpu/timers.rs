@@ -5,13 +5,8 @@ pub(crate) struct Timers {
     pub(super) tima: u8,
     pub(super) tma: u8,
     pub(super) tac: u8,
-    pub(super) clocks_counter: u16
-}
-
-pub(crate) enum TimerFired {
-    DIV,
-    TIMA,
-    DIVTIMA
+    pub(super) div_counter: u16,
+    pub(super) timer_counter: u16
 }
 
 impl Timers {
@@ -21,7 +16,8 @@ impl Timers {
             tima: 0,
             tma: 0,
             tac: 0,
-            clocks_counter: 0
+            div_counter: 0,
+            timer_counter: 0
         }
     }
 
@@ -46,38 +42,29 @@ impl Timers {
         self.tma = value;
     }
 
-    pub(crate) fn handle_timers(&mut self, cycles: ClockCycles) -> Option<TimerFired> {
-        let mut div_fired = false;
-        let mut tima_fired = false;
+    pub(crate) fn handle_timers(&mut self, cycles: ClockCycles) -> bool {
+        let mut timer_fired = false;
 
-        self.div += cycles as u16;
+        self.div_counter += cycles as u16;
 
-        if self.div >= 256 {
-            self.div -= 256;
-            div_fired = true; 
+        if self.div_counter >= 256 {
+            self.div_counter -= 256;
+            self.div.wrapping_add(1);
         }
 
         if self.is_enabled() {
-            self.clocks_counter += cycles as u16;
+            self.timer_counter += cycles as u16;
 
-            while self.clocks_counter >= self.get_frecuency() {
+            while self.timer_counter >= self.get_frecuency() {
                 let (_, tima_overflow) = self.tima.overflowing_add(1);
                 if tima_overflow {
-                    tima_fired = true;
+                    timer_fired = true;
                     self.tima = self.tma;
                 }
-                self.clocks_counter -= self.get_frecuency();
+                self.timer_counter -= self.get_frecuency();
             }
         }
         
-        if div_fired && tima_fired {
-            Some(TimerFired::DIVTIMA)
-        } else if div_fired {
-            Some(TimerFired::DIV)
-        } else if tima_fired {
-            Some(TimerFired::TIMA)
-        }else{
-            None
-        }
+        timer_fired
     }
 }

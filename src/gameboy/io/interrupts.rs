@@ -76,8 +76,8 @@ impl InterruptsRegister {
         }
     }
 
-    fn some_interrupt_enabled(&self) -> bool {
-        (self.interrupt_enable & 0xF) > 0
+    pub(crate) fn some_interrupt_enabled(&self) -> bool {
+        (self.interrupt_enable & self.interrupt_flag) != 0
     }
 
     fn is_vblank(&self) -> bool {

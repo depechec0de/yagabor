@@ -377,9 +377,11 @@ fn assert_serial_result(gb: &mut GameBoy, result: &mut Vec<char>) {
                         let result_str = serial_buffer.iter().cloned().collect::<String>();
 
                         if result_str.contains("Passed") {
+                            println!("{}", result_str);
                             assert!(true);
                             break
                         }else if result_str.contains("Failed") {
+                            println!("{}", result_str);
                             assert!(false);
                             break
                         }

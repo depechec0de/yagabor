@@ -1,6 +1,6 @@
 use std::io::{Error, ErrorKind};
 
-use crate::gameboy::{mmu::{MMU, Address}, io::io::{IOEvent}};
+use crate::gameboy::{mmu::{MMU, Address}, io::io::{IOEvent, INTERRUPT_FLAG_ADDRESS}};
 
 use super::{registers::Registers, instructions::*, timers::Timers};
 
@@ -45,24 +45,32 @@ impl CPU {
 
     pub(crate) fn step(&mut self) -> Result<ExecResult, Error> {
 
-        let instruction_byte = self.mmu.read_byte(self.pc);
-        let byte0 = self.mmu.read_byte(self.pc+1);
-        let byte1 = self.mmu.read_byte(self.pc+2);
+        if !self.is_halted {
 
-        if let Some(instruction) = Instruction::parse_instruction(instruction_byte, byte0, byte1) {
-            //println!("{:?}", instruction);
-            match self.execute(instruction.clone()) {
-                Ok(result) => {
-                    Ok(result)
-                },
-                Err(error) => {
-                    Err(Error::new(ErrorKind::Other, format!("Error during execution: {}", error)))
+            let instruction_byte = self.mmu.read_byte(self.pc);
+            let byte0 = self.mmu.read_byte(self.pc+1);
+            let byte1 = self.mmu.read_byte(self.pc+2);
+
+            if let Some(instruction) = Instruction::parse_instruction(instruction_byte, byte0, byte1) {
+                println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}", 
+                                self.regs.a, u8::from(self.regs.flags.clone()), self.regs.b, self.regs.c, self.regs.d, self.regs.e, self.regs.h, self.regs.l, self.sp, self.pc, self.mmu.read_byte(self.pc), self.mmu.read_byte(self.pc+1), self.mmu.read_byte(self.pc+2), self.mmu.read_byte(self.pc+3) );                        
+
+
+                match self.execute(instruction.clone()) {
+                    Ok(result) => {
+                        Ok(result)
+                    },
+                    Err(error) => {
+                        Err(Error::new(ErrorKind::Other, format!("Error during execution: {}", error)))
+                    }
                 }
+            } else {
+                //println!("{}", self.mmu);
+                Err(Error::new(ErrorKind::Other, format!("Unkown instruction {:x} {:x} found", instruction_byte, byte0)))
             }
-        } else {
-            //println!("{}", self.mmu);
-            Err(Error::new(ErrorKind::Other, format!("Unkown instruction {:x} {:x} found", instruction_byte, byte0)))
-        }   
+        }else{
+            Ok(ExecResult::new(None, MachineCycles::One))
+        }
     }   
 
     pub(super) fn execute(&mut self, instruction: Instruction) -> Result<ExecResult, Error> {
@@ -237,12 +245,6 @@ impl CPU {
         // these flags are always updated
         self.regs.flags.zero = self.regs.a == 0; // the usual z flag
         self.regs.flags.half_carry = false; // h flag is always cleared
-
-        Ok(ExecResult::new(None, MachineCycles::One))
-    }
-
-    fn halt(&mut self) -> Result<ExecResult, Error> {
-        self.is_halted = true;
 
         Ok(ExecResult::new(None, MachineCycles::One))
     }
@@ -536,10 +538,21 @@ impl CPU {
             if let Some(interrupt) = self.mmu.io.interrupts.interrupt_to_handle(){
                 self.ime = false;
                 self.call_func(self.pc, interrupt.handler());
+                MachineCycles::Five
+            }else {
+                MachineCycles::One
             }
+        }else{
+            if self.is_halted && self.mmu.io.interrupts.some_interrupt_enabled() {
+                self.is_halted = false;
+            }
+            MachineCycles::One
         }
-        // TODO: Check this value
-        MachineCycles::Six
+    }
+
+    fn halt(&mut self) -> Result<ExecResult, Error> {
+        self.is_halted = true;
+        Ok(ExecResult::new(None, MachineCycles::One))
     }
 
     pub(crate) fn handle_event(&mut self, event: IOEvent) -> Option<IOEvent> {
@@ -565,6 +578,12 @@ impl CPU {
             _ => Some(event)
         }
     }
+
+    pub(crate) fn timer_interrupt(&mut self) {
+        let prev_interruption_flag = self.mmu.read_byte(INTERRUPT_FLAG_ADDRESS);
+        self.mmu.write_byte(INTERRUPT_FLAG_ADDRESS, prev_interruption_flag | 0b00000100);       
+    }
+    
 }
 
 // We use machine cycles for reference, but in the translation we multiply by 4
