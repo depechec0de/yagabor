@@ -92,7 +92,7 @@ impl MMU {
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited read 0x{:x}", address),
             IO_BEGIN ..= IO_END => self.read_io(address),
             HRAM_BEGIN ..= HRAM_END => self.read_hram(address),
-            INTERRUPT_ENABLE_ADDRESS => self.io.read_byte(address),
+            INTERRUPT_ENABLE_ADDRESS => self.read_io(address),
             _ => panic!("unmapped read {:x}", address),
         }
     }
@@ -112,7 +112,7 @@ impl MMU {
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited write 0x{:x}", address),
             IO_BEGIN ..= IO_END => self.write_io(address, value),
             HRAM_BEGIN ..= HRAM_END => self.write_hram(address, value),
-            INTERRUPT_ENABLE_ADDRESS => self.io.write_byte(address, value),
+            INTERRUPT_ENABLE_ADDRESS => self.write_io(address, value),
             _ => panic!("unmapped write {:x}", address),
         }
     }
@@ -165,13 +165,7 @@ impl MMU {
                 self.is_boot_rom_mapped = new_val;
                 None
             },
-            Some(IOEvent::SerialOutput(value)) => { 
-                Some(IOEvent::SerialOutput(value))
-            },
-            Some(IOEvent::Interrupt(interruption)) => { 
-                None
-            },
-            None => None
+            _ => result
         }
     }
 

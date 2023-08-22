@@ -368,7 +368,6 @@ fn assert_serial_result(gb: &mut GameBoy, result: &mut Vec<char>) {
     let mut serial_buffer = Vec::<char>::new();
     loop {
         let execresult = gb.tick();
-
         if let Ok(execresult) = execresult {
             if let Some(event) = execresult.event {
                 match event {
@@ -376,7 +375,7 @@ fn assert_serial_result(gb: &mut GameBoy, result: &mut Vec<char>) {
                         serial_buffer.push(byte as char);   
 
                         let result_str = serial_buffer.iter().cloned().collect::<String>();
-                        
+
                         if result_str.contains("Passed") {
                             assert!(true);
                             break

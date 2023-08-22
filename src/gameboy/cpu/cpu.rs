@@ -2,11 +2,11 @@ use std::io::{Error, ErrorKind};
 
 use crate::gameboy::{mmu::{MMU, Address}, io::io::{IOEvent}};
 
-use super::{registers::Registers, instructions::*};
+use super::{registers::Registers, instructions::*, timers::Timers};
 
-pub(crate) type ProgramCounter = u16;
-pub(crate) type StackPointer = u16;
-pub(crate) type MachineCycles = u64;
+pub(crate) type ProgramCounter = Address;
+pub(crate) type StackPointer = Address;
+pub(crate) type ClockCycles = u8;
 
 pub(crate) struct CPU{
     pub(super) regs: Registers,
@@ -15,16 +15,18 @@ pub(crate) struct CPU{
     pub(super) is_halted: bool,
     pub(super) ime: bool,
     pub(super) mmu: MMU,
+    pub(crate) timers: Timers,
 }
 
+#[derive(Debug)]
 pub(crate) struct ExecResult{
     pub(crate) event: Option<IOEvent>,
-    pub(crate) mcycles: MachineCycles,
+    pub(crate) clockcycles: ClockCycles,
 }
 
 impl ExecResult {
-    pub(crate) fn new(event: Option<IOEvent>, cycles: ClockCycles) -> Self {
-        ExecResult { event, mcycles: cycles as MachineCycles }
+    pub(crate) fn new(event: Option<IOEvent>, cycles: MachineCycles) -> Self {
+        ExecResult { event, clockcycles: cycles as ClockCycles }
     }
 }
 
@@ -37,6 +39,7 @@ impl CPU {
             is_halted: false,
             ime: true,
             mmu,
+            timers: Timers::new(),
         }
     }
 
@@ -62,7 +65,6 @@ impl CPU {
         }   
     }   
 
-    // Returns the next PC to execute and the cycles consumed
     pub(super) fn execute(&mut self, instruction: Instruction) -> Result<ExecResult, Error> {
 
         let inst_type = instruction.op.clone();
@@ -141,9 +143,9 @@ impl CPU {
             let most_significant_byte = self.mmu.read_byte(current_pc + 2) as u16;
             self.pc = (most_significant_byte << 8) | least_significant_byte;
 
-            Ok(ExecResult::new(None, ClockCycles::Four))
+            Ok(ExecResult::new(None, MachineCycles::Four))
         } else {
-            Ok(ExecResult::new(None, ClockCycles::Three))
+            Ok(ExecResult::new(None, MachineCycles::Three))
         }
     }
 
@@ -154,16 +156,16 @@ impl CPU {
             let offset: i8 = self.read_next_byte(current_pc) as i8;
             self.pc = current_pc.wrapping_add(2i8.wrapping_add(offset) as u16);
 
-            Ok(ExecResult::new(None, ClockCycles::Three))
+            Ok(ExecResult::new(None, MachineCycles::Three))
         } else {
-            Ok(ExecResult::new(None, ClockCycles::Two))
+            Ok(ExecResult::new(None, MachineCycles::Two))
         }
     }
 
     fn jump_hl(&mut self) -> Result<ExecResult, Error> {
         self.pc = self.regs.get_hl();
 
-        Ok(ExecResult::new(None, ClockCycles::One))
+        Ok(ExecResult::new(None, MachineCycles::One))
     }   
 
     fn should_jump(&self, test: JumpTest) -> bool {
@@ -177,17 +179,17 @@ impl CPU {
     }
 
     fn nop(&self) -> Result<ExecResult, Error> {
-        Ok(ExecResult::new(None, ClockCycles::One))
+        Ok(ExecResult::new(None, MachineCycles::One))
     }
 
     fn ei(&mut self) -> Result<ExecResult, Error> {
         self.ime = true;
-        Ok(ExecResult::new(None, ClockCycles::One))
+        Ok(ExecResult::new(None, MachineCycles::One))
     }
 
     fn di(&mut self) -> Result<ExecResult, Error> {
         self.ime = false;
-        Ok(ExecResult::new(None, ClockCycles::One))
+        Ok(ExecResult::new(None, MachineCycles::One))
     }
 
     fn scf(&mut self) -> Result<ExecResult, Error> {
@@ -195,7 +197,7 @@ impl CPU {
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
 
-        Ok(ExecResult::new(None, ClockCycles::One))
+        Ok(ExecResult::new(None, MachineCycles::One))
     }
 
     fn cpl(&mut self) -> Result<ExecResult, Error> {
@@ -203,7 +205,7 @@ impl CPU {
         self.regs.flags.subtract = true;
         self.regs.flags.half_carry = true;
 
-        Ok(ExecResult::new(None, ClockCycles::One))
+        Ok(ExecResult::new(None, MachineCycles::One))
     }
 
     fn ccf(&mut self) -> Result<ExecResult, Error> {
@@ -211,7 +213,7 @@ impl CPU {
         self.regs.flags.subtract = false;
         self.regs.flags.half_carry = false;
 
-        Ok(ExecResult::new(None, ClockCycles::One))
+        Ok(ExecResult::new(None, MachineCycles::One))
     }
 
     // https://forums.nesdev.org/viewtopic.php?t=15944
@@ -236,13 +238,13 @@ impl CPU {
         self.regs.flags.zero = self.regs.a == 0; // the usual z flag
         self.regs.flags.half_carry = false; // h flag is always cleared
 
-        Ok(ExecResult::new(None, ClockCycles::One))
+        Ok(ExecResult::new(None, MachineCycles::One))
     }
 
     fn halt(&mut self) -> Result<ExecResult, Error> {
         self.is_halted = true;
 
-        Ok(ExecResult::new(None, ClockCycles::One))
+        Ok(ExecResult::new(None, MachineCycles::One))
     }
 
     fn call(&mut self, test: JumpTest, current_pc: ProgramCounter) -> Result<ExecResult, Error> {
@@ -251,9 +253,9 @@ impl CPU {
         if should_jump {
             self.call_func(current_pc.wrapping_add(3), self.read_next_word(current_pc));
 
-            Ok(ExecResult::new(None, ClockCycles::Six))
+            Ok(ExecResult::new(None, MachineCycles::Six))
         } else {
-            Ok(ExecResult::new(None, ClockCycles::Three))
+            Ok(ExecResult::new(None, MachineCycles::Three))
         }
     }
 
@@ -271,7 +273,7 @@ impl CPU {
         self.pc = self.pop_value();
         self.ime = true;
 
-        Ok(ExecResult::new(None, ClockCycles::Four))
+        Ok(ExecResult::new(None, MachineCycles::Four))
     }
 
     fn rst(&mut self, target: BitTarget, current_pc: Address) -> Result<ExecResult, Error> {
@@ -290,16 +292,16 @@ impl CPU {
 
         self.pc = address; 
 
-        Ok(ExecResult::new(None, ClockCycles::Four))
+        Ok(ExecResult::new(None, MachineCycles::Four))
     }
 
     fn return_(&mut self, should_jump: bool) -> Result<ExecResult, Error> {
         if should_jump {
             self.pc = self.pop_value();
 
-            Ok(ExecResult::new(None, ClockCycles::Five))
+            Ok(ExecResult::new(None, MachineCycles::Five))
         } else {
-            Ok(ExecResult::new(None, ClockCycles::Two))
+            Ok(ExecResult::new(None, MachineCycles::Two))
         }
     }
 
@@ -314,13 +316,13 @@ impl CPU {
 
         self.regs.set_hl(new_value);
 
-        Ok(ExecResult::new(None, ClockCycles::Three))        
+        Ok(ExecResult::new(None, MachineCycles::Three))        
     }
 
     fn ldsphl(&mut self) -> Result<ExecResult, Error> {
         self.sp = self.regs.get_hl();
 
-        Ok(ExecResult::new(None, ClockCycles::Two))
+        Ok(ExecResult::new(None, MachineCycles::Two))
     }
 
     fn ldspa16(&mut self, current_pc: Address) -> Result<ExecResult, Error> {
@@ -334,7 +336,7 @@ impl CPU {
         self.mmu.write_byte(address, lsb);
         event = self.mmu.write_byte(address.wrapping_add(1), msb);
 
-        Ok(ExecResult::new(event, ClockCycles::Five))
+        Ok(ExecResult::new(event, MachineCycles::Five))
     }
 
     pub(super) fn read_next_byte(&self, address: Address) -> u8 {
@@ -449,14 +451,14 @@ impl CPU {
 
         // Result
         match load_type {
-            LoadType::Byte(_,RegistersIndDir::HLI) => Ok(ExecResult::new(event, ClockCycles::Two)),
-            LoadType::Byte(RegistersIndirect::HLI, _) => Ok(ExecResult::new(event, ClockCycles::Two)),
-            LoadType::AFromIndirect(_) => Ok(ExecResult::new(event, ClockCycles::Two)),
-            LoadType::IndirectFromA(_) => Ok(ExecResult::new(event, ClockCycles::Two)),
-            LoadType::Word(_) => Ok(ExecResult::new(event, ClockCycles::Three)),
-            LoadType::AFromDirect => Ok(ExecResult::new(event, ClockCycles::Four)),
-            LoadType::DirectFromA => Ok(ExecResult::new(event, ClockCycles::Four)),
-            _ => Ok(ExecResult::new(event, ClockCycles::One)),
+            LoadType::Byte(_,RegistersIndDir::HLI) => Ok(ExecResult::new(event, MachineCycles::Two)),
+            LoadType::Byte(RegistersIndirect::HLI, _) => Ok(ExecResult::new(event, MachineCycles::Two)),
+            LoadType::AFromIndirect(_) => Ok(ExecResult::new(event, MachineCycles::Two)),
+            LoadType::IndirectFromA(_) => Ok(ExecResult::new(event, MachineCycles::Two)),
+            LoadType::Word(_) => Ok(ExecResult::new(event, MachineCycles::Three)),
+            LoadType::AFromDirect => Ok(ExecResult::new(event, MachineCycles::Four)),
+            LoadType::DirectFromA => Ok(ExecResult::new(event, MachineCycles::Four)),
+            _ => Ok(ExecResult::new(event, MachineCycles::One)),
         }
     }
     
@@ -468,22 +470,22 @@ impl CPU {
             LoadFFType::AtoFFC => { 
                 let addr: u16 = 0xFF00 + self.regs.c as u16;        
                 event = self.mmu.write_byte(addr, self.regs.a);
-                Ok(ExecResult::new(event, ClockCycles::Two))
+                Ok(ExecResult::new(event, MachineCycles::Two))
             },
             LoadFFType::FFCtoA => {
                 let addr: u16 = 0xFF00 + self.regs.c as u16;        
                 self.regs.a = self.mmu.read_byte(addr);
-                Ok(ExecResult::new(event, ClockCycles::Two))
+                Ok(ExecResult::new(event, MachineCycles::Two))
             },
             LoadFFType::AtoFFa8 => {
                 let addr: u16 = 0xFF00 + self.read_next_byte(current_pc) as u16;        
                 event = self.mmu.write_byte(addr, self.regs.a);
-                Ok(ExecResult::new(event, ClockCycles::Three))
+                Ok(ExecResult::new(event, MachineCycles::Three))
             },
             LoadFFType::FFa8toA => {
                 let addr: u16 = 0xFF00 + self.read_next_byte(current_pc) as u16;        
                 self.regs.a = self.mmu.read_byte(addr);
-                Ok(ExecResult::new(event, ClockCycles::Three))
+                Ok(ExecResult::new(event, MachineCycles::Three))
             }
         }
     }
@@ -497,7 +499,7 @@ impl CPU {
         };
         self.push_value(value);
 
-        Ok(ExecResult::new(None, ClockCycles::Four))
+        Ok(ExecResult::new(None, MachineCycles::Four))
     }
 
     pub(super) fn pop(&mut self, target: StackTarget) -> Result<ExecResult, Error> {
@@ -509,7 +511,7 @@ impl CPU {
             StackTarget::AF => self.regs.set_af(result),
         };
 
-        Ok(ExecResult::new(None, ClockCycles::Three))
+        Ok(ExecResult::new(None, MachineCycles::Three))
     }
 
     fn push_value(&mut self, value: u16) {
@@ -529,35 +531,57 @@ impl CPU {
         (msb << 8) | lsb
     }
 
-    pub(crate) fn handle_interrupts(&mut self) -> ClockCycles {
-        let cycles: MachineCycles;
-
+    pub(crate) fn handle_interrupts(&mut self) -> MachineCycles {
         if self.ime {
             if let Some(interrupt) = self.mmu.io.interrupts.interrupt_to_handle(){
                 self.ime = false;
                 self.call_func(self.pc, interrupt.handler());
             }
         }
+        // TODO: Check this value
+        MachineCycles::Six
+    }
 
-        ClockCycles::Three
+    pub(crate) fn handle_event(&mut self, event: IOEvent) -> Option<IOEvent> {
+        match event {
+            IOEvent::TimerControl(value) => {
+                self.timers.tac = value;
+                None
+            },
+            IOEvent::TimerTMA(value) => {
+                self.timers.tma = value;
+                None
+            },
+            IOEvent::TimerTIMA(value) => {
+                self.timers.tima = value;
+                None
+            },
+            IOEvent::TimerDIV(_) => {
+                // Any write resets this - PanDocs
+                self.timers.div = 0;
+                None
+            },
+            // A non handled IOEvent is an external event, e.g. serial output
+            _ => Some(event)
+        }
     }
 }
 
 // We use machine cycles for reference, but in the translation we multiply by 4
 #[derive(Debug, Clone)]
-pub(crate) enum ClockCycles {
+pub(crate) enum MachineCycles {
     One, Two, Three, Four, Five, Six
 }
 
-impl std::convert::From<ClockCycles> for MachineCycles  {
-    fn from(cycles: ClockCycles) -> MachineCycles {
+impl std::convert::From<MachineCycles> for ClockCycles  {
+    fn from(cycles: MachineCycles) -> ClockCycles {
         let machine_cycles = match cycles {
-            ClockCycles::One => 1,
-            ClockCycles::Two => 2,
-            ClockCycles::Three => 3,
-            ClockCycles::Four => 4,
-            ClockCycles::Five => 5,
-            ClockCycles::Six => 6
+            MachineCycles::One => 1,
+            MachineCycles::Two => 2,
+            MachineCycles::Three => 3,
+            MachineCycles::Four => 4,
+            MachineCycles::Five => 5,
+            MachineCycles::Six => 6
         };
         machine_cycles*4
     }

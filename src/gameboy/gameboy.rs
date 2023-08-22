@@ -1,15 +1,13 @@
 use std::io::Error;
 
 use super::cartridge::Cartridge;
-use super::cpu::cpu::{CPU, ExecResult, MachineCycles};
+use super::cpu::cpu::{CPU, ExecResult, ClockCycles};
 use super::io::io::IO;
-use super::io::timers::Timers;
 use super::mmu::MMU;
 use super::serial::SerialOutput;
 
 pub(crate) struct GameBoy {
     cpu: CPU,
-    timers: Timers,
     serialout: SerialOutput
 }
 
@@ -18,20 +16,27 @@ impl GameBoy {
         let io = IO::new();
         let mmu = MMU::new(cartridge, io);
         let cpu = CPU::new(mmu);
-        let timers = Timers::new();
 
-        GameBoy { cpu, timers, serialout }
+        GameBoy { cpu, serialout }
     }
 
     pub(crate) fn tick(&mut self) -> Result<ExecResult, Error> {
+        let mut external_event = None;
+        let mut cycles_consumed: ClockCycles = 0;
 
-        let intmcycles = self.cpu.handle_interrupts() as MachineCycles;
+        cycles_consumed += self.cpu.handle_interrupts() as ClockCycles;
 
-        let mut result = self.cpu.step()?;
+        let execresult = self.cpu.step()?;
 
-        result.mcycles += intmcycles;
+        cycles_consumed += execresult.clockcycles;
 
-        Ok(result)
+        if let Some(event) = execresult.event {
+            external_event = self.cpu.handle_event(event);
+        }
+
+        self.cpu.timers.handle_timers(cycles_consumed);
+
+        Ok(ExecResult{ event: external_event , clockcycles: cycles_consumed })
     }
 
     pub(crate) fn joypad_down(&mut self) {

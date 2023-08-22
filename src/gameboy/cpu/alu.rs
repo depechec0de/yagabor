@@ -1,6 +1,6 @@
 use std::io::{Error, ErrorKind};
 
-use super::{instructions::*, cpu::{CPU, ProgramCounter, ClockCycles, ExecResult}};
+use super::{instructions::*, cpu::{CPU, ProgramCounter, MachineCycles, ExecResult}};
 
 impl CPU {
     pub(super) fn add(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecResult, Error> {
@@ -17,9 +17,9 @@ impl CPU {
         self.regs.a = new_value;
 
         match target {
-            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
-            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
-            _ => Ok(ExecResult::new(None, ClockCycles::One)),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, MachineCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, MachineCycles::Two)),
+            _ => Ok(ExecResult::new(None, MachineCycles::One)),
         }
     }
 
@@ -34,7 +34,7 @@ impl CPU {
         self.regs.flags.half_carry = (self.sp & 0xF).wrapping_add(value & 0xF) > 0xF; 
         self.sp = new_value;
 
-        Ok(ExecResult::new(None, ClockCycles::Four))
+        Ok(ExecResult::new(None, MachineCycles::Four))
     }
 
     pub(super) fn add16(&mut self, target: WordRegister) -> Result<ExecResult, Error> {
@@ -52,7 +52,7 @@ impl CPU {
         self.regs.flags.half_carry = (self.regs.get_hl() & 0xfff).wrapping_add(value & 0xfff) > 0xfff; 
         self.regs.set_hl(new_value);
 
-        Ok(ExecResult::new(None, ClockCycles::Two))
+        Ok(ExecResult::new(None, MachineCycles::Two))
     }
 
     pub(super) fn adc(&mut self, target: RegistersIndDir, current_pc: ProgramCounter) -> Result<ExecResult, Error> {
@@ -68,9 +68,9 @@ impl CPU {
         self.regs.a = new_value2;
 
         match target {
-            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
-            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
-            _ => Ok(ExecResult::new(None, ClockCycles::One)),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, MachineCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, MachineCycles::Two)),
+            _ => Ok(ExecResult::new(None, MachineCycles::One)),
         }
     }
 
@@ -86,9 +86,9 @@ impl CPU {
         self.regs.a = new_value;
 
         match target {
-            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
-            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
-            _ => Ok(ExecResult::new(None, ClockCycles::One)),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, MachineCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, MachineCycles::Two)),
+            _ => Ok(ExecResult::new(None, MachineCycles::One)),
         }
     }
 
@@ -110,9 +110,9 @@ impl CPU {
         self.regs.a = new_value2;
 
         match target {
-            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
-            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
-            _ => Ok(ExecResult::new(None, ClockCycles::One)),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, MachineCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, MachineCycles::Two)),
+            _ => Ok(ExecResult::new(None, MachineCycles::One)),
         }
     }
 
@@ -126,9 +126,9 @@ impl CPU {
         self.regs.flags.carry = false;
 
         match target {
-            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
-            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
-            _ => Ok(ExecResult::new(None, ClockCycles::One)),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, MachineCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, MachineCycles::Two)),
+            _ => Ok(ExecResult::new(None, MachineCycles::One)),
         }
     }
 
@@ -142,9 +142,9 @@ impl CPU {
         self.regs.flags.carry = false;
 
         match target {
-            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
-            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
-            _ => Ok(ExecResult::new(None, ClockCycles::One)),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, MachineCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, MachineCycles::Two)),
+            _ => Ok(ExecResult::new(None, MachineCycles::One)),
         }
     }
 
@@ -158,9 +158,9 @@ impl CPU {
         self.regs.flags.carry = false;
 
         match target {
-            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
-            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
-            _ => Ok(ExecResult::new(None, ClockCycles::One)),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, MachineCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, MachineCycles::Two)),
+            _ => Ok(ExecResult::new(None, MachineCycles::One)),
         }
     }
 
@@ -175,9 +175,9 @@ impl CPU {
         self.regs.flags.carry = did_overflow;
 
         match target {
-            RegistersIndDir::HLI => Ok(ExecResult::new(None, ClockCycles::Two)),
-            RegistersIndDir::D8 => Ok(ExecResult::new(None, ClockCycles::Two)),
-            _ => Ok(ExecResult::new(None, ClockCycles::One)),
+            RegistersIndDir::HLI => Ok(ExecResult::new(None, MachineCycles::Two)),
+            RegistersIndDir::D8 => Ok(ExecResult::new(None, MachineCycles::Two)),
+            _ => Ok(ExecResult::new(None, MachineCycles::One)),
         }
     }
 
@@ -230,8 +230,8 @@ impl CPU {
         };
 
         match target {
-            RegistersIndirect::HLI => Ok(ExecResult::new(None, ClockCycles::Three)),
-            _ => Ok(ExecResult::new(None, ClockCycles::One)),
+            RegistersIndirect::HLI => Ok(ExecResult::new(None, MachineCycles::Three)),
+            _ => Ok(ExecResult::new(None, MachineCycles::One)),
         }
     }
 
@@ -284,8 +284,8 @@ impl CPU {
         };
 
         match target {
-            RegistersIndirect::HLI => Ok(ExecResult::new(None, ClockCycles::Three)),
-            _ => Ok(ExecResult::new(None, ClockCycles::One)),
+            RegistersIndirect::HLI => Ok(ExecResult::new(None, MachineCycles::Three)),
+            _ => Ok(ExecResult::new(None, MachineCycles::One)),
         }
     }
 
@@ -297,7 +297,7 @@ impl CPU {
             WordRegister::SP => self.sp = self.sp.wrapping_add(1),
         };
 
-        Ok(ExecResult::new(None, ClockCycles::Two))
+        Ok(ExecResult::new(None, MachineCycles::Two))
     }
 
     pub(super) fn dec16(&mut self, target: WordRegister) -> Result<ExecResult, Error> {
@@ -308,7 +308,7 @@ impl CPU {
             WordRegister::SP => self.sp = self.sp.wrapping_sub(1),
         };
 
-        Ok(ExecResult::new(None, ClockCycles::Two))
+        Ok(ExecResult::new(None, MachineCycles::Two))
     }
 
     pub(super) fn bit(&mut self, bit_type: BitType) -> Result<ExecResult, Error> {
@@ -325,8 +325,8 @@ impl CPU {
         self.regs.flags.half_carry = true;
         
         match source {
-            RegistersIndirect::HLI => Ok(ExecResult::new(None, ClockCycles::Three)),
-            _ => Ok(ExecResult::new(None, ClockCycles::Two)),
+            RegistersIndirect::HLI => Ok(ExecResult::new(None, MachineCycles::Three)),
+            _ => Ok(ExecResult::new(None, MachineCycles::Two)),
         }             
     }
 
@@ -363,28 +363,28 @@ impl CPU {
         self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Left, false);
         self.regs.flags.zero = false;
 
-        Ok(ExecResult::new(None, ClockCycles::One))
+        Ok(ExecResult::new(None, MachineCycles::One))
     }
 
     pub(super) fn rlca(&mut self) -> Result<ExecResult, Error> {
         self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Left, true);
         self.regs.flags.zero = false;
 
-        Ok(ExecResult::new(None, ClockCycles::One))
+        Ok(ExecResult::new(None, MachineCycles::One))
     }
 
     pub(super) fn rra(&mut self) -> Result<ExecResult, Error> {
         self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Right, false);
         self.regs.flags.zero = false;
 
-        Ok(ExecResult::new(None, ClockCycles::One))
+        Ok(ExecResult::new(None, MachineCycles::One))
     }
 
     pub(super) fn rrca(&mut self) -> Result<ExecResult, Error> {
         self.bitwise_rotate(RegistersIndirect::A, RotateDirection::Right, true);
         self.regs.flags.zero = false;
 
-        Ok(ExecResult::new(None, ClockCycles::One))
+        Ok(ExecResult::new(None, MachineCycles::One))
     }
 
     pub(super) fn sla(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
@@ -392,7 +392,7 @@ impl CPU {
         self.res_set(ResSetType::Registers(BitTarget::Zero, target.clone()), false);
         self.set_flag_zero(target);
 
-        Ok(ExecResult::new(None, ClockCycles::Two))
+        Ok(ExecResult::new(None, MachineCycles::Two))
     }
 
     pub(super) fn sra(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
@@ -403,7 +403,7 @@ impl CPU {
         self.res_set(ResSetType::Registers(BitTarget::Seven, target.clone()), bit7);
         self.set_flag_zero(target);
 
-        Ok(ExecResult::new(None, ClockCycles::Two))
+        Ok(ExecResult::new(None, MachineCycles::Two))
     }
 
     pub(super) fn srl(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
@@ -411,35 +411,35 @@ impl CPU {
         self.res_set(ResSetType::Registers(BitTarget::Seven, target.clone()), false);
         self.set_flag_zero(target);
 
-        Ok(ExecResult::new(None, ClockCycles::Two))
+        Ok(ExecResult::new(None, MachineCycles::Two))
     }
 
     pub(super) fn rr(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Right, false);
         self.set_flag_zero(target);
 
-        Ok(ExecResult::new(None, ClockCycles::Two))
+        Ok(ExecResult::new(None, MachineCycles::Two))
     }
 
     pub(super) fn rrc(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Right, true);
         self.set_flag_zero(target);
 
-        Ok(ExecResult::new(None, ClockCycles::Two))
+        Ok(ExecResult::new(None, MachineCycles::Two))
     }
 
     pub(super) fn rl(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Left, false);
         self.set_flag_zero(target);
 
-        Ok(ExecResult::new(None, ClockCycles::Two))
+        Ok(ExecResult::new(None, MachineCycles::Two))
     }
 
     pub(super) fn rlc(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
         self.bitwise_rotate(target.clone(), RotateDirection::Left, true);
         self.set_flag_zero(target);
 
-        Ok(ExecResult::new(None, ClockCycles::Two))
+        Ok(ExecResult::new(None, MachineCycles::Two))
     }
 
     pub(super) fn swap(&mut self, target: RegistersIndirect) -> Result<ExecResult, Error> {
@@ -469,7 +469,7 @@ impl CPU {
 
         self.set_flag_zero(target);
 
-        Ok(ExecResult::new(None, ClockCycles::Two))
+        Ok(ExecResult::new(None, MachineCycles::Two))
     }
 
     // RR r and RL r instructions
@@ -484,8 +484,8 @@ impl CPU {
         }
 
         match target {
-            RegistersIndirect::HLI => Ok(ExecResult::new(None, ClockCycles::Four)),
-            _ => Ok(ExecResult::new(None, ClockCycles::Two)),
+            RegistersIndirect::HLI => Ok(ExecResult::new(None, MachineCycles::Four)),
+            _ => Ok(ExecResult::new(None, MachineCycles::Two)),
         }
     }
 
@@ -590,8 +590,8 @@ impl CPU {
         };
 
         match register {
-            RegistersIndirect::HLI => Ok(ExecResult::new(None, ClockCycles::Four)),
-            _ => Ok(ExecResult::new(None, ClockCycles::Two)),
+            RegistersIndirect::HLI => Ok(ExecResult::new(None, MachineCycles::Four)),
+            _ => Ok(ExecResult::new(None, MachineCycles::Two)),
         }
     }
 

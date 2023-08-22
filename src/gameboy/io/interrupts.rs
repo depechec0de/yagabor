@@ -19,42 +19,34 @@ impl InterruptsRegister {
         Self { interrupt_enable: 0x0, interrupt_flag: 0x0 }
     }
 
-    pub(crate) fn write_byte(&mut self, address: Address, value: u8) -> Option<IOEvent> {
-        match address {
-            INTERRUPT_ENABLE_ADDRESS => {
-                self.interrupt_enable = value;
-                None
-            },
-            INTERRUPT_FLAG_ADDRESS => {
-                self.interrupt_flag = value;
-
-                if self.is_vblank() {
-                    Some(IOEvent::Interrupt(Interruption::VBlank))
-                } else if self.is_lcd() {
-                    Some(IOEvent::Interrupt(Interruption::LCDStat))
-                } else if self.is_timer() {
-                    Some(IOEvent::Interrupt(Interruption::Timer))
-                } else if self.is_serial() {
-                    Some(IOEvent::Interrupt(Interruption::Serial))
-                } else if self.is_joypad() {
-                    Some(IOEvent::Interrupt(Interruption::Joypad))
-                }else{
-                    None
-                }
-            } 
-            _ => None
-        }
+    pub(crate) fn write_enable(&mut self, value: u8) -> Option<IOEvent> {
+        self.interrupt_enable = value;
+        None
     }
 
-    pub(crate) fn read_byte(&self, address: Address) -> u8 {
-        match address {
-            INTERRUPT_ENABLE_ADDRESS => self.interrupt_enable,
-            INTERRUPT_FLAG_ADDRESS => self.interrupt_flag,
-            _ => panic!("Invalid Interrupt address")
+    pub(crate) fn write_flag(&mut self, value: u8) -> Option<IOEvent> { 
+        self.interrupt_flag = value;
+
+        if self.is_vblank() {
+            Some(IOEvent::Interrupt(Interruption::VBlank))
+        } else if self.is_lcd() {
+            Some(IOEvent::Interrupt(Interruption::LCDStat))
+        } else if self.is_timer() {
+            Some(IOEvent::Interrupt(Interruption::Timer))
+        } else if self.is_serial() {
+            Some(IOEvent::Interrupt(Interruption::Serial))
+        } else if self.is_joypad() {
+            Some(IOEvent::Interrupt(Interruption::Joypad))
+        }else{
+            None
         }
-    }
+    } 
 
     pub(crate) fn read_enable(&self) -> u8 {
+        self.interrupt_enable
+    }
+
+    pub(crate) fn read_flag(&self) -> u8 {
         self.interrupt_flag
     }
 
@@ -125,6 +117,7 @@ impl InterruptsRegister {
     
 }
 
+#[derive(Debug)]
 pub(crate) enum Interruption {
     VBlank,
     LCDStat,

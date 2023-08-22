@@ -69,7 +69,7 @@ impl Emulation {
 
                 match stepresult {
                     Ok(stepresult) => {
-                        executed_cycles += u64::from(stepresult.mcycles);
+                        executed_cycles += u64::from(stepresult.clockcycles);
                         frame_cycles += executed_cycles as usize;
                         total_cycles += executed_cycles;
                     },
