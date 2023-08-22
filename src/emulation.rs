@@ -6,7 +6,8 @@ use crate::gameboy::gameboy::GameBoy;
 
 pub const CPU_CLOCK_HZ: usize = 4_194_304;
 pub const FPS: f32 = 59.7;
-pub const CPU_CYCLES_PER_FRAME: usize = (CPU_CLOCK_HZ as f32 / FPS) as usize;
+pub const MACHINE_CYCLES: f32 = 4.0; // 1 clock cycle is 4 machine cycles
+pub const CPU_CYCLES_PER_FRAME: usize = (CPU_CLOCK_HZ as f32 / MACHINE_CYCLES*FPS) as usize;
 
 
 pub struct Emulation {
