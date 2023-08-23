@@ -1,4 +1,5 @@
 use std::io::{Error, ErrorKind};
+use std::fmt;
 
 use crate::gameboy::{mmu::{MMU, Address}, io::io::{IOEvent, INTERRUPT_FLAG_ADDRESS}};
 
@@ -6,7 +7,7 @@ use super::{registers::Registers, instructions::*, timers::Timers};
 
 pub(crate) type ProgramCounter = Address;
 pub(crate) type StackPointer = Address;
-pub(crate) type ClockCycles = u8;
+pub(crate) type ClockCycles = u16;
 
 pub(crate) struct CPU{
     pub(super) regs: Registers,
@@ -52,10 +53,7 @@ impl CPU {
             let byte1 = self.mmu.read_byte(self.pc+2);
 
             if let Some(instruction) = Instruction::parse_instruction(instruction_byte, byte0, byte1) {
-                println!("A:{:02X} F:{:02X} B:{:02X} C:{:02X} D:{:02X} E:{:02X} H:{:02X} L:{:02X} SP:{:04X} PC:{:04X} PCMEM:{:02X},{:02X},{:02X},{:02X}", 
-                                self.regs.a, u8::from(self.regs.flags.clone()), self.regs.b, self.regs.c, self.regs.d, self.regs.e, self.regs.h, self.regs.l, self.sp, self.pc, self.mmu.read_byte(self.pc), self.mmu.read_byte(self.pc+1), self.mmu.read_byte(self.pc+2), self.mmu.read_byte(self.pc+3) );                        
-
-
+                //println!("{}", self);
                 match self.execute(instruction.clone()) {
                     Ok(result) => {
                         Ok(result)
@@ -536,22 +534,28 @@ impl CPU {
     pub(crate) fn handle_interrupts(&mut self) -> MachineCycles {
         if self.ime {
             if let Some(interrupt) = self.mmu.io.interrupts.interrupt_to_handle(){
+                self.is_halted = false;
                 self.ime = false;
                 self.call_func(self.pc, interrupt.handler());
-                MachineCycles::Five
-            }else {
-                MachineCycles::One
+                return MachineCycles::Five
             }
-        }else{
-            if self.is_halted && self.mmu.io.interrupts.some_interrupt_enabled() {
-                self.is_halted = false;
-            }
-            MachineCycles::One
+            return MachineCycles::One
         }
+        MachineCycles::One
     }
 
     fn halt(&mut self) -> Result<ExecResult, Error> {
-        self.is_halted = true;
+        if self.mmu.io.interrupts.some_interrupt_enabled() {
+            if !self.ime {
+                // Halt bug
+                self.pc = self.pc.wrapping_sub(1);
+            }else{
+                // We ignore the halting
+            }
+        }else{
+            self.is_halted = true;
+        }
+        
         Ok(ExecResult::new(None, MachineCycles::One))
     }
 
@@ -585,6 +589,38 @@ impl CPU {
     }
     
 }
+
+impl fmt::Display for CPU {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "A:{:02X} \
+            F:{:02X} \
+            B:{:02X} \
+            C:{:02X} \
+            D:{:02X} \
+            E:{:02X} \
+            H:{:02X} \
+            L:{:02X} \
+            SP:{:04X} \
+            PC:{:04X} \
+            PCMEM:{:02X},{:02X},{:02X},{:02X}", 
+            self.regs.a, 
+            u8::from(self.regs.flags.clone()), 
+            self.regs.b, 
+            self.regs.c, 
+            self.regs.d, 
+            self.regs.e, 
+            self.regs.h, 
+            self.regs.l, 
+            self.sp, 
+            self.pc, 
+            self.mmu.read_byte(self.pc), 
+            self.mmu.read_byte(self.pc+1), 
+            self.mmu.read_byte(self.pc+2), 
+            self.mmu.read_byte(self.pc+3) )
+    }
+}
+
+  
 
 // We use machine cycles for reference, but in the translation we multiply by 4
 #[derive(Debug, Clone)]

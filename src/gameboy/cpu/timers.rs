@@ -1,12 +1,13 @@
 use crate::gameboy::{cpu::{cpu::{MachineCycles, ClockCycles}}, io::interrupts::Interruption};
 
+#[derive(Debug)]
 pub(crate) struct Timers {
     pub(super) div: u16,
     pub(super) tima: u8,
     pub(super) tma: u8,
     pub(super) tac: u8,
     pub(super) div_counter: u16,
-    pub(super) timer_counter: u16
+    pub(super) counter: u16
 }
 
 impl Timers {
@@ -17,7 +18,7 @@ impl Timers {
             tma: 0,
             tac: 0,
             div_counter: 0,
-            timer_counter: 0
+            counter: 0
         }
     }
 
@@ -38,30 +39,28 @@ impl Timers {
         }
     }
 
-    pub(crate) fn set_tma(&mut self, value: u8) {
-        self.tma = value;
-    }
-
-    pub(crate) fn handle_timers(&mut self, cycles: ClockCycles) -> bool {
+    pub(crate) fn tick(&mut self, cycles: u16) -> bool {
         let mut timer_fired = false;
 
-        self.div_counter += cycles as u16;
+        self.div_counter += cycles;
 
         if self.div_counter >= 256 {
             self.div_counter -= 256;
-            self.div.wrapping_add(1);
+            self.div = self.div.wrapping_add(1);
         }
 
         if self.is_enabled() {
-            self.timer_counter += cycles as u16;
+            self.counter += cycles;
 
-            while self.timer_counter >= self.get_frecuency() {
-                let (_, tima_overflow) = self.tima.overflowing_add(1);
+            while self.counter >= self.get_frecuency() {
+                let (new_tima, tima_overflow) = self.tima.overflowing_add(1);
+                self.tima = new_tima;
                 if tima_overflow {
                     timer_fired = true;
                     self.tima = self.tma;
                 }
-                self.timer_counter -= self.get_frecuency();
+
+                self.counter -= self.get_frecuency();
             }
         }
         

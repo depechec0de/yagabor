@@ -105,13 +105,23 @@ impl InterruptsRegister {
         (self.interrupt_enable & bit_mask) > 0 && (self.interrupt_flag & bit_mask) > 0
     }
 
-    fn turnoff(&mut self, interruption: Interruption) {
+    pub(crate) fn turnoff(&mut self, interruption: Interruption) {
         match interruption {
             Interruption::VBlank => { self.interrupt_flag = self.interrupt_flag &   0b11111110; },
             Interruption::LCDStat => { self.interrupt_flag = self.interrupt_flag &  0b11111101; },
             Interruption::Timer => { self.interrupt_flag = self.interrupt_flag &    0b11111011; },
             Interruption::Serial => { self.interrupt_flag = self.interrupt_flag &   0b11110111; },            
             Interruption::Joypad => { self.interrupt_flag = self.interrupt_flag &   0b11101111; },
+        };
+    }
+
+    pub(crate) fn turnon(&mut self, interruption: Interruption) {
+        match interruption {
+            Interruption::VBlank => { self.interrupt_flag = self.interrupt_flag |   0b00000001; },
+            Interruption::LCDStat => { self.interrupt_flag = self.interrupt_flag |  0b00000010; },
+            Interruption::Timer => { self.interrupt_flag = self.interrupt_flag |    0b00000100; },
+            Interruption::Serial => { self.interrupt_flag = self.interrupt_flag |   0b00001000; },            
+            Interruption::Joypad => { self.interrupt_flag = self.interrupt_flag |   0b00010000; },
         };
     }
     

@@ -31,8 +31,7 @@ fn main() -> Result<(), Error> {
         debug = false;
     }
 
-    let soutput = SerialOutput::new();
-    let gb: GameBoy = GameBoy::new(cartridge, soutput);
+    let gb: GameBoy = GameBoy::new(cartridge, None);
 
     let mut emu = Emulation::new(gb, debug);
 

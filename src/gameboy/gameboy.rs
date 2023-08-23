@@ -8,11 +8,11 @@ use super::serial::SerialOutput;
 
 pub(crate) struct GameBoy {
     cpu: CPU,
-    serialout: SerialOutput
+    serialout: Option<SerialOutput>
 }
 
 impl GameBoy {
-    pub(crate) fn new(cartridge: Cartridge, serialout: SerialOutput) -> Self {
+    pub(crate) fn new(cartridge: Cartridge, serialout: Option<SerialOutput>) -> Self {
         let io = IO::new();
         let mmu = MMU::new(cartridge, io);
         let cpu = CPU::new(mmu);
@@ -34,7 +34,7 @@ impl GameBoy {
             external_event = self.cpu.handle_event(event);
         }
 
-        if self.cpu.timers.handle_timers(cycles_consumed) {
+        if self.cpu.timers.tick(cycles_consumed) {
             self.cpu.timer_interrupt();
         }
 

@@ -131,6 +131,14 @@ impl Cartridge {
     
         Cartridge{ data, title }
     }
+
+    pub fn halt_bug() -> Cartridge {
+        let buffer = include_bytes!("../../assets/gb-test-roms/halt_bug.gb");
+        let data = buffer.to_vec();
+        let title = parse_title(&data);
+    
+        Cartridge{ data, title }
+    }
 }
 
 fn parse_title(buffer: &Vec<u8>) -> String {

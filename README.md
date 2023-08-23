@@ -14,8 +14,9 @@ A Game Boy (DMG) emulator writen in Rust for educational purposes. The current s
 
 # Tests
 
-To run the tests, execute the following command:
+To run the tests, execute the following commands:
 
+```git submodule update --init```
 ```cargo test```
 
 This will run the following tests:

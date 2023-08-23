@@ -1,4 +1,4 @@
-use crate::gameboy::{cartridge::Cartridge, cpu::{cpu::CPU, instructions::Instruction}, gameboy::GameBoy, serial::SerialOutput, mmu::MMU, io::io::{IO, IOEvent}};
+use crate::gameboy::{cartridge::Cartridge, cpu::{cpu::CPU, instructions::Instruction}, gameboy::GameBoy, serial::SerialOutput, mmu::MMU, io::{io::{IO, IOEvent}, interrupts::Interruption}};
 
 #[test]
 fn add_without_carry() {
@@ -364,6 +364,31 @@ fn srl() {
 
 }
 
+#[test]
+fn timers() {
+    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new()));
+
+    cpu.ime = true;
+    cpu.mmu.io.interrupts.turnon(Interruption::Timer);
+    cpu.timers.tma = 0;
+    cpu.timers.tac = 0b00000111; // timer enabled and frecuency 256 clocks
+
+    let mut timer_fired = cpu.timers.tick(256);
+
+    assert_eq!(cpu.timers.div, 1);
+    assert_eq!(cpu.timers.tima, 1);
+    assert_eq!(timer_fired, false);
+
+    for i in 1..=255 {
+        assert_eq!(timer_fired, false);
+        assert_eq!(cpu.timers.tima, i);
+        timer_fired = cpu.timers.tick(256);
+    }
+
+    assert_eq!(cpu.timers.tima, 0);
+    assert_eq!(timer_fired, true);
+}
+
 fn assert_serial_result(gb: &mut GameBoy, result: &mut Vec<char>) {
     let mut serial_buffer = Vec::<char>::new();
     loop {
@@ -398,8 +423,7 @@ fn assert_serial_result(gb: &mut GameBoy, result: &mut Vec<char>) {
 fn cpu_instrs_01() {
     let cartridge = Cartridge::cpu_instrs_01();
 
-    let soutput = SerialOutput::new();
-    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
+    let mut gb: GameBoy = GameBoy::new(cartridge, None);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -409,8 +433,7 @@ fn cpu_instrs_01() {
 fn cpu_instrs_02() {
     let cartridge = Cartridge::cpu_instrs_02();
 
-    let soutput = SerialOutput::new();
-    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
+    let mut gb: GameBoy = GameBoy::new(cartridge, None);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -420,8 +443,7 @@ fn cpu_instrs_02() {
 fn cpu_instrs_03() {
     let cartridge = Cartridge::cpu_instrs_03();
 
-    let soutput = SerialOutput::new();
-    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
+    let mut gb: GameBoy = GameBoy::new(cartridge, None);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -431,8 +453,7 @@ fn cpu_instrs_03() {
 fn cpu_instrs_04() {
     let cartridge = Cartridge::cpu_instrs_04();
 
-    let soutput = SerialOutput::new();
-    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
+    let mut gb: GameBoy = GameBoy::new(cartridge, None);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -442,8 +463,7 @@ fn cpu_instrs_04() {
 fn cpu_instrs_05() {
     let cartridge = Cartridge::cpu_instrs_05();
 
-    let soutput = SerialOutput::new();
-    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
+    let mut gb: GameBoy = GameBoy::new(cartridge, None);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -453,8 +473,7 @@ fn cpu_instrs_05() {
 fn cpu_instrs_06() {
     let cartridge = Cartridge::cpu_instrs_06();
 
-    let soutput = SerialOutput::new();
-    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
+    let mut gb: GameBoy = GameBoy::new(cartridge, None);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -464,8 +483,7 @@ fn cpu_instrs_06() {
 fn cpu_instrs_07() {
     let cartridge = Cartridge::cpu_instrs_07();
 
-    let soutput = SerialOutput::new();
-    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
+    let mut gb: GameBoy = GameBoy::new(cartridge, None);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -475,8 +493,7 @@ fn cpu_instrs_07() {
 fn cpu_instrs_08() {
     let cartridge = Cartridge::cpu_instrs_08();
 
-    let soutput = SerialOutput::new();
-    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
+    let mut gb: GameBoy = GameBoy::new(cartridge, None);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -486,8 +503,7 @@ fn cpu_instrs_08() {
 fn cpu_instrs_09() {
     let cartridge = Cartridge::cpu_instrs_09();
 
-    let soutput = SerialOutput::new();
-    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
+    let mut gb: GameBoy = GameBoy::new(cartridge, None);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -497,8 +513,7 @@ fn cpu_instrs_09() {
 fn cpu_instrs_10() {
     let cartridge = Cartridge::cpu_instrs_10();
 
-    let soutput = SerialOutput::new();
-    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
+    let mut gb: GameBoy = GameBoy::new(cartridge, None);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
@@ -508,9 +523,18 @@ fn cpu_instrs_10() {
 fn cpu_instrs_11() {
     let cartridge = Cartridge::cpu_instrs_11();
 
-    let soutput = SerialOutput::new();
-    let mut gb: GameBoy = GameBoy::new(cartridge, soutput);
+    let mut gb: GameBoy = GameBoy::new(cartridge, None);
     let mut result = Vec::<char>::new();
     
     assert_serial_result(&mut gb, &mut result);
 }
+
+// #[test]
+// fn halt_bug() {
+//     let cartridge = Cartridge::halt_bug();
+
+//     let mut gb: GameBoy = GameBoy::new(cartridge, None);
+//     let mut result = Vec::<char>::new();
+    
+//     assert_serial_result(&mut gb, &mut result);
+// }
