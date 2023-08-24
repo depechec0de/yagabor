@@ -31,11 +31,6 @@ pub(crate) struct IO {
 pub(crate) enum IOEvent {
     BootSwitched(bool),
     SerialOutput(u8),
-    Interrupt(Interruption),
-    TimerDIV(u8),
-    TimerControl(u8),
-    TimerTMA(u8),
-    TimerTIMA(u8),
 }
 
 impl IO {
@@ -46,7 +41,6 @@ impl IO {
     pub(crate) fn read_byte(&self, address: Address) -> u8 {
         match address {
             0xFF44 => 0x90,
-            INTERRUPT_ENABLE_ADDRESS => self.interrupts.read_enable(),
             INTERRUPT_FLAG_ADDRESS => self.interrupts.read_flag(),
             // TODO: Map the rest
             _ => self.data[(address - IO_BEGIN) as usize]
@@ -54,18 +48,17 @@ impl IO {
     }
 
     pub(crate) fn write_byte(&mut self, address: Address, value: u8) -> Option<IOEvent> {
+        self.data[(address - IO_BEGIN) as usize] = value;
         match address {
-            // Serial
-            SERIAL_DATA_ADDRESS => Some(IOEvent::SerialOutput(value)),
+            SERIAL_DATA_ADDRESS => {
+                Some(IOEvent::SerialOutput(value))
+            },
             // ROM
             BOOT_SWITCH_ADDRESS => Some(IOEvent::BootSwitched(value == 0)),
-            INTERRUPT_ENABLE_ADDRESS => self.interrupts.write_enable(value),
-            INTERRUPT_FLAG_ADDRESS => self.interrupts.write_flag(value),
-            // Timers
-            TAC_ADDRESS => Some(IOEvent::TimerControl(value)),
-            TMA_ADDRESS => Some(IOEvent::TimerTMA(value)),
-            DIV_ADDRESS => Some(IOEvent::TimerDIV(value)),
-            TIMA_ADDRESS => Some(IOEvent::TimerTIMA(value)),
+            INTERRUPT_FLAG_ADDRESS => {
+                self.interrupts.write_flag(value);
+                None
+            },
             _ => None
         }
     }

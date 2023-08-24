@@ -29,6 +29,7 @@ const ERAM_END: Address = 0xFDFF;
 
 const OAM_BEGIN: Address = 0xFE00;
 const OAM_END: Address = 0xFE9F;
+const OAM_SIZE: usize = (OAM_END - OAM_BEGIN + 1) as usize;
 
 const NOTUSABLE_BEGIN: Address = 0xFEA0;
 const NOTUSABLE_END: Address = 0xFEFF;
@@ -50,6 +51,7 @@ pub(crate) struct MMU {
     pub(crate) io: IO,
     ppu: PPU,
     eram: [u8; EXTRAM_SIZE],
+    oam: [u8; OAM_SIZE],
     wram: [u8; WRAM_SIZE],
     hram: [u8; HRAM_SIZE],
 }
@@ -65,6 +67,7 @@ impl MMU {
             io,
             ppu,
             eram: [0; EXTRAM_SIZE], 
+            oam: [0; OAM_SIZE],
             wram: [0; WRAM_SIZE], 
             hram: [0; HRAM_SIZE],
         }
@@ -89,15 +92,16 @@ impl MMU {
             EXTRAM_BEGIN ..= EXTRAM_END => self.read_eram(address),
             WRAM_BEGIN ..= WRAM_END => self.read_wram(address),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited read 0x{:x} to echo ram", address),
+            OAM_BEGIN ..= OAM_END => self.read_oam(address),
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited read 0x{:x}", address),
             IO_BEGIN ..= IO_END => self.read_io(address),
             HRAM_BEGIN ..= HRAM_END => self.read_hram(address),
-            INTERRUPT_ENABLE_ADDRESS => self.read_io(address),
+            INTERRUPT_ENABLE_ADDRESS => self.io.interrupts.read_enable(),
             _ => panic!("unmapped read {:x}", address),
         }
     }
 
-    pub(super) fn write_byte(&mut self, address: Address, value: u8) -> Option<IOEvent> {
+    pub(super) fn write_byte(&mut self, address: Address, value: u8) {
         match address {
             GAMEROM_0_BEGIN ..= GAMEROM_0_END => {
                 panic!("Writing in ROM {:x} is not possible", address);
@@ -109,12 +113,13 @@ impl MMU {
             EXTRAM_BEGIN ..= EXTRAM_END => self.write_eram(address, value),
             WRAM_BEGIN ..= WRAM_END => self.write_wram(address, value),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited write 0x{:x} to echo ram", address),
+            OAM_BEGIN ..= OAM_END => self.write_oam(address, value),
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited write 0x{:x}", address),
             IO_BEGIN ..= IO_END => self.write_io(address, value),
             HRAM_BEGIN ..= HRAM_END => self.write_hram(address, value),
-            INTERRUPT_ENABLE_ADDRESS => self.write_io(address, value),
+            INTERRUPT_ENABLE_ADDRESS => self.io.interrupts.write_enable(value),
             _ => panic!("unmapped write {:x}", address),
-        }
+        };
     }
 
     fn read_vram(&self, address: Address) -> u8 {
@@ -129,6 +134,10 @@ impl MMU {
         self.eram[address as usize - EXTRAM_BEGIN as usize]
     }
 
+    fn read_oam(&self, address: Address) -> u8 {
+        self.oam[address as usize - OAM_BEGIN as usize]
+    }
+
     fn read_hram(&self, address: Address) -> u8 {
         self.hram[address as usize - HRAM_BEGIN as usize]
     }
@@ -137,35 +146,33 @@ impl MMU {
         self.io.read_byte(address)     
     }
 
-    fn write_vram(&mut self, address: Address, value: u8) -> Option<IOEvent> {
+    fn write_vram(&mut self, address: Address, value: u8) {
         self.ppu.write_vram(address - VRAM_BEGIN, value);
-        None
     }
 
-    fn write_wram(&mut self, address: Address, value: u8) -> Option<IOEvent> {
+    fn write_wram(&mut self, address: Address, value: u8) {
         self.wram[address as usize - WRAM_BEGIN as usize] = value;
-        None
     }
 
-    fn write_eram(&mut self, address: Address, value: u8) -> Option<IOEvent> {
+    fn write_eram(&mut self, address: Address, value: u8) {
         self.eram[address as usize - EXTRAM_BEGIN as usize] = value;
-        None
     }
 
-    fn write_hram(&mut self, address: Address, value: u8) -> Option<IOEvent> {
+    fn write_oam(&mut self, address: Address, value: u8) {
+        self.oam[address as usize - OAM_BEGIN as usize] = value;
+    }
+
+    fn write_hram(&mut self, address: Address, value: u8) {
         self.hram[address as usize - HRAM_BEGIN as usize] = value;
-        None
     }
 
-    fn write_io(&mut self, address: Address, value: u8) -> Option<IOEvent> {
+    fn write_io(&mut self, address: Address, value: u8) {
         let result: Option<IOEvent> = self.io.write_byte(address, value);
-        
         match result {
             Some(IOEvent::BootSwitched(new_val)) => {
                 self.is_boot_rom_mapped = new_val;
-                None
             },
-            _ => result
+            _ => {}
         }
     }
 

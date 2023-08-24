@@ -21,22 +21,13 @@ impl GameBoy {
     }
 
     pub(crate) fn tick(&mut self) -> Result<ExecResult, Error> {
-        let mut external_event = None;
         let mut cycles_consumed: ClockCycles = 0;
 
-        cycles_consumed += self.cpu.handle_interrupts() as ClockCycles;
+        let cycles_consumed = self.cpu.step()? as ClockCycles;
 
-        let execresult = self.cpu.step()?;
+        self.cpu.timer_tick(cycles_consumed);
 
-        cycles_consumed += execresult.clockcycles;
-
-        if let Some(event) = execresult.event {
-            external_event = self.cpu.handle_event(event);
-        }
-
-        if self.cpu.timers.tick(cycles_consumed) {
-            self.cpu.timer_interrupt();
-        }
+        let external_event = self.cpu.output_event();
 
         Ok(ExecResult{ event: external_event , clockcycles: cycles_consumed })
     }

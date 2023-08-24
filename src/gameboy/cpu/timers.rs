@@ -38,32 +38,4 @@ impl Timers {
             256
         }
     }
-
-    pub(crate) fn tick(&mut self, cycles: u16) -> bool {
-        let mut timer_fired = false;
-
-        self.div_counter += cycles;
-
-        if self.div_counter >= 256 {
-            self.div_counter -= 256;
-            self.div = self.div.wrapping_add(1);
-        }
-
-        if self.is_enabled() {
-            self.counter += cycles;
-
-            while self.counter >= self.get_frecuency() {
-                let (new_tima, tima_overflow) = self.tima.overflowing_add(1);
-                self.tima = new_tima;
-                if tima_overflow {
-                    timer_fired = true;
-                    self.tima = self.tma;
-                }
-
-                self.counter -= self.get_frecuency();
-            }
-        }
-        
-        timer_fired
-    }
 }

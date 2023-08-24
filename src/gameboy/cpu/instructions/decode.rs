@@ -1,59 +1,22 @@
 #[derive(Debug, Clone)]
-pub(super) struct Instruction {
-    pub(super) op: InstructionType,
-    pub(super) size: InstructionSize,
-    pub(super) payload: Option<u16>
-}
-
-impl Instruction {
-    pub(super) fn size_bytes(&self) -> u16 {
-        match self.size {
-            InstructionSize::OneByte => 1,
-            InstructionSize::TwoBytes => 2,
-            InstructionSize::ThreeBytes => 3,
-        }
-    }
-
-    // An Instruction can length 3 bytes max 
-    pub(super) fn parse_instruction(inst_byte: u8, byte0: u8, byte1: u8) -> Option<Instruction> {
-        let prefixed = inst_byte == 0xCB;
-        let mut instruction_byte = inst_byte;
-        if prefixed {
-            instruction_byte = byte0;
-        }
-
-        let inst_type: Option<InstructionType>;
-
-        if prefixed {
-            inst_type = InstructionType::from_byte_prefixed(instruction_byte)
-        } else {
-            inst_type = InstructionType::from_byte_not_prefixed(instruction_byte)
-        }
-
-        if let Some(op) = inst_type {
-            let size = op.size();
-            let payload = match op.size() {
-                InstructionSize::OneByte => None,
-                InstructionSize::TwoBytes => Some(byte0 as u16),
-                InstructionSize::ThreeBytes => Some(((byte0 as u16) << 8) | byte1 as u16),
-            };
-
-            Some(Instruction{op, size, payload})
-        }else{
-            None
-        }        
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(super) enum InstructionSize {
+pub(crate) enum InstructionSize {
     OneByte,
     TwoBytes,
     ThreeBytes
 }
 
+impl std::convert::From<InstructionSize> for u16  {
+    fn from(instsize: InstructionSize) -> u16 {
+        match instsize {
+            InstructionSize::OneByte => 1,
+            InstructionSize::TwoBytes => 2,
+            InstructionSize::ThreeBytes => 3,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
-pub(super) enum InstructionType {
+pub(crate) enum InstructionType {
     NOP,
     HALT,
     STOP,
@@ -115,17 +78,17 @@ pub(super) enum InstructionType {
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum ResSetType {
+pub(crate) enum ResSetType {
     Registers(BitTarget, RegistersIndirect),    
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum BitType {
+pub(crate) enum BitType {
     Registers(BitTarget, RegistersIndirect),    
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum JumpTest {
+pub(crate) enum JumpTest {
     NotZero,
     Zero,
     NotCarry,
@@ -134,37 +97,37 @@ pub(super) enum JumpTest {
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum RegistersIndirect {
+pub(crate) enum RegistersIndirect {
     A, B, C, D, E, H, L, HLI
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum PrefixTarget {
+pub(crate) enum PrefixTarget {
     A, B, C, D, E, H, L,
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum WordRegister {
+pub(crate) enum WordRegister {
     BC, DE, HL, SP
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum StackTarget {
+pub(crate) enum StackTarget {
     BC, DE, HL, AF
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum LoadIndirectSource {
+pub(crate) enum LoadIndirectSource {
     BC, DE, HLInc, HLDec
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum RegistersIndDir {
+pub(crate) enum RegistersIndDir {
     A, B, C, D, E, H, L, HLI, D8
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum LoadType {
+pub(crate) enum LoadType {
     Byte(RegistersIndirect, RegistersIndDir),
     Word(WordRegister),
     AFromIndirect(LoadIndirectSource),
@@ -174,7 +137,7 @@ pub(super) enum LoadType {
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum LoadFFType {
+pub(crate) enum LoadFFType {
     AtoFFC,
     FFCtoA,
     FFa8toA,
@@ -182,17 +145,17 @@ pub(super) enum LoadFFType {
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum BitTarget {
+pub(crate) enum BitTarget {
     Zero, One, Two, Three, Four, Five, Six, Seven
 }
 
 #[derive(Clone, Debug)]
-pub(super) enum RotateDirection {
+pub(crate) enum RotateDirection {
     Left, Right
 }
 
 impl InstructionType {
-    pub(super) fn size(&self) -> InstructionSize {
+    pub(crate) fn size(&self) -> InstructionSize {
         match self {
             InstructionType::NOP => InstructionSize::OneByte,
             InstructionType::HALT => InstructionSize::OneByte,
@@ -265,7 +228,7 @@ impl InstructionType {
 
     }
 
-    pub(super) fn from_byte_prefixed(byte: u8) -> Option<InstructionType> {
+    pub(crate) fn from_byte_prefixed(byte: u8) -> Option<InstructionType> {
         match byte {
             0x00 => Some(InstructionType::RLC(RegistersIndirect::B)),
             0x01 => Some(InstructionType::RLC(RegistersIndirect::C)),
@@ -560,7 +523,7 @@ impl InstructionType {
         }
     }
     
-    pub(super) fn from_byte_not_prefixed(byte: u8) -> Option<InstructionType> {
+    pub(crate) fn from_byte_not_prefixed(byte: u8) -> Option<InstructionType> {
         match byte {
             // Miscellaneous InstructionTypes
             0x00 => Some(InstructionType::NOP),
