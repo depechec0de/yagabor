@@ -62,13 +62,13 @@ impl Emulation {
             let mut frame_cycles: usize = 0;
             
             while frame_cycles < CPU_CYCLES_PER_FRAME {
-                let stepresult = self.gameboy.tick();
+                let gbstepres = self.gameboy.tick();
 
                 let mut executed_cycles: u64 = 0;
 
-                match stepresult {
-                    Ok(stepresult) => {
-                        executed_cycles += u64::from(stepresult.clockcycles);
+                match gbstepres {
+                    Ok(gbstep) => {
+                        executed_cycles += u64::from(gbstep.cycles);
                         frame_cycles += executed_cycles as usize;
                         total_cycles += executed_cycles;
                     },

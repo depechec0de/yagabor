@@ -104,10 +104,10 @@ impl MMU {
     pub(super) fn write_byte(&mut self, address: Address, value: u8) {
         match address {
             GAMEROM_0_BEGIN ..= GAMEROM_0_END => {
-                panic!("Writing in ROM {:x} is not possible", address);
+                //panic!("Writing in ROM {:x} is not possible", address);
             },
             GAMEROM_N_BEGIN ..= GAMEROM_N_END => {
-                panic!("Writing in ROM {:x} is not possible", address);
+                //panic!("Writing in ROM {:x} is not possible", address);
             },
             VRAM_BEGIN ..= VRAM_END => self.write_vram(address, value),
             EXTRAM_BEGIN ..= EXTRAM_END => self.write_eram(address, value),

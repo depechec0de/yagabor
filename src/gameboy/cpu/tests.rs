@@ -1,4 +1,6 @@
-use crate::gameboy::{cartridge::Cartridge, cpu::{cpu::CPU, instructions::{instructions::{Instruction}, decode::{InstructionType, RegistersIndDir, StackTarget, RegistersIndirect}}}, gameboy::GameBoy, serial::SerialOutput, mmu::MMU, io::{io::{IO, IOEvent}, interrupts::Interruption}};
+use std::rc::Rc;
+
+use crate::gameboy::{cartridge::Cartridge, cpu::{cpu::CPU, instructions::{instructions::{Instruction}, decode::{InstructionType, RegistersIndDir, StackTarget, RegistersIndirect}}}, gameboy::GameBoy, serial::{SerialPort}, mmu::MMU, io::{io::{IO, IOEvent}, interrupts::Interruption}};
 
 #[test]
 fn add_without_carry() {
@@ -386,152 +388,99 @@ fn timers() {
     //assert_eq!(timer_fired, true);
 }
 
-fn assert_serial_result(gb: &mut GameBoy, result: &mut Vec<char>) {
-    let mut serial_buffer = Vec::<char>::new();
+fn assert_serial_result(cartridge: Cartridge) {
+    let mut gb: GameBoy = GameBoy::new(cartridge);
+    let mut serial = Vec::<char>::new();
     loop {
-        let execresult = gb.tick();
-        if let Ok(execresult) = execresult {
-            if let Some(event) = execresult.event {
-                match event {
-                    IOEvent::SerialOutput(byte) => {
-                        serial_buffer.push(byte as char);   
-
-                        let result_str = serial_buffer.iter().cloned().collect::<String>();
+        match gb.tick() {
+            Ok(gbstep) => {
+                if let Some(data) = gbstep.output.serial {   
+                    serial.push(data as char);
+                    let result_str = serial.iter().cloned().collect::<String>();
+                    //println!("{}", result_str);
+                    if result_str.contains("Passed") {
+                        assert!(true);
+                        break
+                    }else if result_str.contains("Failed") {
                         println!("{}", result_str);
-                        if result_str.contains("Passed") {
-                            println!("{}", result_str);
-                            assert!(true);
-                            break
-                        }else if result_str.contains("Failed") {
-                            println!("{}", result_str);
-                            assert!(false);
-                            break
-                        }
-                    },
-                    _ => {}
-                }   
-                
-            }
-        }
+                        assert!(false);
+                        break
+                    }       
+                }
+            },
+            _ => assert!(false)
+        }        
     }
 }
 
 #[test]
 fn cpu_instrs_01() {
-    let cartridge = Cartridge::cpu_instrs_01();
-
-    let mut gb: GameBoy = GameBoy::new(cartridge, None);
-    let mut result = Vec::<char>::new();
-    
-    assert_serial_result(&mut gb, &mut result);
+    let cartridge = Cartridge::cpu_instrs_01();    
+    assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_02() {
     let cartridge = Cartridge::cpu_instrs_02();
-
-    let mut gb: GameBoy = GameBoy::new(cartridge, None);
-    let mut result = Vec::<char>::new();
-    
-    assert_serial_result(&mut gb, &mut result);
+    assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_03() {
     let cartridge = Cartridge::cpu_instrs_03();
-
-    let mut gb: GameBoy = GameBoy::new(cartridge, None);
-    let mut result = Vec::<char>::new();
-    
-    assert_serial_result(&mut gb, &mut result);
+    assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_04() {
     let cartridge = Cartridge::cpu_instrs_04();
-
-    let mut gb: GameBoy = GameBoy::new(cartridge, None);
-    let mut result = Vec::<char>::new();
-    
-    assert_serial_result(&mut gb, &mut result);
+    assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_05() {
     let cartridge = Cartridge::cpu_instrs_05();
-
-    let mut gb: GameBoy = GameBoy::new(cartridge, None);
-    let mut result = Vec::<char>::new();
-    
-    assert_serial_result(&mut gb, &mut result);
+    assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_06() {
     let cartridge = Cartridge::cpu_instrs_06();
-
-    let mut gb: GameBoy = GameBoy::new(cartridge, None);
-    let mut result = Vec::<char>::new();
-    
-    assert_serial_result(&mut gb, &mut result);
+    assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_07() {
     let cartridge = Cartridge::cpu_instrs_07();
-
-    let mut gb: GameBoy = GameBoy::new(cartridge, None);
-    let mut result = Vec::<char>::new();
-    
-    assert_serial_result(&mut gb, &mut result);
+    assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_08() {
     let cartridge = Cartridge::cpu_instrs_08();
-
-    let mut gb: GameBoy = GameBoy::new(cartridge, None);
-    let mut result = Vec::<char>::new();
-    
-    assert_serial_result(&mut gb, &mut result);
+    assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_09() {
     let cartridge = Cartridge::cpu_instrs_09();
-
-    let mut gb: GameBoy = GameBoy::new(cartridge, None);
-    let mut result = Vec::<char>::new();
-    
-    assert_serial_result(&mut gb, &mut result);
+    assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_10() {
     let cartridge = Cartridge::cpu_instrs_10();
-
-    let mut gb: GameBoy = GameBoy::new(cartridge, None);
-    let mut result = Vec::<char>::new();
-    
-    assert_serial_result(&mut gb, &mut result);
+    assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_11() {
     let cartridge = Cartridge::cpu_instrs_11();
-
-    let mut gb: GameBoy = GameBoy::new(cartridge, None);
-    let mut result = Vec::<char>::new();
-    
-    assert_serial_result(&mut gb, &mut result);
+    assert_serial_result(cartridge);
 }
 
 // #[test]
 // fn halt_bug() {
 //     let cartridge = Cartridge::halt_bug();
-
-//     let mut gb: GameBoy = GameBoy::new(cartridge, None);
-//     let mut result = Vec::<char>::new();
-    
-//     assert_serial_result(&mut gb, &mut result);
+//     assert_serial_result(cartridge);
 // }

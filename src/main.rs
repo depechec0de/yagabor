@@ -6,7 +6,7 @@ use std::io::Error;
 use clap::Parser;
 use emulation::Emulation;
 
-use crate::gameboy::{cartridge::Cartridge, gameboy::GameBoy, serial::SerialOutput};
+use crate::gameboy::{cartridge::Cartridge, gameboy::GameBoy};
 
 #[derive(Parser)]
 struct Cli {
@@ -31,7 +31,7 @@ fn main() -> Result<(), Error> {
         debug = false;
     }
 
-    let gb: GameBoy = GameBoy::new(cartridge, None);
+    let gb: GameBoy = GameBoy::new(cartridge);
 
     let mut emu = Emulation::new(gb, debug);
 

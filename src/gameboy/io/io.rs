@@ -2,7 +2,7 @@ use core::fmt;
 
 use pretty_hex::*;
 
-use crate::gameboy::{mmu::{Address, IO_SIZE, IO_BEGIN, IO_END}, serial::SerialOutput};
+use crate::gameboy::{mmu::{Address, IO_SIZE, IO_BEGIN, IO_END}};
 
 use super::interrupts::{Interruption, InterruptsRegister};
 
@@ -30,7 +30,6 @@ pub(crate) struct IO {
 #[derive(Debug)]
 pub(crate) enum IOEvent {
     BootSwitched(bool),
-    SerialOutput(u8),
 }
 
 impl IO {
@@ -50,9 +49,6 @@ impl IO {
     pub(crate) fn write_byte(&mut self, address: Address, value: u8) -> Option<IOEvent> {
         self.data[(address - IO_BEGIN) as usize] = value;
         match address {
-            SERIAL_DATA_ADDRESS => {
-                Some(IOEvent::SerialOutput(value))
-            },
             // ROM
             BOOT_SWITCH_ADDRESS => Some(IOEvent::BootSwitched(value == 0)),
             INTERRUPT_FLAG_ADDRESS => {
@@ -61,6 +57,11 @@ impl IO {
             },
             _ => None
         }
+    }
+
+    pub(crate) fn serial_control_clear(&mut self) {
+        // Turn off bit 7
+        self.data[(SERIAL_CONTROL_ADDRESS - IO_BEGIN) as usize] = self.data[(SERIAL_CONTROL_ADDRESS - IO_BEGIN) as usize] & 0b01111111;
     }
 
 }

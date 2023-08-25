@@ -1,6 +1,7 @@
 use std::io::{Error, ErrorKind};
 use std::fmt;
 
+use crate::gameboy::io::interrupts::Interruption;
 use crate::gameboy::io::io::{SERIAL_CONTROL_ADDRESS, SERIAL_DATA_ADDRESS};
 use crate::gameboy::serial::SerialTransferMode;
 use crate::gameboy::{mmu::{MMU, Address}, io::io::{IOEvent, INTERRUPT_FLAG_ADDRESS}};
@@ -48,17 +49,24 @@ impl CPU {
         }
     }
 
-    pub(crate) fn step(&mut self) -> Result<MachineCycles, Error> {
+    pub(crate) fn step(&mut self) -> Result<ClockCycles, Error> {
+        let mut cycles = 1;
+
+        self.handle_interrupts();
+        
         if !self.is_halted {
-            //self.handle_interrupts();
             let instruction = self.fetch_decode()?;
             //println!("{:?} {}", instruction, self);
-            println!("{}", self);
-            let result = instruction.execute(self)?;
-            Ok(result)
-        }else{
-            Ok(MachineCycles::One)
+            //println!("{}", self);
+            let mcycles = instruction.execute(self)?;
+            cycles = ClockCycles::from(mcycles);            
         }
+
+        if self.timers.tick(cycles) {
+            self.mmu.io.interrupts.turnon(Interruption::Timer);
+        }
+
+        Ok(cycles)
     }   
 
     pub(super) fn fetch_decode(&self) -> Result<Instruction, Error> {
@@ -93,33 +101,28 @@ impl CPU {
         }        
     }
 
-    pub(crate) fn output_event(&mut self) -> Option<IOEvent> {
-        let serial_transfer = self.mmu.read_byte(SERIAL_CONTROL_ADDRESS);
+    pub(crate) fn send_serial(&mut self) -> Option<u8> {
+        let serial_transfer = SerialTransferMode::parse_from_byte(self.mmu.read_byte(SERIAL_CONTROL_ADDRESS));
         let serial_data = self.mmu.read_byte(SERIAL_DATA_ADDRESS);
 
-        if serial_data != 0 {
-            println!("serial {:x} {}", serial_transfer, serial_data as char);
-            Some(IOEvent::SerialOutput(serial_data))
-        }else{
-            None
+        match serial_transfer {
+            SerialTransferMode::TransferInternalClock => Some(serial_data),
+            SerialTransferMode::TransferExternalClock => Some(serial_data),
+            _ => None
         }
-
     }
 
-    pub(crate) fn handle_interrupts(&mut self) -> MachineCycles {
-        if self.ime {
-            match self.mmu.io.interrupts.interrupt_to_handle() {
-                Some(interrupt) => {
-                    self.is_halted = false;
-                    self.ime = false;
-                    self.push_stack(self.pc);
-                    self.pc = interrupt.handler();
-                    return MachineCycles::Five
-                },
-                _ => MachineCycles::Zero
+    pub(crate) fn handle_interrupts(&mut self) {
+        if self.mmu.io.interrupts.some_interrupt_enabled() {
+            if self.ime {
+                let interrupt = self.mmu.io.interrupts.interrupt_to_handle().unwrap();
+                self.is_halted = false;
+                self.ime = false;
+                self.push_stack(self.pc);
+                self.pc = interrupt.handler();
+            }else{
+                self.is_halted = false;
             }
-        }else{
-            MachineCycles::Zero
         }
     }
 
@@ -140,11 +143,6 @@ impl CPU {
         (msb << 8) | lsb
     }
 
-    pub(crate) fn timer_interrupt(&mut self) {
-        let prev_interruption_flag = self.mmu.read_byte(INTERRUPT_FLAG_ADDRESS);
-        self.mmu.write_byte(INTERRUPT_FLAG_ADDRESS, prev_interruption_flag | 0b00000100);       
-    }
-
     pub(super) fn read_next_byte(&self, address: Address) -> u8 {
         self.mmu.read_byte(address+1)
     }
@@ -153,28 +151,9 @@ impl CPU {
         ((self.mmu.read_byte(address+2) as u16) << 8) | (self.mmu.read_byte(address+1) as u16)
     }
 
-    pub(crate) fn timer_tick(&mut self, cycles: u16) {
-        self.timers.div_counter += cycles;
-
-        if self.timers.div_counter >= 256 {
-            self.timers.div_counter -= 256;
-            self.timers.div = self.timers.div.wrapping_add(1);
-        }
-
-        if self.timers.is_enabled() {
-            self.timers.counter += cycles;
-
-            while self.timers.counter >= self.timers.get_frecuency() {
-                let (new_tima, tima_overflow) = self.timers.tima.overflowing_add(1);
-                self.timers.tima = new_tima;
-                if tima_overflow {
-                    self.timer_interrupt();
-                    self.timers.tima = self.timers.tma;
-                }
-
-                self.timers.counter -= self.timers.get_frecuency();
-            }
-        }
+    pub(crate) fn ack_sent_serial(&mut self){
+        self.mmu.io.interrupts.turnon(Interruption::Serial);
+        self.mmu.io.serial_control_clear();
     }
     
 }
