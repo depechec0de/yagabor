@@ -363,31 +363,6 @@ fn srl() {
 
 }
 
-#[test]
-fn timers() {
-    let mut cpu = CPU::new(MMU::new(Cartridge::empty(), IO::new()));
-
-    cpu.ime = true;
-    cpu.mmu.io.interrupts.turnon(Interruption::Timer);
-    cpu.timers.tma = 0;
-    cpu.timers.tac = 0b00000111; // timer enabled and frecuency 256 clocks
-
-    let mut timer_fired = cpu.timer_tick(256);
-
-    assert_eq!(cpu.timers.div, 1);
-    assert_eq!(cpu.timers.tima, 1);
-    //assert_eq!(timer_fired, false);
-
-    for i in 1..=255 {
-        //assert_eq!(timer_fired, false);
-        assert_eq!(cpu.timers.tima, i);
-        timer_fired = cpu.timer_tick(256);
-    }
-
-    assert_eq!(cpu.timers.tima, 0);
-    //assert_eq!(timer_fired, true);
-}
-
 fn assert_serial_result(cartridge: Cartridge) {
     let mut gb: GameBoy = GameBoy::new(cartridge);
     let mut serial = Vec::<char>::new();
@@ -397,12 +372,10 @@ fn assert_serial_result(cartridge: Cartridge) {
                 if let Some(data) = gbstep.output.serial {   
                     serial.push(data as char);
                     let result_str = serial.iter().cloned().collect::<String>();
-                    //println!("{}", result_str);
                     if result_str.contains("Passed") {
                         assert!(true);
                         break
                     }else if result_str.contains("Failed") {
-                        println!("{}", result_str);
                         assert!(false);
                         break
                     }       

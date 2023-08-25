@@ -2,7 +2,7 @@ use core::fmt;
 
 use pretty_hex::*;
 
-use crate::gameboy::{mmu::{Address, IO_SIZE, IO_BEGIN, IO_END}};
+use crate::gameboy::{mmu::{Address, IO_SIZE, IO_BEGIN, IO_END}, cpu::cpu::ClockCycles};
 
 use super::interrupts::{Interruption, InterruptsRegister};
 
@@ -24,7 +24,7 @@ pub(crate) const INTERRUPT_ENABLE_ADDRESS: Address = 0xFFFF;
 
 pub(crate) struct IO {
     pub(crate) interrupts: InterruptsRegister,
-    data: [u8; IO_SIZE]
+    data: [u8; IO_SIZE],
 }
 
 #[derive(Debug)]
@@ -41,21 +41,32 @@ impl IO {
         match address {
             0xFF44 => 0x90,
             INTERRUPT_FLAG_ADDRESS => self.interrupts.read_flag(),
-            // TODO: Map the rest
+            // DIV value is 8 upper bits
+            DIV_ADDRESS => self.get_timers_div(),
             _ => self.data[(address - IO_BEGIN) as usize]
         }
     }
 
     pub(crate) fn write_byte(&mut self, address: Address, value: u8) -> Option<IOEvent> {
-        self.data[(address - IO_BEGIN) as usize] = value;
+        
         match address {
-            // ROM
-            BOOT_SWITCH_ADDRESS => Some(IOEvent::BootSwitched(value == 0)),
+            BOOT_SWITCH_ADDRESS => {
+                self.data[(address - IO_BEGIN) as usize] = value;
+                Some(IOEvent::BootSwitched(value == 0))
+            },
             INTERRUPT_FLAG_ADDRESS => {
                 self.interrupts.write_flag(value);
                 None
             },
-            _ => None
+            DIV_ADDRESS => {
+                // Writing DIV reset it
+                self.data[(DIV_ADDRESS - IO_BEGIN) as usize] = 0;
+                None
+            },
+            _ => {
+                self.data[(address - IO_BEGIN) as usize] = value;
+                None
+            }
         }
     }
 
@@ -64,4 +75,33 @@ impl IO {
         self.data[(SERIAL_CONTROL_ADDRESS - IO_BEGIN) as usize] = self.data[(SERIAL_CONTROL_ADDRESS - IO_BEGIN) as usize] & 0b01111111;
     }
 
+    pub(crate) fn get_timers_tac(&self) -> u8 {
+        self.data[(TAC_ADDRESS - IO_BEGIN) as usize]
+    }
+
+    pub(crate) fn get_timers_div(&self) -> u8 {
+        self.data[(DIV_ADDRESS - IO_BEGIN) as usize]
+    }
+
+    pub(crate) fn get_timers_tma(&self) -> u8 {
+        self.data[(TMA_ADDRESS - IO_BEGIN) as usize]
+    }
+
+    pub(crate) fn tick_div(&mut self) {
+        let div = self.data[(DIV_ADDRESS - IO_BEGIN) as usize];
+        self.data[(DIV_ADDRESS - IO_BEGIN) as usize] = div.wrapping_add(1);
+    }
+
+    pub(crate) fn tick_tima(&mut self) -> bool {
+        let tima = self.data[(TIMA_ADDRESS - IO_BEGIN) as usize];
+        let (new_tima, overflow) = tima.overflowing_add(1);
+        self.data[(TIMA_ADDRESS - IO_BEGIN) as usize] = new_tima;
+        overflow
+    }
+
+    pub(crate) fn reset_tima(&mut self) {
+        let tma: u8 = self.get_timers_tma();
+        self.data[(TIMA_ADDRESS - IO_BEGIN) as usize] = tma;
+    }
+    
 }

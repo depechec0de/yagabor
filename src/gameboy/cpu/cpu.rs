@@ -8,7 +8,7 @@ use crate::gameboy::{mmu::{MMU, Address}, io::io::{IOEvent, INTERRUPT_FLAG_ADDRE
 
 use super::instructions::decode::{InstructionType, InstructionSize};
 use super::instructions::instructions::{Instruction};
-use super::{registers::Registers, timers::Timers};
+use super::{registers::Registers};
 
 pub(crate) type ProgramCounter = Address;
 pub(crate) type StackPointer = Address;
@@ -21,7 +21,9 @@ pub(crate) struct CPU{
     pub(super) is_halted: bool,
     pub(super) ime: bool,
     pub(super) mmu: MMU,
-    pub(crate) timers: Timers,
+    pub(super) div_counter: u8,
+    // Because the max frecuency is 1024 => 10 bits
+    pub(super) tima_counter: u16, 
 }
 
 #[derive(Debug)]
@@ -45,12 +47,13 @@ impl CPU {
             is_halted: false,
             ime: true,
             mmu,
-            timers: Timers::new(),
+            div_counter: 0,
+            tima_counter: 0
         }
     }
 
     pub(crate) fn step(&mut self) -> Result<ClockCycles, Error> {
-        let mut cycles = 1;
+        let mut mcycles = MachineCycles::One;
 
         self.handle_interrupts();
         
@@ -58,15 +61,12 @@ impl CPU {
             let instruction = self.fetch_decode()?;
             //println!("{:?} {}", instruction, self);
             //println!("{}", self);
-            let mcycles = instruction.execute(self)?;
-            cycles = ClockCycles::from(mcycles);            
+            mcycles = instruction.execute(self)?;           
         }
 
-        if self.timers.tick(cycles) {
-            self.mmu.io.interrupts.turnon(Interruption::Timer);
-        }
+        self.tick_timers(u8::from(mcycles.clone()));        
 
-        Ok(cycles)
+        Ok(ClockCycles::from(mcycles))
     }   
 
     pub(super) fn fetch_decode(&self) -> Result<Instruction, Error> {
@@ -123,6 +123,47 @@ impl CPU {
             }else{
                 self.is_halted = false;
             }
+        }
+    }
+
+    pub(crate) fn tick_timers(&mut self, cycles: u8) {
+
+        let (new_div, div_overflow) = self.div_counter.overflowing_add(cycles);
+
+        if div_overflow {
+            self.div_counter = new_div;
+            self.mmu.io.tick_div();
+        }
+
+        if self.timer_enabled() {
+            self.tima_counter = self.tima_counter.wrapping_add(cycles as u16);
+
+            while self.tima_counter >= self.timer_frecuency() {
+                let tima_overflow = self.mmu.io.tick_tima();
+                if tima_overflow {
+                    self.mmu.io.interrupts.turnon(Interruption::Timer);
+                    self.mmu.io.reset_tima();
+                }
+                self.tima_counter -= self.timer_frecuency();
+            }
+        }
+    }
+    
+    pub(crate) fn timer_enabled(&self) -> bool {
+        // if bit 2 is high, timer is enabled 
+        self.mmu.io.get_timers_tac() & 0b00000100 > 0
+    }
+
+    pub(crate) fn timer_frecuency(&self) -> u16 {
+        let tac = self.mmu.io.get_timers_tac();
+        if tac & 0b00000011 == 0 {
+            1024
+        }else if tac & 0b00000011 == 1 {
+            16
+        }else if tac & 0b00000011 == 2 {
+            64
+        }else {
+            256
         }
     }
 
@@ -196,8 +237,8 @@ pub(crate) enum MachineCycles {
     Zero, One, Two, Three, Four, Five, Six
 }
 
-impl std::convert::From<MachineCycles> for ClockCycles  {
-    fn from(cycles: MachineCycles) -> ClockCycles {
+impl std::convert::From<MachineCycles> for u8  {
+    fn from(cycles: MachineCycles) -> u8 {
         let machine_cycles = match cycles {
             MachineCycles::Zero => 0,
             MachineCycles::One => 1,
@@ -208,5 +249,11 @@ impl std::convert::From<MachineCycles> for ClockCycles  {
             MachineCycles::Six => 6
         };
         machine_cycles*4
+    }
+}
+
+impl std::convert::From<MachineCycles> for ClockCycles  {
+    fn from(cycles: MachineCycles) -> ClockCycles {
+        u8::from(cycles) as ClockCycles
     }
 }

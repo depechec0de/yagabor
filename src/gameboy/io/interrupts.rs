@@ -101,7 +101,6 @@ impl InterruptsRegister {
     }
 
     pub(crate) fn turnon(&mut self, interruption: Interruption) {
-        println!("{:?}", interruption);
         match interruption {
             Interruption::VBlank => { self.interrupt_flag = self.interrupt_flag |   0b00000001; },
             Interruption::LCDStat => { self.interrupt_flag = self.interrupt_flag |  0b00000010; },
