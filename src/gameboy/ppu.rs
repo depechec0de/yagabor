@@ -2,7 +2,7 @@ use std::fmt;
 
 use pretty_hex::*;
 
-use super::mmu::Address;
+use super::{mmu::Address, gameboy::GameBoy};
 
 pub(super) const VRAM_BEGIN: Address = 0x8000;
 pub(super) const VRAM_END: Address = 0x9FFF;
@@ -31,13 +31,13 @@ impl PPU {
         PPU{ vram: [0x0; VRAM_SIZE], tile_set: [[[TilePixelValue::Zero; 8]; 8]; 384] }
     }
 
-    pub(super) fn read_vram(&self, address: Address) -> u8 {
-        self.vram[address as usize]
+    pub(super) fn read_byte(gb: &GameBoy, address: Address) -> u8 {
+        gb.ppu.vram[(address - VRAM_BEGIN) as usize]
     }
 
-    pub(super) fn write_vram(&mut self, address: Address, value: u8) {
-        let index = address as usize;
-        self.vram[index] = value;
+    pub(super) fn write_byte(gb: &mut GameBoy, address: Address, value: u8) {
+        let index = (address - VRAM_BEGIN) as usize;
+        gb.ppu.vram[index] = value;
         // If our index is greater than 0x1800, we're not writing to the tile set storage
         // so we can just return.
         if index >= 0x1800 { return }
@@ -49,8 +49,8 @@ impl PPU {
         let normalized_index = index & 0xFFFE;
 
         // First we need to get the two bytes that encode the tile row.
-        let byte1 = self.vram[normalized_index];
-        let byte2 = self.vram[normalized_index + 1];
+        let byte1 = gb.ppu.vram[normalized_index];
+        let byte2 = gb.ppu.vram[normalized_index + 1];
 
         // A tiles is 8 rows tall. Since each row is encoded with two bytes a tile
         // is therefore 16 bytes in total.
@@ -93,7 +93,7 @@ impl PPU {
                 (false, false) => TilePixelValue::Zero,
             };
 
-            self.tile_set[tile_index][row_index][pixel_index] = value;
+            gb.ppu.tile_set[tile_index][row_index][pixel_index] = value;
         }
 
     }

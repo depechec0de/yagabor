@@ -1,12 +1,20 @@
-use std::io::Error;
+use std::io::{Error, ErrorKind};
+use std::fmt;
 
 use super::cartridge::Cartridge;
 use super::cpu::cpu::{CPU, ClockCycles};
+use super::io::interrupts::Interrupts;
 use super::io::io::IO;
+use super::io::lcd::LCD;
 use super::mmu::MMU;
+use super::ppu::PPU;
 
 pub(crate) struct GameBoy {
-    cpu: CPU
+    pub(crate) cpu: CPU,
+    pub(crate) mmu: MMU,
+    pub(crate) ppu: PPU,
+    pub(crate) io: IO,
+    pub(crate) cartridge: Cartridge
 }
 
 pub(crate) struct GBStep {
@@ -21,28 +29,62 @@ pub(crate) struct GBOutput {
 impl GameBoy {
     pub(crate) fn new(cartridge: Cartridge) -> Self {
         let io = IO::new();
-        let mmu = MMU::new(cartridge, io);
-        let cpu = CPU::new(mmu);
+        let mmu = MMU::new();
+        let cpu = CPU::new();
+        let ppu = PPU::new();
 
-        GameBoy { cpu }
+        GameBoy { cpu, mmu, ppu, io, cartridge }
     }
     
     pub(crate) fn tick(&mut self) -> Result<GBStep, Error> {
+        // if self.cpu.pc > 0x100 {
+        //     return Err(Error::new(ErrorKind::Other, format!("Artificial error")))
+        // }
         let mut output = GBOutput{ serial: None };
-        let cycles = self.cpu.step()? as ClockCycles;
+        let cycles = CPU::step(self)? as ClockCycles;
 
-        if let Some(data) = self.cpu.send_serial(){
+        if let Some(data) = CPU::send_serial(self){
             output.serial = Some(data);
-            self.cpu.ack_sent_serial();
+            IO::ack_sent_serial(self);
         }
+
+        LCD::tick(self, cycles);
 
         Ok(GBStep{cycles,output})
     }
 
     pub(crate) fn joypad_down(&mut self) {
         
-    }
-
-    
+    }    
 }
 
+impl fmt::Display for GameBoy {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "A:{:02X} \
+            F:{:02X} \
+            B:{:02X} \
+            C:{:02X} \
+            D:{:02X} \
+            E:{:02X} \
+            H:{:02X} \
+            L:{:02X} \
+            SP:{:04X} \
+            PC:{:04X} \
+            PCMEM:{:02X},{:02X},{:02X},{:02X}",  
+            self.cpu.regs.a, 
+            u8::from(self.cpu.regs.flags.clone()), 
+            self.cpu.regs.b, 
+            self.cpu.regs.c, 
+            self.cpu.regs.d, 
+            self.cpu.regs.e, 
+            self.cpu.regs.h, 
+            self.cpu.regs.l, 
+            self.cpu.sp, 
+            self.cpu.pc,
+            MMU::read_byte(self, self.cpu.pc), 
+            MMU::read_byte(self,self.cpu.pc+1), 
+            MMU::read_byte(self,self.cpu.pc+2), 
+            MMU::read_byte(self,self.cpu.pc+3)
+            )
+    }
+}

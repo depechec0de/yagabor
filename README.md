@@ -5,18 +5,19 @@ A Game Boy (DMG) emulator writen in Rust for educational purposes. The current s
 | Module           | Status  |
 | ---------------- |:-------:|
 | CPU Instructions | ✅      |
-| Timers           | ⬜      |
+| Timers           | ✅      |
 | Keypad           | ⬜      |
 | Sound            | ⬜      |
 | Graphics         | ⬜      |
 | Serial           | ⬜      |
-| Interrupts       | ⬜      |
+| Interrupts       | ✅      |
 
 # Tests
 
 To run the tests, execute the following commands:
 
 ```git submodule update --init```
+
 ```cargo test```
 
 This will run the following tests:

@@ -4,7 +4,7 @@ use pretty_hex::*;
 
 use crate::gameboy::{ppu::*, rom::*, cartridge::Cartridge};
 
-use super::io::io::{IOEvent, IO};
+use super::{io::{io::IO, interrupts::Interrupts}, gameboy::GameBoy};
 
 pub(crate) type Address = u16;
 
@@ -47,9 +47,6 @@ pub(crate) const INTERRUPT_ENABLE_ADDRESS: Address = 0xFFFF;
 pub(crate) struct MMU {
     is_boot_rom_mapped: bool,
     bootrom: ROM,
-    cartridge: Cartridge,
-    pub(crate) io: IO,
-    ppu: PPU,
     eram: [u8; EXTRAM_SIZE],
     oam: [u8; OAM_SIZE],
     wram: [u8; WRAM_SIZE],
@@ -57,15 +54,11 @@ pub(crate) struct MMU {
 }
 
 impl MMU {
-    pub fn new(cartridge: Cartridge, io: IO) -> Self {
+    pub fn new() -> Self {
         let bootrom = ROM::dmg();
-        let ppu = PPU::new();
         MMU { 
             is_boot_rom_mapped: true, 
-            cartridge,
             bootrom,
-            io,
-            ppu,
             eram: [0; EXTRAM_SIZE], 
             oam: [0; OAM_SIZE],
             wram: [0; WRAM_SIZE], 
@@ -73,35 +66,35 @@ impl MMU {
         }
     }
 
-    pub(super) fn read_byte(&self, address: Address) -> u8 {
+    pub(super) fn read_byte(gb: &GameBoy, address: Address) -> u8 {
         match address {
             GAMEROM_0_BEGIN ..= GAMEROM_0_END => {
                 match address {
                     BOOT_BEGIN ..= BOOT_END => {
-                        if self.is_boot_rom_mapped {
-                            self.bootrom.read_byte(address)
+                        if gb.mmu.is_boot_rom_mapped {
+                            gb.mmu.bootrom.read_byte(address)
                         }else{
-                            self.cartridge.read_byte(address)
+                            Cartridge::read_byte(&gb, address)
                         }
                     },
-                    _ => self.cartridge.read_byte(address)
+                    _ => Cartridge::read_byte(&gb, address)
                 }
             },
-            GAMEROM_N_BEGIN ..= GAMEROM_N_END => self.cartridge.read_byte(address),
-            VRAM_BEGIN ..= VRAM_END => self.read_vram(address),
-            EXTRAM_BEGIN ..= EXTRAM_END => self.read_eram(address),
-            WRAM_BEGIN ..= WRAM_END => self.read_wram(address),
+            GAMEROM_N_BEGIN ..= GAMEROM_N_END => Cartridge::read_byte(&gb, address),
+            VRAM_BEGIN ..= VRAM_END => PPU::read_byte(gb, address),
+            EXTRAM_BEGIN ..= EXTRAM_END => MMU::read_eram(gb, address),
+            WRAM_BEGIN ..= WRAM_END => MMU::read_wram(gb, address),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited read 0x{:x} to echo ram", address),
-            OAM_BEGIN ..= OAM_END => self.read_oam(address),
+            OAM_BEGIN ..= OAM_END => MMU::read_oam(gb, address),
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited read 0x{:x}", address),
-            IO_BEGIN ..= IO_END => self.read_io(address),
-            HRAM_BEGIN ..= HRAM_END => self.read_hram(address),
-            INTERRUPT_ENABLE_ADDRESS => self.io.interrupts.read_enable(),
+            IO_BEGIN ..= IO_END => IO::read_byte(gb, address),
+            HRAM_BEGIN ..= HRAM_END => MMU::read_hram(gb, address),
+            INTERRUPT_ENABLE_ADDRESS => Interrupts::read_enable(gb),
             _ => panic!("unmapped read {:x}", address),
         }
     }
 
-    pub(super) fn write_byte(&mut self, address: Address, value: u8) {
+    pub(super) fn write_byte(gb: &mut GameBoy, address: Address, value: u8) {
         match address {
             GAMEROM_0_BEGIN ..= GAMEROM_0_END => {
                 //panic!("Writing in ROM {:x} is not possible", address);
@@ -109,89 +102,60 @@ impl MMU {
             GAMEROM_N_BEGIN ..= GAMEROM_N_END => {
                 //panic!("Writing in ROM {:x} is not possible", address);
             },
-            VRAM_BEGIN ..= VRAM_END => self.write_vram(address, value),
-            EXTRAM_BEGIN ..= EXTRAM_END => self.write_eram(address, value),
-            WRAM_BEGIN ..= WRAM_END => self.write_wram(address, value),
+            VRAM_BEGIN ..= VRAM_END => PPU::write_byte(gb, address, value),
+            EXTRAM_BEGIN ..= EXTRAM_END => MMU::write_eram(gb, address, value),
+            WRAM_BEGIN ..= WRAM_END => MMU::write_wram(gb, address, value),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited write 0x{:x} to echo ram", address),
-            OAM_BEGIN ..= OAM_END => self.write_oam(address, value),
+            OAM_BEGIN ..= OAM_END => MMU::write_oam(gb, address, value),
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited write 0x{:x}", address),
-            IO_BEGIN ..= IO_END => self.write_io(address, value),
-            HRAM_BEGIN ..= HRAM_END => self.write_hram(address, value),
-            INTERRUPT_ENABLE_ADDRESS => self.io.interrupts.write_enable(value),
+            IO_BEGIN ..= IO_END => IO::write_byte(gb, address, value),
+            HRAM_BEGIN ..= HRAM_END => MMU::write_hram(gb, address, value),
+            INTERRUPT_ENABLE_ADDRESS => Interrupts::write_enable(gb, value),
             _ => panic!("unmapped write {:x}", address),
         };
     }
 
-    fn read_vram(&self, address: Address) -> u8 {
-        self.ppu.read_vram(address - VRAM_BEGIN)
+    fn read_wram(gb: &GameBoy, address: Address) -> u8 {
+        gb.mmu.wram[address as usize - WRAM_BEGIN as usize]
     }
 
-    fn read_wram(&self, address: Address) -> u8 {
-        self.wram[address as usize - WRAM_BEGIN as usize]
+    fn read_eram(gb: &GameBoy, address: Address) -> u8 {
+        gb.mmu.eram[address as usize - EXTRAM_BEGIN as usize]
     }
 
-    fn read_eram(&self, address: Address) -> u8 {
-        self.eram[address as usize - EXTRAM_BEGIN as usize]
+    fn read_oam(gb: &GameBoy, address: Address) -> u8 {
+        gb.mmu.oam[address as usize - OAM_BEGIN as usize]
     }
 
-    fn read_oam(&self, address: Address) -> u8 {
-        self.oam[address as usize - OAM_BEGIN as usize]
+    fn read_hram(gb: &GameBoy, address: Address) -> u8 {
+        gb.mmu.hram[address as usize - HRAM_BEGIN as usize]
     }
 
-    fn read_hram(&self, address: Address) -> u8 {
-        self.hram[address as usize - HRAM_BEGIN as usize]
+    fn write_wram(gb: &mut GameBoy, address: Address, value: u8) {
+        gb.mmu.wram[address as usize - WRAM_BEGIN as usize] = value;
     }
 
-    fn read_io(&self, address: Address) -> u8 {
-        self.io.read_byte(address)     
+    fn write_eram(gb: &mut GameBoy, address: Address, value: u8) {
+        gb.mmu.eram[address as usize - EXTRAM_BEGIN as usize] = value;
     }
 
-    fn write_vram(&mut self, address: Address, value: u8) {
-        self.ppu.write_vram(address - VRAM_BEGIN, value);
+    fn write_oam(gb: &mut GameBoy, address: Address, value: u8) {
+        gb.mmu.oam[address as usize - OAM_BEGIN as usize] = value;
     }
 
-    fn write_wram(&mut self, address: Address, value: u8) {
-        self.wram[address as usize - WRAM_BEGIN as usize] = value;
+    fn write_hram(gb: &mut GameBoy, address: Address, value: u8) {
+        gb.mmu.hram[address as usize - HRAM_BEGIN as usize] = value;
     }
 
-    fn write_eram(&mut self, address: Address, value: u8) {
-        self.eram[address as usize - EXTRAM_BEGIN as usize] = value;
+    pub(crate) fn set_boot_mapping(gb: &mut GameBoy, value: u8) {
+        gb.mmu.is_boot_rom_mapped = value == 0;
     }
 
-    fn write_oam(&mut self, address: Address, value: u8) {
-        self.oam[address as usize - OAM_BEGIN as usize] = value;
+    pub(super) fn read_next_byte(gb: &GameBoy, address: Address) -> u8 {
+        MMU::read_byte(&gb, address+1)
     }
-
-    fn write_hram(&mut self, address: Address, value: u8) {
-        self.hram[address as usize - HRAM_BEGIN as usize] = value;
-    }
-
-    fn write_io(&mut self, address: Address, value: u8) {
-        let result: Option<IOEvent> = self.io.write_byte(address, value);
-        match result {
-            Some(IOEvent::BootSwitched(new_val)) => {
-                self.is_boot_rom_mapped = new_val;
-            },
-            _ => {}
-        }
-    }
-
-}
-
-impl fmt::Display for MMU {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        //write!(f, "{}", self.bootrom)?;
-        //write!(f, "{}", "\n")?;
-        write!(f, "{} {:x}-{:x}\n", "VRAM", VRAM_BEGIN, VRAM_END)?;
-        write!(f, "{}", self.ppu)?;
-        write!(f, "{}", "\n\n")?;
-
-        write!(f, "{} {:x}-{:x}\n", "WRAM", WRAM_BEGIN, WRAM_END)?;
-        write!(f, "{}", pretty_hex(&self.wram))?;
-        write!(f, "{}", "\n\n")?;
-
-        write!(f, "{} {:x}-{:x}\n", "HRAM", HRAM_BEGIN, HRAM_END)?;
-        write!(f, "{}", pretty_hex(&self.hram))?;
-        write!(f, "{}", "\n\n")
+    
+    pub(super) fn read_next_word(gb: &GameBoy, address: Address) -> u16 {
+        ((MMU::read_byte(&gb, address+2) as u16) << 8) | (MMU::read_byte(&gb, address+1) as u16)
     }
 }

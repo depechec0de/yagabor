@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use super::gameboy::GameBoy;
+
 const HEADER_BEGIN: usize = 0x0100;
 const HEADER_END: usize = 0x014F;
 
@@ -40,8 +42,8 @@ impl Cartridge {
         self.title.clone()
     }
 
-    pub fn read_byte(&self, address: u16) -> u8 {
-        self.data[address as usize]
+    pub(crate) fn read_byte(gb: &GameBoy, address: u16) -> u8 {
+        gb.cartridge.data[address as usize]
     }
 
     pub fn cpu_instrs_01() -> Cartridge {

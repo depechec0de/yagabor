@@ -1,10 +1,10 @@
 use std::io::{Error, ErrorKind};
-use std::fmt;
 
-use crate::gameboy::io::interrupts::Interruption;
-use crate::gameboy::io::io::{SERIAL_CONTROL_ADDRESS, SERIAL_DATA_ADDRESS};
-use crate::gameboy::serial::SerialTransferMode;
-use crate::gameboy::{mmu::{MMU, Address}, io::io::{IOEvent, INTERRUPT_FLAG_ADDRESS}};
+use crate::gameboy::gameboy::GameBoy;
+use crate::gameboy::io::interrupts::{Interruption, Interrupts};
+use crate::gameboy::io::io::{SERIAL_CONTROL_ADDRESS, SERIAL_DATA_ADDRESS, SerialTransferMode};
+use crate::gameboy::io::timers::Timers;
+use crate::gameboy::{mmu::{MMU, Address}, io::io::{INTERRUPT_FLAG_ADDRESS}};
 
 use super::instructions::decode::{InstructionType, InstructionSize};
 use super::instructions::instructions::{Instruction};
@@ -15,64 +15,44 @@ pub(crate) type StackPointer = Address;
 pub(crate) type ClockCycles = u16;
 
 pub(crate) struct CPU{
-    pub(super) regs: Registers,
-    pub(super) sp: StackPointer,
-    pub(super) pc: ProgramCounter,
-    pub(super) is_halted: bool,
-    pub(super) ime: bool,
-    pub(super) mmu: MMU,
-    pub(super) div_counter: u8,
-    // Because the max frecuency is 1024 => 10 bits
-    pub(super) tima_counter: u16, 
-}
-
-#[derive(Debug)]
-pub(crate) struct ExecResult{
-    pub(crate) event: Option<IOEvent>,
-    pub(crate) clockcycles: ClockCycles,
-}
-
-impl ExecResult {
-    pub(crate) fn new(event: Option<IOEvent>, cycles: MachineCycles) -> Self {
-        ExecResult { event, clockcycles: cycles as ClockCycles }
-    }
+    pub(crate) regs: Registers,
+    pub(crate) sp: StackPointer,
+    pub(crate) pc: ProgramCounter,
+    pub(crate) is_halted: bool,
+    pub(crate) ime: bool,
 }
 
 impl CPU {
-    pub fn new(mmu: MMU) -> Self {
+    pub fn new() -> Self {
         Self { 
             regs: Registers::new(), 
             sp: 0x0, 
             pc: 0x0,  
             is_halted: false,
             ime: true,
-            mmu,
-            div_counter: 0,
-            tima_counter: 0
         }
     }
 
-    pub(crate) fn step(&mut self) -> Result<ClockCycles, Error> {
+    pub(crate) fn step(gb: &mut GameBoy) -> Result<ClockCycles, Error> {
         let mut mcycles = MachineCycles::One;
 
-        self.handle_interrupts();
+        CPU::handle_interrupts(gb);
         
-        if !self.is_halted {
-            let instruction = self.fetch_decode()?;
+        if !gb.cpu.is_halted {
+            let instruction = CPU::fetch_decode(gb)?;
             //println!("{:?} {}", instruction, self);
-            //println!("{}", self);
-            mcycles = instruction.execute(self)?;           
+            mcycles = instruction.execute(gb)?;           
         }
 
-        self.tick_timers(u8::from(mcycles.clone()));        
+        Timers::tick(gb, u8::from(mcycles.clone()));        
 
         Ok(ClockCycles::from(mcycles))
     }   
 
-    pub(super) fn fetch_decode(&self) -> Result<Instruction, Error> {
-        let instruction_byte = self.mmu.read_byte(self.pc);
-        let byte0 = self.mmu.read_byte(self.pc+1);
-        let byte1 = self.mmu.read_byte(self.pc+2);
+    pub(super) fn fetch_decode(gb: &GameBoy) -> Result<Instruction, Error> {
+        let instruction_byte = MMU::read_byte(gb, gb.cpu.pc);
+        let byte0 = MMU::read_byte(gb, gb.cpu.pc+1);
+        let byte1 = MMU::read_byte(gb, gb.cpu.pc+2);
 
         let prefixed = instruction_byte == 0xCB;
         let mut instruction_byte = instruction_byte;
@@ -101,10 +81,10 @@ impl CPU {
         }        
     }
 
-    pub(crate) fn send_serial(&mut self) -> Option<u8> {
-        let serial_transfer = SerialTransferMode::parse_from_byte(self.mmu.read_byte(SERIAL_CONTROL_ADDRESS));
-        let serial_data = self.mmu.read_byte(SERIAL_DATA_ADDRESS);
-
+    pub(crate) fn send_serial(gb: &mut GameBoy) -> Option<u8> {
+        let serial_transfer = SerialTransferMode::parse_from_byte(MMU::read_byte(&gb, SERIAL_CONTROL_ADDRESS));
+        let serial_data = MMU::read_byte(&gb, SERIAL_DATA_ADDRESS);
+        
         match serial_transfer {
             SerialTransferMode::TransferInternalClock => Some(serial_data),
             SerialTransferMode::TransferExternalClock => Some(serial_data),
@@ -112,124 +92,38 @@ impl CPU {
         }
     }
 
-    pub(crate) fn handle_interrupts(&mut self) {
-        if self.mmu.io.interrupts.some_interrupt_enabled() {
-            if self.ime {
-                let interrupt = self.mmu.io.interrupts.interrupt_to_handle().unwrap();
-                self.is_halted = false;
-                self.ime = false;
-                self.push_stack(self.pc);
-                self.pc = interrupt.handler();
+    pub(crate) fn handle_interrupts(gb: &mut GameBoy) {
+        if Interrupts::some_interrupt_enabled(gb) {
+            if gb.cpu.ime {
+                let interrupt = Interrupts::interrupt_to_handle(gb).unwrap();
+                gb.cpu.is_halted = false;
+                gb.cpu.ime = false;
+                CPU::push_stack(gb, gb.cpu.pc);
+                gb.cpu.pc = interrupt.handler();
             }else{
-                self.is_halted = false;
+                gb.cpu.is_halted = false;
             }
         }
     }
 
-    pub(crate) fn tick_timers(&mut self, cycles: u8) {
-
-        let (new_div, div_overflow) = self.div_counter.overflowing_add(cycles);
-
-        if div_overflow {
-            self.div_counter = new_div;
-            self.mmu.io.tick_div();
-        }
-
-        if self.timer_enabled() {
-            self.tima_counter = self.tima_counter.wrapping_add(cycles as u16);
-
-            while self.tima_counter >= self.timer_frecuency() {
-                let tima_overflow = self.mmu.io.tick_tima();
-                if tima_overflow {
-                    self.mmu.io.interrupts.turnon(Interruption::Timer);
-                    self.mmu.io.reset_tima();
-                }
-                self.tima_counter -= self.timer_frecuency();
-            }
-        }
+    pub(crate) fn push_stack(gb: &mut GameBoy, value: u16) {
+        gb.cpu.sp = gb.cpu.sp.wrapping_sub(1);
+        MMU::write_byte(gb, gb.cpu.sp, ((value & 0xFF00) >> 8) as u8);
+        gb.cpu.sp = gb.cpu.sp.wrapping_sub(1);
+        MMU::write_byte(gb, gb.cpu.sp, (value & 0xFF) as u8);
     }
     
-    pub(crate) fn timer_enabled(&self) -> bool {
-        // if bit 2 is high, timer is enabled 
-        self.mmu.io.get_timers_tac() & 0b00000100 > 0
-    }
-
-    pub(crate) fn timer_frecuency(&self) -> u16 {
-        let tac = self.mmu.io.get_timers_tac();
-        if tac & 0b00000011 == 0 {
-            1024
-        }else if tac & 0b00000011 == 1 {
-            16
-        }else if tac & 0b00000011 == 2 {
-            64
-        }else {
-            256
-        }
-    }
-
-    pub(crate) fn push_stack(&mut self, value: u16) {
-        self.sp = self.sp.wrapping_sub(1);
-        self.mmu.write_byte(self.sp, ((value & 0xFF00) >> 8) as u8);
-        self.sp = self.sp.wrapping_sub(1);
-        self.mmu.write_byte(self.sp, (value & 0xFF) as u8);
-    }
+    pub(crate) fn pop_stack(gb: &mut GameBoy) -> u16 {
+        let lsb = MMU::read_byte(&gb, gb.cpu.sp) as u16;
+        gb.cpu.sp = gb.cpu.sp.wrapping_add(1);
     
-    pub(crate) fn pop_stack(&mut self) -> u16 {
-        let lsb = self.mmu.read_byte(self.sp) as u16;
-        self.sp = self.sp.wrapping_add(1);
-    
-        let msb = self.mmu.read_byte(self.sp) as u16;
-        self.sp = self.sp.wrapping_add(1);
+        let msb = MMU::read_byte(&gb, gb.cpu.sp) as u16;
+        gb.cpu.sp = gb.cpu.sp.wrapping_add(1);
     
         (msb << 8) | lsb
     }
 
-    pub(super) fn read_next_byte(&self, address: Address) -> u8 {
-        self.mmu.read_byte(address+1)
-    }
-    
-    pub(super) fn read_next_word(&self, address: Address) -> u16 {
-        ((self.mmu.read_byte(address+2) as u16) << 8) | (self.mmu.read_byte(address+1) as u16)
-    }
-
-    pub(crate) fn ack_sent_serial(&mut self){
-        self.mmu.io.interrupts.turnon(Interruption::Serial);
-        self.mmu.io.serial_control_clear();
-    }
-    
 }
-
-impl fmt::Display for CPU {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "A:{:02X} \
-            F:{:02X} \
-            B:{:02X} \
-            C:{:02X} \
-            D:{:02X} \
-            E:{:02X} \
-            H:{:02X} \
-            L:{:02X} \
-            SP:{:04X} \
-            PC:{:04X} \
-            PCMEM:{:02X},{:02X},{:02X},{:02X}", 
-            self.regs.a, 
-            u8::from(self.regs.flags.clone()), 
-            self.regs.b, 
-            self.regs.c, 
-            self.regs.d, 
-            self.regs.e, 
-            self.regs.h, 
-            self.regs.l, 
-            self.sp, 
-            self.pc, 
-            self.mmu.read_byte(self.pc), 
-            self.mmu.read_byte(self.pc+1), 
-            self.mmu.read_byte(self.pc+2), 
-            self.mmu.read_byte(self.pc+3) )
-    }
-}
-
-  
 
 // We use machine cycles for reference, but in the translation we multiply by 4
 #[derive(Debug, Clone)]

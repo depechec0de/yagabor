@@ -1,20 +1,20 @@
 #[derive(Debug)]
-pub(super) struct Registers {
-    pub(super) a: u8, // Accumulators
-    pub(super) b: u8,
-    pub(super) c: u8,
-    pub(super) d: u8,
-    pub(super) e: u8,
-    pub(super) flags: FlagsRegister,
-    pub(super) h: u8,
-    pub(super) l: u8,
+pub(crate) struct Registers {
+    pub(crate) a: u8, // Accumulators
+    pub(crate) b: u8,
+    pub(crate) c: u8,
+    pub(crate) d: u8,
+    pub(crate) e: u8,
+    pub(crate) flags: FlagsRegister,
+    pub(crate) h: u8,
+    pub(crate) l: u8,
 }
 #[derive(Clone, Debug)]
-pub(super) struct FlagsRegister {
-    pub(super) zero: bool,
-    pub(super) subtract: bool,
-    pub(super) half_carry: bool,
-    pub(super) carry: bool
+pub(crate) struct FlagsRegister {
+    pub(crate) zero: bool,
+    pub(crate) subtract: bool,
+    pub(crate) half_carry: bool,
+    pub(crate) carry: bool
 }
 
 impl Registers {

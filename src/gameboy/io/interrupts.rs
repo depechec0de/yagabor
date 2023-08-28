@@ -1,6 +1,4 @@
-use crate::gameboy::{mmu::Address};
-
-use super::io::INTERRUPT_FLAG_ADDRESS;
+use crate::gameboy::{mmu::Address, gameboy::GameBoy};
 
 const VBLANK_INT_HANDLER: Address = 0x0040;
 const LCD_INT_HANDLER: Address = 0x0048;
@@ -9,49 +7,49 @@ const SERIAL_INT_HANDLER: Address = 0x0058;
 const JOYPAD_INT_HANDLER: Address = 0x0060;
 
 
-pub(crate) struct InterruptsRegister {
+pub(crate) struct Interrupts {
     pub(crate) interrupt_enable: u8,
     pub(crate) interrupt_flag: u8,    
 }
 
-impl InterruptsRegister {
+impl Interrupts {
     pub(crate) fn new() -> Self {
-        Self { interrupt_enable: 0x0, interrupt_flag: 0x0 }
+        Self { interrupt_enable: 0x0, interrupt_flag: 0xe0 }
     }
 
-    pub(crate) fn write_enable(&mut self, value: u8) {
-        self.interrupt_enable = value;
+    pub(crate) fn write_enable(gb: &mut GameBoy, value: u8) {
+        gb.io.interrupts.interrupt_enable = value;
     }
 
-    pub(crate) fn write_flag(&mut self, value: u8) { 
-        self.interrupt_flag = value;
+    pub(crate) fn write_flag(gb: &mut GameBoy, value: u8) { 
+        gb.io.interrupts.interrupt_flag = value;
     } 
 
-    pub(crate) fn read_enable(&self) -> u8 {
-        self.interrupt_enable
+    pub(crate) fn read_enable(gb: &GameBoy) -> u8 {
+        gb.io.interrupts.interrupt_enable
     }
 
-    pub(crate) fn read_flag(&self) -> u8 {
-        self.interrupt_flag
+    pub(crate) fn read_flag(gb: &GameBoy) -> u8 {
+        gb.io.interrupts.interrupt_flag
     }
 
     // We respect the interruptions priorities
-    pub(crate) fn interrupt_to_handle(&mut self) -> Option<Interruption> {
-        if self.some_interrupt_enabled() {
-            if self.is_vblank() {
-                self.turnoff(Interruption::VBlank);
+    pub(crate) fn interrupt_to_handle(gb: &mut GameBoy) -> Option<Interruption> {
+        if Interrupts::some_interrupt_enabled(gb) {
+            if Interrupts::is_vblank(gb) {
+                Interrupts::turnoff(gb, Interruption::VBlank);
                 Some(Interruption::VBlank)
-            } else if self.is_lcd() {
-                self.turnoff(Interruption::LCDStat);
+            } else if Interrupts::is_lcd(gb) {
+                Interrupts::turnoff(gb, Interruption::LCDStat);
                 Some(Interruption::LCDStat)
-            } else if self.is_timer() {
-                self.turnoff(Interruption::Timer);
+            } else if Interrupts::is_timer(gb) {
+                Interrupts::turnoff(gb, Interruption::Timer);
                 Some(Interruption::Timer)
-            } else if self.is_serial() {
-                self.turnoff(Interruption::Serial);
+            } else if Interrupts::is_serial(gb) {
+                Interrupts::turnoff(gb, Interruption::Serial);
                 Some(Interruption::Serial)
-            } else if self.is_joypad() {
-                self.turnoff(Interruption::Joypad);
+            } else if Interrupts::is_joypad(gb) {
+                Interrupts::turnoff(gb, Interruption::Joypad);
                 Some(Interruption::Joypad)
             }else{
                 None
@@ -61,52 +59,52 @@ impl InterruptsRegister {
         }
     }
 
-    pub(crate) fn some_interrupt_enabled(&self) -> bool {
-        (self.interrupt_enable & self.interrupt_flag) != 0
+    pub(crate) fn some_interrupt_enabled(gb: &GameBoy) -> bool {
+        (gb.io.interrupts.interrupt_enable & gb.io.interrupts.interrupt_flag) != 0
     }
 
-    fn is_vblank(&self) -> bool {
+    fn is_vblank(gb: &GameBoy) -> bool {
         let bit_mask = 0b00000001;
-        (self.interrupt_enable & bit_mask) > 0 && (self.interrupt_flag & bit_mask) > 0
+        (gb.io.interrupts.interrupt_enable & bit_mask) > 0 && (gb.io.interrupts.interrupt_flag & bit_mask) > 0
     }
 
-    fn is_lcd(&self) -> bool {
+    fn is_lcd(gb: &GameBoy) -> bool {
         let bit_mask = 0b00000010;
-        (self.interrupt_enable & bit_mask) > 0 && (self.interrupt_flag & bit_mask) > 0
+        (gb.io.interrupts.interrupt_enable & bit_mask) > 0 && (gb.io.interrupts.interrupt_flag & bit_mask) > 0
     }
 
-    fn is_timer(&self) -> bool {
+    fn is_timer(gb: &GameBoy) -> bool {
         let bit_mask = 0b00000100;
-        (self.interrupt_enable & bit_mask) > 0 && (self.interrupt_flag & bit_mask) > 0
+        (gb.io.interrupts.interrupt_enable & bit_mask) > 0 && (gb.io.interrupts.interrupt_flag & bit_mask) > 0
     }
 
-    fn is_serial(&self) -> bool {
+    fn is_serial(gb: &GameBoy) -> bool {
         let bit_mask = 0b00001000;
-        (self.interrupt_enable & bit_mask) > 0 && (self.interrupt_flag & bit_mask) > 0
+        (gb.io.interrupts.interrupt_enable & bit_mask) > 0 && (gb.io.interrupts.interrupt_flag & bit_mask) > 0
     }
 
-    fn is_joypad(&self) -> bool {
+    fn is_joypad(gb: &GameBoy) -> bool {
         let bit_mask = 0b00010000;
-        (self.interrupt_enable & bit_mask) > 0 && (self.interrupt_flag & bit_mask) > 0
+        (gb.io.interrupts.interrupt_enable & bit_mask) > 0 && (gb.io.interrupts.interrupt_flag & bit_mask) > 0
     }
 
-    pub(crate) fn turnoff(&mut self, interruption: Interruption) {
+    pub(crate) fn turnoff(gb: &mut GameBoy, interruption: Interruption) {
         match interruption {
-            Interruption::VBlank => { self.interrupt_flag = self.interrupt_flag &   0b11111110; },
-            Interruption::LCDStat => { self.interrupt_flag = self.interrupt_flag &  0b11111101; },
-            Interruption::Timer => { self.interrupt_flag = self.interrupt_flag &    0b11111011; },
-            Interruption::Serial => { self.interrupt_flag = self.interrupt_flag &   0b11110111; },            
-            Interruption::Joypad => { self.interrupt_flag = self.interrupt_flag &   0b11101111; },
+            Interruption::VBlank => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag &   0b11111110; },
+            Interruption::LCDStat => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag &  0b11111101; },
+            Interruption::Timer => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag &    0b11111011; },
+            Interruption::Serial => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag &   0b11110111; },            
+            Interruption::Joypad => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag &   0b11101111; },
         };
     }
 
-    pub(crate) fn turnon(&mut self, interruption: Interruption) {
+    pub(crate) fn turnon(gb: &mut GameBoy, interruption: Interruption) {
         match interruption {
-            Interruption::VBlank => { self.interrupt_flag = self.interrupt_flag |   0b00000001; },
-            Interruption::LCDStat => { self.interrupt_flag = self.interrupt_flag |  0b00000010; },
-            Interruption::Timer => { self.interrupt_flag = self.interrupt_flag |    0b00000100; },
-            Interruption::Serial => { self.interrupt_flag = self.interrupt_flag |   0b00001000; },            
-            Interruption::Joypad => { self.interrupt_flag = self.interrupt_flag |   0b00010000; },
+            Interruption::VBlank => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag |   0b00000001; },
+            Interruption::LCDStat => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag |  0b00000010; },
+            Interruption::Timer => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag |    0b00000100; },
+            Interruption::Serial => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag |   0b00001000; },            
+            Interruption::Joypad => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag |   0b00010000; },
         };
     }
     
