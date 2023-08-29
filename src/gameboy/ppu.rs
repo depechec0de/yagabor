@@ -2,11 +2,7 @@ use std::fmt;
 
 use pretty_hex::*;
 
-use super::{mmu::Address, gameboy::GameBoy};
-
-pub(super) const VRAM_BEGIN: Address = 0x8000;
-pub(super) const VRAM_END: Address = 0x9FFF;
-pub(super) const VRAM_SIZE: usize = (VRAM_END - VRAM_BEGIN + 1) as usize;
+use super::{mmu::*, gameboy::GameBoy};
 
 #[derive(Copy,Clone)]
 enum TilePixelValue {
@@ -23,19 +19,48 @@ fn empty_tile() -> Tile {
 
 pub(crate) struct PPU{
     vram: [u8; VRAM_SIZE],
+    oam: [u8; OAM_SIZE],
     tile_set: [Tile; 384],
 }
 
 impl PPU {
     pub(super) fn new() -> PPU {
-        PPU{ vram: [0x0; VRAM_SIZE], tile_set: [[[TilePixelValue::Zero; 8]; 8]; 384] }
+        PPU { 
+            vram: [0x0; VRAM_SIZE], 
+            oam: [0; OAM_SIZE],
+            tile_set: [[[TilePixelValue::Zero; 8]; 8]; 384] 
+        }
     }
 
     pub(super) fn read_byte(gb: &GameBoy, address: Address) -> u8 {
-        gb.ppu.vram[(address - VRAM_BEGIN) as usize]
+        match address {
+            OAM_BEGIN ..= OAM_END => PPU::read_oam(gb, address),
+            VRAM_BEGIN ..= VRAM_END => PPU::read_vram(gb, address),
+            _ => panic!("Invalid read PPU")
+        }
     }
 
     pub(super) fn write_byte(gb: &mut GameBoy, address: Address, value: u8) {
+        match address {
+            OAM_BEGIN ..= OAM_END => PPU::write_oam(gb, address, value),
+            VRAM_BEGIN ..= VRAM_END => PPU::write_vram(gb, address, value),
+            _ => panic!("Invalid write PPU")
+        }
+    }
+
+    pub(super) fn read_oam(gb: &GameBoy, address: Address) -> u8 {
+        gb.ppu.vram[(address - OAM_BEGIN) as usize]
+    }  
+
+    pub(super) fn write_oam(gb: &mut GameBoy, address: Address, value: u8) {
+        gb.ppu.oam[(address - OAM_BEGIN) as usize] = value;
+    }  
+
+    pub(super) fn read_vram(gb: &GameBoy, address: Address) -> u8 {
+        gb.ppu.vram[(address - VRAM_BEGIN) as usize]
+    }
+
+    pub(crate) fn write_vram(gb: &mut GameBoy, address: Address, value: u8) {
         let index = (address - VRAM_BEGIN) as usize;
         gb.ppu.vram[index] = value;
         // If our index is greater than 0x1800, we're not writing to the tile set storage

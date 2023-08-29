@@ -38,7 +38,8 @@ impl GameBoy {
     
     pub(crate) fn tick(&mut self) -> Result<GBStep, Error> {
         // if self.cpu.pc > 0x100 {
-        //     return Err(Error::new(ErrorKind::Other, format!("Artificial error")))
+        //     //return Err(Error::new(ErrorKind::Other, format!("Artificial error")))
+        //     println!("{}", self);
         // }
         let mut output = GBOutput{ serial: None };
         let cycles = CPU::step(self)? as ClockCycles;

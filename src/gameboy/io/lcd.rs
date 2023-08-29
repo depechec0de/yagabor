@@ -1,5 +1,7 @@
 use crate::gameboy::{mmu::Address, cpu::cpu::ClockCycles, gameboy::GameBoy};
 
+use super::interrupts::{Interrupts, Interruption};
+
 pub(crate) const LCD_CONTROL_ADDRESS: Address = 0xFF40;
 pub(crate) const LCD_STATUS_ADDRESS: Address = 0xFF41;
 pub(crate) const LCD_SCY_ADDRESS: Address = 0xFF42;
@@ -18,6 +20,11 @@ pub(crate) const CLOCKS_VBLANK: u16 = 456;
 #[derive(Clone, Debug)]
 pub(crate) enum LCDMode {
     SearchingOAM, Transfering, HBlank, VBlank 
+}
+
+pub(crate) enum LCDControl {
+    Power, WindowTileMap, WindowEnable, BGandWindowTileSet, BGTileMap, SpriteSize,
+    SpritesEnabled, BGEnabled 
 }
 
 pub(crate) struct LCD {
@@ -56,6 +63,7 @@ impl LCD {
                     LCD::next_scanline(gb);
 
                     if LCD::read_scanline(gb) == 143 {
+                        Interrupts::turnon(gb, Interruption::VBlank);
                         LCD::start_mode(gb, LCDMode::VBlank);
                         // TODO: render?
                     }else{
@@ -103,6 +111,32 @@ impl LCD {
 
     pub(crate) fn reset_scanline(gb: &mut GameBoy) {
         gb.io.lcd.scanline = 0;
+    }
+
+    pub(crate) fn read_control(gb: &mut GameBoy, parameter: LCDControl) -> bool {
+        match parameter {
+            LCDControl::Power               => (gb.io.lcd.control & 0b10000000) > 0, 
+            LCDControl::WindowTileMap       => (gb.io.lcd.control & 0b01000000) > 0, 
+            LCDControl::WindowEnable        => (gb.io.lcd.control & 0b00100000) > 0,  
+            LCDControl::BGandWindowTileSet  => (gb.io.lcd.control & 0b00010000) > 0,  
+            LCDControl::BGTileMap           => (gb.io.lcd.control & 0b00001000) > 0,  
+            LCDControl::SpriteSize          => (gb.io.lcd.control & 0b00000100) > 0, 
+            LCDControl::SpritesEnabled      => (gb.io.lcd.control & 0b00000010) > 0,  
+            LCDControl::BGEnabled           => (gb.io.lcd.control & 0b00000001) > 0,  
+        }
+    }
+
+    pub(crate) fn set_control(gb: &mut GameBoy, parameter: LCDControl) {
+        match parameter {
+            LCDControl::Power               => gb.io.lcd.control |= 0b10000000, 
+            LCDControl::WindowTileMap       => gb.io.lcd.control |= 0b01000000, 
+            LCDControl::WindowEnable        => gb.io.lcd.control |= 0b00100000,  
+            LCDControl::BGandWindowTileSet  => gb.io.lcd.control |= 0b00010000,  
+            LCDControl::BGTileMap           => gb.io.lcd.control |= 0b00001000,  
+            LCDControl::SpriteSize          => gb.io.lcd.control |= 0b00000100, 
+            LCDControl::SpritesEnabled      => gb.io.lcd.control |= 0b00000010,  
+            LCDControl::BGEnabled           => gb.io.lcd.control |= 0b00000001,  
+        }
     }
 
     pub(crate) fn read_byte(gb: &GameBoy, address: Address) -> u8 {

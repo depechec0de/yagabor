@@ -16,6 +16,14 @@ const GAMEROM_N_BEGIN: Address = 0x4000;
 const GAMEROM_N_END: Address = 0x7FFF;
 const GAMEROM_N_SIZE: usize = (GAMEROM_N_END - GAMEROM_N_BEGIN + 1) as usize;
 
+pub(crate) const VRAM_BEGIN: Address = 0x8000;
+pub(crate) const VRAM_END: Address = 0x9FFF;
+pub(crate) const VRAM_SIZE: usize = (VRAM_END - VRAM_BEGIN + 1) as usize;
+
+pub(crate) const OAM_BEGIN: Address = 0xFE00;
+pub(crate) const OAM_END: Address = 0xFE9F;
+pub(crate) const OAM_SIZE: usize = (OAM_END - OAM_BEGIN + 1) as usize;
+
 const EXTRAM_BEGIN: Address = 0xA000;
 const EXTRAM_END: Address = 0xBFFF;
 const EXTRAM_SIZE: usize = (EXTRAM_END - EXTRAM_BEGIN + 1) as usize;
@@ -26,10 +34,6 @@ const WRAM_SIZE: usize = (WRAM_END - WRAM_BEGIN + 1) as usize;
 
 const ERAM_BEGIN: Address = 0xE000;
 const ERAM_END: Address = 0xFDFF;
-
-const OAM_BEGIN: Address = 0xFE00;
-const OAM_END: Address = 0xFE9F;
-const OAM_SIZE: usize = (OAM_END - OAM_BEGIN + 1) as usize;
 
 const NOTUSABLE_BEGIN: Address = 0xFEA0;
 const NOTUSABLE_END: Address = 0xFEFF;
@@ -48,7 +52,6 @@ pub(crate) struct MMU {
     is_boot_rom_mapped: bool,
     bootrom: ROM,
     eram: [u8; EXTRAM_SIZE],
-    oam: [u8; OAM_SIZE],
     wram: [u8; WRAM_SIZE],
     hram: [u8; HRAM_SIZE],
 }
@@ -60,7 +63,6 @@ impl MMU {
             is_boot_rom_mapped: true, 
             bootrom,
             eram: [0; EXTRAM_SIZE], 
-            oam: [0; OAM_SIZE],
             wram: [0; WRAM_SIZE], 
             hram: [0; HRAM_SIZE],
         }
@@ -85,7 +87,7 @@ impl MMU {
             EXTRAM_BEGIN ..= EXTRAM_END => MMU::read_eram(gb, address),
             WRAM_BEGIN ..= WRAM_END => MMU::read_wram(gb, address),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited read 0x{:x} to echo ram", address),
-            OAM_BEGIN ..= OAM_END => MMU::read_oam(gb, address),
+            OAM_BEGIN ..= OAM_END => PPU::read_byte(gb, address),
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited read 0x{:x}", address),
             IO_BEGIN ..= IO_END => IO::read_byte(gb, address),
             HRAM_BEGIN ..= HRAM_END => MMU::read_hram(gb, address),
@@ -106,7 +108,7 @@ impl MMU {
             EXTRAM_BEGIN ..= EXTRAM_END => MMU::write_eram(gb, address, value),
             WRAM_BEGIN ..= WRAM_END => MMU::write_wram(gb, address, value),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited write 0x{:x} to echo ram", address),
-            OAM_BEGIN ..= OAM_END => MMU::write_oam(gb, address, value),
+            OAM_BEGIN ..= OAM_END => PPU::write_byte(gb, address, value),
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited write 0x{:x}", address),
             IO_BEGIN ..= IO_END => IO::write_byte(gb, address, value),
             HRAM_BEGIN ..= HRAM_END => MMU::write_hram(gb, address, value),
@@ -123,10 +125,6 @@ impl MMU {
         gb.mmu.eram[address as usize - EXTRAM_BEGIN as usize]
     }
 
-    fn read_oam(gb: &GameBoy, address: Address) -> u8 {
-        gb.mmu.oam[address as usize - OAM_BEGIN as usize]
-    }
-
     fn read_hram(gb: &GameBoy, address: Address) -> u8 {
         gb.mmu.hram[address as usize - HRAM_BEGIN as usize]
     }
@@ -137,10 +135,6 @@ impl MMU {
 
     fn write_eram(gb: &mut GameBoy, address: Address, value: u8) {
         gb.mmu.eram[address as usize - EXTRAM_BEGIN as usize] = value;
-    }
-
-    fn write_oam(gb: &mut GameBoy, address: Address, value: u8) {
-        gb.mmu.oam[address as usize - OAM_BEGIN as usize] = value;
     }
 
     fn write_hram(gb: &mut GameBoy, address: Address, value: u8) {
