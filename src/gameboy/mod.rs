@@ -4,4 +4,4 @@ mod ppu;
 mod rom;
 mod cpu;
 mod mmu;
-mod io;
+pub(crate) mod io;

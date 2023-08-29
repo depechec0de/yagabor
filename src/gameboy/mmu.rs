@@ -8,35 +8,35 @@ use super::{io::{io::IO, interrupts::Interrupts}, gameboy::GameBoy};
 
 pub(crate) type Address = u16;
 
-const GAMEROM_0_BEGIN: Address = 0x0000;
-const GAMEROM_0_END: Address = 0x3FFF;
-const GAMEROM_0_SIZE: usize = (GAMEROM_0_END - GAMEROM_0_BEGIN + 1) as usize;
+pub(crate) const GAMEROM_0_BEGIN: Address = 0x0000;
+pub(crate) const GAMEROM_0_END: Address = 0x3FFF;
+pub(crate) const GAMEROM_0_SIZE: usize = (GAMEROM_0_END - GAMEROM_0_BEGIN + 1) as usize;
 
-const GAMEROM_N_BEGIN: Address = 0x4000;
-const GAMEROM_N_END: Address = 0x7FFF;
-const GAMEROM_N_SIZE: usize = (GAMEROM_N_END - GAMEROM_N_BEGIN + 1) as usize;
+pub(crate) const GAMEROM_N_BEGIN: Address = 0x4000;
+pub(crate) const GAMEROM_N_END: Address = 0x7FFF;
+pub(crate) const GAMEROM_N_SIZE: usize = (GAMEROM_N_END - GAMEROM_N_BEGIN + 1) as usize;
 
 pub(crate) const VRAM_BEGIN: Address = 0x8000;
 pub(crate) const VRAM_END: Address = 0x9FFF;
 pub(crate) const VRAM_SIZE: usize = (VRAM_END - VRAM_BEGIN + 1) as usize;
 
+pub(crate) const EXTRAM_BEGIN: Address = 0xA000;
+pub(crate) const EXTRAM_END: Address = 0xBFFF;
+pub(crate) const EXTRAM_SIZE: usize = (EXTRAM_END - EXTRAM_BEGIN + 1) as usize;
+
+pub(crate) const WRAM_BEGIN: Address = 0xC000;
+pub(crate) const WRAM_END: Address = 0xDFFF;
+pub(crate) const WRAM_SIZE: usize = (WRAM_END - WRAM_BEGIN + 1) as usize;
+
+pub(crate) const ERAM_BEGIN: Address = 0xE000;
+pub(crate) const ERAM_END: Address = 0xFDFF;
+
 pub(crate) const OAM_BEGIN: Address = 0xFE00;
 pub(crate) const OAM_END: Address = 0xFE9F;
 pub(crate) const OAM_SIZE: usize = (OAM_END - OAM_BEGIN + 1) as usize;
 
-const EXTRAM_BEGIN: Address = 0xA000;
-const EXTRAM_END: Address = 0xBFFF;
-const EXTRAM_SIZE: usize = (EXTRAM_END - EXTRAM_BEGIN + 1) as usize;
-
-const WRAM_BEGIN: Address = 0xC000;
-const WRAM_END: Address = 0xDFFF;
-const WRAM_SIZE: usize = (WRAM_END - WRAM_BEGIN + 1) as usize;
-
-const ERAM_BEGIN: Address = 0xE000;
-const ERAM_END: Address = 0xFDFF;
-
-const NOTUSABLE_BEGIN: Address = 0xFEA0;
-const NOTUSABLE_END: Address = 0xFEFF;
+pub(crate) const NOTUSABLE_BEGIN: Address = 0xFEA0;
+pub(crate) const NOTUSABLE_END: Address = 0xFEFF;
 
 pub(crate) const IO_BEGIN: Address = 0xFF00;
 pub(crate) const IO_END: Address = 0xFF7F;

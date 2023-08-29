@@ -5,7 +5,7 @@ use super::cartridge::Cartridge;
 use super::cpu::cpu::{CPU, ClockCycles};
 use super::io::interrupts::Interrupts;
 use super::io::io::IO;
-use super::io::lcd::LCD;
+use super::io::lcd::{LCD, Frame};
 use super::mmu::MMU;
 use super::ppu::PPU;
 
@@ -52,6 +52,10 @@ impl GameBoy {
         LCD::tick(self, cycles);
 
         Ok(GBStep{cycles,output})
+    }
+
+    pub(crate) fn frame(&mut self) -> Frame {
+        LCD::read_framebuffer(self)
     }
 
     pub(crate) fn joypad_down(&mut self) {

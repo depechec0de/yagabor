@@ -4,8 +4,11 @@ use pretty_hex::*;
 
 use super::{mmu::*, gameboy::GameBoy};
 
+pub(crate) const BGMAP0_ADDRESS: Address = 0x9800;
+pub(crate) const BGMAP1_ADDRESS: Address = 0x9C00;
+
 #[derive(Copy,Clone)]
-enum TilePixelValue {
+pub(crate) enum TilePixelValue {
     Zero,
     One,
     Two,
@@ -31,6 +34,11 @@ impl PPU {
             tile_set: [[[TilePixelValue::Zero; 8]; 8]; 384] 
         }
     }
+
+    pub(crate) fn tile_set(gb: &GameBoy) -> [Tile; 384] {
+        gb.ppu.tile_set
+    }
+    
 
     pub(super) fn read_byte(gb: &GameBoy, address: Address) -> u8 {
         match address {
