@@ -1,6 +1,7 @@
 mod emulation;
 mod gameboy;
 mod screen;
+mod debug;
 
 use std::io::Error;
 
@@ -8,7 +9,7 @@ use clap::Parser;
 use emulation::Emulation;
 use sdl2::{pixels::Color, event::{Event, EventWatchCallback}, keyboard::Keycode};
 
-use crate::{gameboy::{cartridge::Cartridge, gameboy::GameBoy}, emulation::EmulationReport, screen::{Screen}};
+use crate::{gameboy::{cartridge::Cartridge, gameboy::GameBoy}, emulation::EmulationReport, screen::{Screen}, debug::TileDataDebug};
 
 #[derive(Parser)]
 struct Cli {
@@ -24,6 +25,8 @@ fn main() -> Result<(), Error> {
     }else{
         cartridge = Cartridge::empty();
     }
+
+    println!("Loading cartridge {} with type {:?}", cartridge.title(), cartridge.ctype());
 
     // let gui: bool;
     // if let Some(val) = args.gui {
@@ -41,9 +44,9 @@ fn main() -> Result<(), Error> {
 
     // Interaction with hosting machine: screen, keyboard input, ...    
     let video_subsystem = sdl_context.video().unwrap();
-    let mut screen = Screen::new(video_subsystem);
+    let mut screen = Screen::new(&video_subsystem);
+    let mut debug = TileDataDebug::new(&video_subsystem);
     
-
     emu.start();
 
     'running: loop {
@@ -51,6 +54,7 @@ fn main() -> Result<(), Error> {
         match emu.step() {
             Ok(emustep) => {
                 screen.render(emustep.framebuffer);
+                debug.render(emustep.tiledata);
             },
             Err(error) => {
                 break 'running println!("Emulation terminated in {} seconds,\

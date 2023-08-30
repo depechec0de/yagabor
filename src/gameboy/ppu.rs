@@ -2,7 +2,7 @@ use std::fmt;
 
 use pretty_hex::*;
 
-use super::{mmu::*, gameboy::GameBoy};
+use super::{mmu::*, gameboy::GameBoy, io::lcd::ColoredPixel};
 
 pub(crate) const BGMAP0_ADDRESS: Address = 0x9800;
 pub(crate) const BGMAP1_ADDRESS: Address = 0x9C00;
@@ -15,15 +15,22 @@ pub(crate) enum TilePixelValue {
     Three,
 }
 
+impl Default for TilePixelValue {
+    fn default() -> Self {
+        TilePixelValue::Zero
+    }
+}
+
 type Tile = [[TilePixelValue; 8]; 8];
+
 fn empty_tile() -> Tile {
     [[TilePixelValue::Zero; 8]; 8]
 }
 
 pub(crate) struct PPU{
-    vram: [u8; VRAM_SIZE],
-    oam: [u8; OAM_SIZE],
-    tile_set: [Tile; 384],
+    pub(crate) vram: [u8; VRAM_SIZE],
+    pub(crate) oam: [u8; OAM_SIZE],
+    pub(crate) tile_set: [Tile; 384],
 }
 
 impl PPU {

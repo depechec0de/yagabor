@@ -88,11 +88,11 @@ impl MMU {
             WRAM_BEGIN ..= WRAM_END => MMU::read_wram(gb, address),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited read 0x{:x} to echo ram", address),
             OAM_BEGIN ..= OAM_END => PPU::read_byte(gb, address),
-            NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited read 0x{:x}", address),
+            // https://gbdev.io/pandocs/Memory_Map.html#fea0-feff-range
+            NOTUSABLE_BEGIN ..= NOTUSABLE_END => 0xFF,
             IO_BEGIN ..= IO_END => IO::read_byte(gb, address),
             HRAM_BEGIN ..= HRAM_END => MMU::read_hram(gb, address),
             INTERRUPT_ENABLE_ADDRESS => Interrupts::read_enable(gb),
-            _ => panic!("unmapped read {:x}", address),
         }
     }
 
@@ -109,11 +109,10 @@ impl MMU {
             WRAM_BEGIN ..= WRAM_END => MMU::write_wram(gb, address, value),
             ERAM_BEGIN ..= ERAM_END => panic!("prohibited write 0x{:x} to echo ram", address),
             OAM_BEGIN ..= OAM_END => PPU::write_byte(gb, address, value),
-            NOTUSABLE_BEGIN ..= NOTUSABLE_END => panic!("prohibited write 0x{:x}", address),
+            NOTUSABLE_BEGIN ..= NOTUSABLE_END => {},
             IO_BEGIN ..= IO_END => IO::write_byte(gb, address, value),
             HRAM_BEGIN ..= HRAM_END => MMU::write_hram(gb, address, value),
-            INTERRUPT_ENABLE_ADDRESS => Interrupts::write_enable(gb, value),
-            _ => panic!("unmapped write {:x}", address),
+            INTERRUPT_ENABLE_ADDRESS => Interrupts::write_enable(gb, value)
         };
     }
 

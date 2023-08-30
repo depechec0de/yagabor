@@ -40,7 +40,7 @@ impl CPU {
         
         if !gb.cpu.is_halted {
             let instruction = CPU::fetch_decode(gb)?;
-            //println!("{:?} {}", instruction, self);
+            //println!("{} {:?}", gb, instruction);
             mcycles = instruction.execute(gb)?;           
         }
 

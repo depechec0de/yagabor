@@ -1,6 +1,6 @@
 use std::{time::{Duration, Instant}, io::Error};
 
-use crate::{gameboy::{gameboy::GameBoy, io::lcd::Frame}};
+use crate::{gameboy::{gameboy::GameBoy, io::lcd::{Frame}}, debug::TileDataFrame};
 
 pub const CPU_CLOCK_HZ: usize = 4_194_304;
 pub const FPS: f32 = 59.7;
@@ -24,6 +24,7 @@ pub(crate) struct EmulationReport {
 
 pub(crate) struct EmulationStep {
     pub(crate) framebuffer: Frame,
+    pub(crate) tiledata: TileDataFrame,
 }
 
 impl Emulation {
@@ -72,7 +73,8 @@ impl Emulation {
         }
 
         let framebuffer = self.gameboy.frame();
-        Ok(EmulationStep { framebuffer })  
+        let tiledata = self.gameboy.tiledata();
+        Ok(EmulationStep { framebuffer, tiledata })  
         
     }
 }

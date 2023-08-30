@@ -1,6 +1,8 @@
 use std::io::{Error, ErrorKind};
 use std::fmt;
 
+use crate::debug::TileDataFrame;
+
 use super::cartridge::Cartridge;
 use super::cpu::cpu::{CPU, ClockCycles};
 use super::io::interrupts::Interrupts;
@@ -37,10 +39,6 @@ impl GameBoy {
     }
     
     pub(crate) fn tick(&mut self) -> Result<GBStep, Error> {
-        // if self.cpu.pc > 0x100 {
-        //     //return Err(Error::new(ErrorKind::Other, format!("Artificial error")))
-        //     println!("{}", self);
-        // }
         let mut output = GBOutput{ serial: None };
         let cycles = CPU::step(self)? as ClockCycles;
 
@@ -56,6 +54,10 @@ impl GameBoy {
 
     pub(crate) fn frame(&mut self) -> Frame {
         LCD::read_framebuffer(self)
+    }
+
+    pub(crate) fn tiledata(&mut self) -> TileDataFrame {
+        LCD::read_tiledata(self)
     }
 
     pub(crate) fn joypad_down(&mut self) {

@@ -1,13 +1,13 @@
-use crate::{gameboy::{mmu::Address, cpu::cpu::ClockCycles, gameboy::GameBoy, ppu::{PPU, BGMAP0_ADDRESS, BGMAP1_ADDRESS}}};
+use crate::{gameboy::{mmu::{Address, VRAM_BEGIN}, cpu::cpu::ClockCycles, gameboy::GameBoy, ppu::{PPU, BGMAP0_ADDRESS, BGMAP1_ADDRESS, TilePixelValue}}, screen::Screen, debug::{TileDataFrame, TILEDATA_ROWS, TILEDATA_COLS}};
 
 use super::interrupts::{Interrupts, Interruption};
 
-const SCREEN_WIDTH: usize = 160;
-const SCREEN_HEIGHT: usize = 144;
+pub(crate) const SCREEN_WIDTH: usize = 160;
+pub(crate) const SCREEN_HEIGHT: usize = 144;
 
-pub(crate) type Frame = [[Pixel; SCREEN_WIDTH]; SCREEN_HEIGHT];
+pub(crate) type Frame = [ColoredPixel; SCREEN_WIDTH * SCREEN_HEIGHT];
 
-pub(crate) const BLACK_FRAME: Frame = [[Pixel::DarkGray; SCREEN_WIDTH]; SCREEN_HEIGHT];
+pub(crate) const BLACK_FRAME: Frame = [ColoredPixel::DarkGray; SCREEN_WIDTH * SCREEN_HEIGHT];
 
 pub(crate) const LCD_CONTROL_ADDRESS: Address = 0xFF40;
 pub(crate) const LCD_STATUS_ADDRESS: Address = 0xFF41;
@@ -28,8 +28,33 @@ pub(crate) const CLOCKS_HBLANK: u16 = 204;
 pub(crate) const CLOCKS_VBLANK: u16 = 456;
 
 #[derive(Clone, Copy)]
-pub(crate) enum Pixel {
+pub(crate) enum ColoredPixel {
     White, DarkGray, LightGray, Black
+}
+
+impl std::convert::From<ColoredPixel> for u8 {
+    fn from(cp: ColoredPixel) -> Self {
+        match cp {
+            ColoredPixel::White => 0,
+            ColoredPixel::LightGray => 1,
+            ColoredPixel::DarkGray => 2,
+            ColoredPixel::Black => 3,
+        }
+    }
+}
+
+impl std::convert::From<u8> for ColoredPixel {
+    fn from(byte: u8) -> Self {
+        if byte & 0b11 == 0b00 {
+            ColoredPixel::White
+        }else if byte & 0b11 == 0b01 {
+            ColoredPixel::LightGray
+        } else if byte & 0b11 == 0b10 {
+            ColoredPixel::DarkGray
+        } else {
+            ColoredPixel::Black
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -42,6 +67,40 @@ pub(crate) enum LCDControl {
     SpritesEnabled, BGEnabled 
 }
 
+// Given a Pixel index we map it to a color
+#[derive(Clone, Copy)]
+pub(crate) struct Palette {
+    index0: ColoredPixel, index1: ColoredPixel, index2: ColoredPixel, index3: ColoredPixel
+}
+
+impl Palette {
+    fn apply(&self, p: TilePixelValue) -> ColoredPixel {
+        match p {
+            TilePixelValue::Zero => self.index0,
+            TilePixelValue::One => self.index1,
+            TilePixelValue::Two => self.index2,
+            TilePixelValue::Three => self.index3,
+        }
+    }
+}
+
+impl std::convert::From<u8> for Palette {
+    fn from(byte: u8) -> Self {
+        Palette { 
+                index0: ColoredPixel::from(byte), 
+                index1: ColoredPixel::from(byte >> 2),
+                index2: ColoredPixel::from(byte >> 4), 
+                index3: ColoredPixel::from(byte >> 6), 
+        }
+    }
+}
+
+impl std::convert::From<Palette> for u8 {
+    fn from(p: Palette) -> Self {
+        u8::from(p.index3) << 6 | u8::from(p.index2) << 4 | u8::from(p.index1) << 2 | u8::from(p.index0) 
+    }
+}
+
 pub(crate) struct LCD {
     control: u8,
     clock: u16,
@@ -49,13 +108,13 @@ pub(crate) struct LCD {
     scanline: u8,
     scy: u8,
     scx: u8,
-    bgpalette: u8,
+    bgpalette: Palette,
     framebuffer: Frame
 }
 
 impl LCD {
     pub(crate) fn new() -> Self {
-        LCD { control:0, clock: 0, mode: LCDMode::SearchingOAM , scanline: 0, scy: 0, scx: 0, bgpalette: 0, framebuffer: BLACK_FRAME }
+        LCD { control:0, clock: 0, mode: LCDMode::SearchingOAM , scanline: 0, scy: 0, scx: 0, bgpalette: Palette::from(0), framebuffer: BLACK_FRAME }
     }
 
     // https://gbdev.io/pandocs/STAT.html#stat-modes
@@ -104,29 +163,88 @@ impl LCD {
     }
 
     pub(crate) fn render_scanline(gb: &mut GameBoy) {
-        // let lcd = &gb.io.lcd;
-        // let tiles = PPU::tile_set(gb);
-        // let bgmaparea = LCD::read_control(gb, LCDControl::BGTileMap);
+        let bgenabled = LCD::read_control(gb, LCDControl::BGEnabled);
+        let bgmaparea = LCD::read_control(gb, LCDControl::BGTileMap);
+        //let bgaddr = LCD::read_control(gb, LCDControl::BGandWindowTileSet);
 
-        // let mut bgmapoff = if bgmaparea { BGMAP1_ADDRESS } else { BGMAP0_ADDRESS };
-        // bgmapoff += (((lcd.scanline + lcd.scy) & 0xFF) >> 3) as u16;
+        let lcd = &mut gb.io.lcd;
+        let ppu = &gb.ppu;
 
-        // let linesoff = (lcd.scx >> 3) as u16;
+        let mut scan_line: [TilePixelValue; SCREEN_WIDTH] = [Default::default(); SCREEN_WIDTH];
+        
+        if bgenabled {
+            // The x index of the current tile
+            let mut tile_x_index = lcd.scx / 8;
+            // The current scan line's y-offset in the entire background space is a combination
+            // of both the line inside the view port we're currently on and the amount of the view port is scrolled
+            let tile_y_index = lcd.scanline.wrapping_add(lcd.scy);
+            // The current tile we're on is equal to the total y offset broken up into 8 pixel chunks
+            // and multipled by the width of the entire background (i.e. 32 tiles)
+            let tile_offset = (tile_y_index as u16 / 8) * 32u16;
 
-        // let y = (lcd.scanline + lcd.scy) & 0b00000111;
-        // let x = lcd.scx & 0b00000111;
+            // Where is our tile map defined?
+            let background_tile_map = if bgmaparea {
+                0x9800
+            } else {
+                0x9C00
+            };
+            // Munge this so that the beginning of VRAM is index 0
+            let tile_map_begin = background_tile_map - VRAM_BEGIN;
+            // Where we are in the tile map is the beginning of the tile map
+            // plus the current tile's offset
+            let tile_map_offset = (tile_map_begin + tile_offset) as usize;
 
-        // let canvasoffs = lcd.scanline * 160 * 4;
+            // When line and scrollY are zero we just start at the top of the tile
+            // If they're non-zero we must index into the tile cycling through 0 - 7
+            let row_y_offset = tile_y_index % 8;
+            let mut pixel_x_index = lcd.scx % 8;
 
-        // let tile = PPU::read_byte(gb, bgmapoff + linesoff);
+            let mut canvas_buffer_offset = lcd.scanline as usize * SCREEN_WIDTH;
+            // Start at the beginning of the line and go pixel by pixel
+            for line_x in 0..SCREEN_WIDTH {
+                // Grab the tile index specified in the tile map
+                let tile_index = ppu.vram[tile_map_offset + tile_x_index as usize];
 
-        // for i in 0..160 {
-            
-        // }
+                let tile_value = ppu.tile_set[tile_index as usize][row_y_offset as usize]
+                    [pixel_x_index as usize];
+                let color: ColoredPixel = lcd.bgpalette.apply(tile_value);
+
+                lcd.framebuffer[canvas_buffer_offset] = color;
+                canvas_buffer_offset += 1;
+                scan_line[line_x] = tile_value;
+                // Loop through the 8 pixels within the tile
+                pixel_x_index = (pixel_x_index + 1) % 8;
+
+                // Check if we've fully looped through the tile
+                if pixel_x_index == 0 {
+                    // Now increase the tile x_offset by 1
+                    tile_x_index = tile_x_index + 1;
+                }
+
+            }
+        }
+        
     }
 
     pub(crate) fn read_framebuffer(gb: &GameBoy) -> Frame {
         gb.io.lcd.framebuffer
+    }
+
+    pub(crate) fn read_tiledata(gb: &GameBoy) -> TileDataFrame {
+        let tiles = PPU::tile_set(gb);
+        let mut tdframe : TileDataFrame = [[[[ColoredPixel::White; 8]; 8]; TILEDATA_ROWS]; TILEDATA_COLS];
+
+        for tx in 0..TILEDATA_COLS {
+            for ty in 0..TILEDATA_ROWS {
+                for px in 0..8{
+                    for py in 0..8{
+                        tdframe[tx][ty][px][py] = gb.io.lcd.bgpalette.apply(tiles[tx + ty*TILEDATA_COLS][px][py]);
+                    }
+                }
+            }
+        }
+        
+        tdframe
     }
 
     pub(crate) fn mode(gb: &GameBoy) -> LCDMode {
@@ -189,7 +307,7 @@ impl LCD {
             LCD_SCY_ADDRESS => { gb.io.lcd.scy },
             LCD_SCX_ADDRESS => { gb.io.lcd.scx },
             LCD_CONTROL_ADDRESS => { gb.io.lcd.control },
-            LCD_BGPALETTE_ADDRESS => { gb.io.lcd.bgpalette },
+            LCD_BGPALETTE_ADDRESS => { u8::from(gb.io.lcd.bgpalette) },
             _ => 0
         }
     }
@@ -200,7 +318,7 @@ impl LCD {
             LCD_SCY_ADDRESS => { gb.io.lcd.scy = value },
             LCD_SCX_ADDRESS => { gb.io.lcd.scx = value },
             LCD_CONTROL_ADDRESS => { gb.io.lcd.control = value },
-            LCD_BGPALETTE_ADDRESS => { gb.io.lcd.bgpalette = value },
+            LCD_BGPALETTE_ADDRESS => { gb.io.lcd.bgpalette = Palette::from(value) },
             _ => {}
         }
     }
