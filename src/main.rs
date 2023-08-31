@@ -3,13 +3,15 @@ mod gameboy;
 mod screen;
 mod debug;
 
-use std::{io::Error, time::Duration};
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::{io::Error, time::{Duration, Instant}};
 
 use clap::Parser;
 use emulation::Emulation;
-use sdl2::{pixels::Color, event::{Event, EventWatchCallback}, keyboard::Keycode};
+use sdl2::{pixels::{Color, PixelFormatEnum}, event::{Event, EventWatchCallback}, keyboard::Keycode, video::WindowPos, rect::{Point, Rect}};
 
-use crate::{gameboy::{cartridge::Cartridge, gameboy::GameBoy}, emulation::EmulationReport, screen::{Screen}, debug::TileDataDebug};
+use crate::debug::TileDataFrame;
+use crate::{gameboy::{cartridge::Cartridge, gameboy::GameBoy, io::lcd::SCREEN_WIDTH}, emulation::EmulationReport, screen::{Screen}, debug::{TileDataDebug, TILEDATA_WIDTH, TILEDATA_HEIGHT, TILEDATA_COLS, TILEDATA_ROWS}};
 
 #[derive(Parser)]
 struct Cli {
@@ -43,26 +45,41 @@ fn main() -> Result<(), Error> {
     let mut event_pump = sdl_context.event_pump().unwrap();
 
     // Interaction with hosting machine: screen, keyboard input, ...    
-    let video_subsystem = sdl_context.video().unwrap();
-    let mut screen = Screen::new(&video_subsystem);
-    let mut debug = TileDataDebug::new(&video_subsystem);
+    let video = sdl_context.video().unwrap();
+    //let mut screen = Screen::new(&video);
+    let mut debug = TileDataDebug::new(&video);
     
+    let mut execution_time = Duration::from_secs(0);
+
     emu.start();
 
     'running: loop {
-        // Emulation step
-        match emu.step() {
-            Ok(emustep) => {
-                screen.render(emustep.framebuffer);
-                debug.render(emustep.tiledata);
-            },
-            Err(error) => {
-                break 'running println!("Emulation terminated in {} seconds,\
-                                         total executed cycles: {} with error {:?}", 
-                                         emu.execution_time.as_secs_f32(), 
-                                         emu.total_cycles, 
-                                         error);
+
+        if emu.running {
+            let now = Instant::now();
+            // Emulation step
+            match emu.step() {
+                Ok(emustep) => {
+                    //screen.render(emustep.framebuffer);
+                    debug.clear();
+                    debug.render(emustep.tiledata);
+                    debug.present();                  
+                },
+                Err(error) => {
+                    break 'running println!("Emulation terminated in {} seconds,\
+                                            total executed cycles: {} with error {:?}", 
+                                            execution_time.as_secs_f32(), 
+                                            emu.total_cycles, 
+                                            error);
+                }
             }
+
+            std::thread::sleep(Duration::from_millis(1000/60));
+            
+            
+
+            let elapsed = now.elapsed();
+            execution_time += elapsed;
         }
 
         for event in event_pump.poll_iter() {
@@ -76,12 +93,10 @@ fn main() -> Result<(), Error> {
                 },
                 _ => {}
             }
-        }
-
-        std::thread::sleep(Duration::from_millis(1000/60));
+        }        
     }
 
-    println!("Emulation terminated normally in {} seconds, total executed cycles: {}", emu.execution_time.as_secs_f32() , emu.total_cycles);
+    println!("Emulation terminated normally in {} seconds, total executed cycles: {}", execution_time.as_secs_f32() , emu.total_cycles);
     
     Ok(())
     

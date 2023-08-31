@@ -42,6 +42,10 @@ impl GameBoy {
         let mut output = GBOutput{ serial: None };
         let cycles = CPU::step(self)? as ClockCycles;
 
+        // if self.cpu.pc == 0x100 {
+        //     return Err(Error::new(ErrorKind::Other, "test"));
+        // }
+
         if let Some(data) = CPU::send_serial(self){
             output.serial = Some(data);
             IO::ack_sent_serial(self);

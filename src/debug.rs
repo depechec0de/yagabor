@@ -1,14 +1,16 @@
 use sdl2::{VideoSubsystem, video::{Window, WindowPos}, render::Canvas, pixels::Color, rect::Point};
 
-use crate::{gameboy::io::lcd::{Frame, SCREEN_WIDTH, ColoredPixel}, screen::Screen};
+use crate::{gameboy::io::lcd::{SCREEN_WIDTH, ColoredPixel}, screen::Screen};
+
+pub(crate) type TileDataFrame = [[[[ColoredPixel; 8]; 8]; TILEDATA_ROWS]; TILEDATA_COLS];
 
 pub(crate) const TILEDATA_COLS: usize = 16;
 pub(crate) const TILEDATA_ROWS: usize = 24;
 
-pub(crate) const TILEDATA_WIDTH: u32 = TILEDATA_COLS as u32 * 8;
-pub(crate) const TILEDATA_HEIGHT: u32 = TILEDATA_ROWS as u32 * 8;
+pub(crate) const TILEDATA_WIDTH: usize = TILEDATA_COLS * 8;
+pub(crate) const TILEDATA_HEIGHT: usize = TILEDATA_ROWS * 8;
 
-pub(crate) type TileDataFrame = [[[[ColoredPixel; 8]; 8]; TILEDATA_ROWS]; TILEDATA_COLS];
+pub(crate) const BLACK_TDFRAME: TileDataFrame = [[[[ColoredPixel::Black; 8]; 8]; TILEDATA_ROWS]; TILEDATA_COLS];
 
 pub(crate) struct TileDataDebug {
     canvas: Canvas<Window>
@@ -19,7 +21,7 @@ impl TileDataDebug {
         
         let scale = 2;
 
-        let mut window = video.window("Game Boy", TILEDATA_WIDTH * scale, TILEDATA_HEIGHT * scale)
+        let mut window = video.window("Game Boy", TILEDATA_WIDTH as u32 * scale, TILEDATA_HEIGHT as u32 * scale)
             .resizable()
             .position_centered()
             .build()
@@ -37,9 +39,15 @@ impl TileDataDebug {
         TileDataDebug { canvas }
     }
 
-    pub(crate) fn render(&mut self, frame: TileDataFrame) {
+    pub(crate) fn clear(&mut self) {
         self.canvas.clear();
+    }
 
+    pub(crate) fn present(&mut self) {
+        self.canvas.present();
+    }
+
+    pub(crate) fn render(&mut self, frame: TileDataFrame) {
         for tx in 0..TILEDATA_COLS {
             for ty in 0..TILEDATA_ROWS {
                 for px in 0..8{
@@ -52,7 +60,5 @@ impl TileDataDebug {
                 }
             }
         }
-                
-        self.canvas.present();
     }
 }
