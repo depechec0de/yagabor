@@ -27,7 +27,18 @@ pub(crate) const CLOCKS_TRANSFERING: u16 = 172;
 pub(crate) const CLOCKS_HBLANK: u16 = 204;
 pub(crate) const CLOCKS_VBLANK: u16 = 456;
 
-#[derive(Clone, Copy)]
+pub(crate) struct LCD {
+    control: u8,
+    clock: u16,
+    mode: LCDMode,
+    scanline: u8,
+    scy: u8,
+    scx: u8,
+    bgpalette: Palette,
+    framebuffer: Frame
+}
+
+#[derive(Clone, Copy, Debug)]
 pub(crate) enum ColoredPixel {
     White, DarkGray, LightGray, Black
 }
@@ -101,17 +112,6 @@ impl std::convert::From<Palette> for u8 {
     }
 }
 
-pub(crate) struct LCD {
-    control: u8,
-    clock: u16,
-    mode: LCDMode,
-    scanline: u8,
-    scy: u8,
-    scx: u8,
-    bgpalette: Palette,
-    framebuffer: Frame
-}
-
 impl LCD {
     pub(crate) fn new() -> Self {
         LCD { control:0, clock: 0, mode: LCDMode::SearchingOAM , scanline: 0, scy: 0, scx: 0, bgpalette: Palette::from(0), framebuffer: BLACK_FRAME }
@@ -132,7 +132,7 @@ impl LCD {
                 if LCD::clock(gb) >= CLOCKS_TRANSFERING {
                     LCD::reset_clock(gb);
                     LCD::start_mode(gb, LCDMode::HBlank);
-                    LCD::render_scanline(gb);
+                    //LCD::render_scanline(gb);
                 }
             },
             LCDMode::HBlank => {
@@ -308,7 +308,7 @@ impl LCD {
             LCD_SCX_ADDRESS => { gb.io.lcd.scx },
             LCD_CONTROL_ADDRESS => { gb.io.lcd.control },
             LCD_BGPALETTE_ADDRESS => { u8::from(gb.io.lcd.bgpalette) },
-            _ => 0
+            _ => { 0 }
         }
     }
 

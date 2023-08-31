@@ -8,7 +8,7 @@ pub const CPU_CYCLES_PER_FRAME: usize = (CPU_CLOCK_HZ as f32 / FPS) as usize;
 
 
 pub struct Emulation {
-    gameboy: GameBoy,
+    pub(crate) gameboy: GameBoy,
     pub(crate) running: bool,
     pub(crate) total_cycles: u64,
     debug: bool

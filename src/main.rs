@@ -55,33 +55,6 @@ fn main() -> Result<(), Error> {
 
     'running: loop {
 
-        if emu.running {
-            let now = Instant::now();
-            // Emulation step
-            match emu.step() {
-                Ok(emustep) => {
-                    //screen.render(emustep.framebuffer);
-                    debug.clear();
-                    debug.render(emustep.tiledata);
-                    debug.present();                  
-                },
-                Err(error) => {
-                    break 'running println!("Emulation terminated in {} seconds,\
-                                            total executed cycles: {} with error {:?}", 
-                                            execution_time.as_secs_f32(), 
-                                            emu.total_cycles, 
-                                            error);
-                }
-            }
-
-            std::thread::sleep(Duration::from_millis(1000/60));
-            
-            
-
-            let elapsed = now.elapsed();
-            execution_time += elapsed;
-        }
-
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit {..} |
@@ -93,7 +66,33 @@ fn main() -> Result<(), Error> {
                 },
                 _ => {}
             }
-        }        
+        }  
+
+        if emu.running {
+            let now = Instant::now();
+            // Emulation step
+            match emu.step() {
+                Ok(emustep) => {
+                    //screen.render(emustep.framebuffer);
+                    debug.clear();
+                    debug.render(emustep.tiledata);
+                    debug.present();                 
+                },
+                Err(error) => {
+                    break 'running println!("Emulation terminated in {} seconds,\
+                                            total executed cycles: {} with error {:?}", 
+                                            execution_time.as_secs_f32(), 
+                                            emu.total_cycles, 
+                                            error);
+                }
+            }
+
+            std::thread::sleep(Duration::from_millis(1000/60));
+
+            let elapsed = now.elapsed();
+            execution_time += elapsed;
+        }
+    
     }
 
     println!("Emulation terminated normally in {} seconds, total executed cycles: {}", execution_time.as_secs_f32() , emu.total_cycles);

@@ -45,6 +45,7 @@ impl GameBoy {
         // if self.cpu.pc == 0x100 {
         //     return Err(Error::new(ErrorKind::Other, "test"));
         // }
+        println!("{}", self);
 
         if let Some(data) = CPU::send_serial(self){
             output.serial = Some(data);
