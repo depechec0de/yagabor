@@ -66,8 +66,6 @@ impl Emulation {
                 }
             }
 
-            std::thread::sleep(Duration::from_millis(1000/60));
-
             let elapsed = now.elapsed();
             self.execution_time += elapsed;
         }

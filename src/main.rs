@@ -3,7 +3,7 @@ mod gameboy;
 mod screen;
 mod debug;
 
-use std::io::Error;
+use std::{io::Error, time::Duration};
 
 use clap::Parser;
 use emulation::Emulation;
@@ -77,6 +77,8 @@ fn main() -> Result<(), Error> {
                 _ => {}
             }
         }
+
+        std::thread::sleep(Duration::from_millis(1000/60));
     }
 
     println!("Emulation terminated normally in {} seconds, total executed cycles: {}", emu.execution_time.as_secs_f32() , emu.total_cycles);
