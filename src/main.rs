@@ -1,7 +1,6 @@
 mod emulation;
 mod gameboy;
 mod screen;
-mod debug;
 
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{io::Error, time::{Duration, Instant}};
@@ -10,8 +9,8 @@ use clap::Parser;
 use emulation::Emulation;
 use sdl2::{pixels::{Color, PixelFormatEnum}, event::{Event, EventWatchCallback}, keyboard::Keycode, video::WindowPos, rect::{Point, Rect}};
 
-use crate::debug::TileDataFrame;
-use crate::{gameboy::{cartridge::Cartridge, gameboy::GameBoy, io::lcd::SCREEN_WIDTH}, emulation::EmulationReport, screen::{Screen}, debug::{TileDataDebug, TILEDATA_WIDTH, TILEDATA_HEIGHT, TILEDATA_COLS, TILEDATA_ROWS}};
+use crate::gameboy::io::lcd::{SCREEN_HEIGHT, TILEDATA_WIDTH, BACKGROUND_WIDTH, TILEDATA_HEIGHT, BACKGROUND_HEIGHT};
+use crate::{gameboy::{cartridge::Cartridge, gameboy::GameBoy, io::lcd::SCREEN_WIDTH}, emulation::EmulationReport, screen::{Screen}};
 
 #[derive(Parser)]
 struct Cli {
@@ -46,8 +45,11 @@ fn main() -> Result<(), Error> {
 
     // Interaction with hosting machine: screen, keyboard input, ...    
     let video = sdl_context.video().unwrap();
-    //let mut screen = Screen::new(&video);
-    let mut debug = TileDataDebug::new(&video);
+    let scale = 2;
+
+    let mut screen = Screen::new(&video, "Game Boy", SCREEN_WIDTH, SCREEN_HEIGHT, scale, 0);    
+    let mut tddebug = Screen::new(&video, "Tile data", TILEDATA_WIDTH, TILEDATA_HEIGHT, scale, 500);
+    let mut bgdebug = Screen::new(&video, "Background", BACKGROUND_WIDTH, BACKGROUND_HEIGHT, scale, 900);
     
     let mut execution_time = Duration::from_secs(0);
 
@@ -73,10 +75,9 @@ fn main() -> Result<(), Error> {
             // Emulation step
             match emu.step() {
                 Ok(emustep) => {
-                    //screen.render(emustep.framebuffer);
-                    debug.clear();
-                    debug.render(emustep.tiledata);
-                    debug.present();                 
+                    screen.render(emustep.framebuffer);
+                    tddebug.render(emustep.tiledata);  
+                    bgdebug.render(emustep.background);            
                 },
                 Err(error) => {
                     break 'running println!("Emulation terminated in {} seconds,\

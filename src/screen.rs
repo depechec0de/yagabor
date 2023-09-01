@@ -1,13 +1,15 @@
-use sdl2::{VideoSubsystem, render::Canvas, video::Window, pixels::Color, rect::Point};
+use sdl2::{VideoSubsystem, render::Canvas, video::{Window, WindowPos}, pixels::Color, rect::Point};
 
 use crate::gameboy::io::lcd::{ColoredPixel, Frame, SCREEN_WIDTH, SCREEN_HEIGHT};
 
 pub struct Screen {
-    canvas: Canvas<Window>
+    canvas: Canvas<Window>,
+    width: u32,
+    height: u32,
 }
 
-impl Screen {
-    pub(crate) fn color(pixel: ColoredPixel) -> Color {
+impl std::convert::From<ColoredPixel> for Color {
+    fn from(pixel: ColoredPixel) -> Self {
         match pixel {
             ColoredPixel::White => Color::RGB(255, 255, 255),
             ColoredPixel::LightGray => Color::RGB(192, 192, 192),
@@ -18,28 +20,31 @@ impl Screen {
 }
 
 impl Screen {
-    pub fn new(video: &VideoSubsystem) -> Screen {
-        let window = video.window("Game Boy", 160*4, 144*4)
+    pub fn new(video: &VideoSubsystem, title: &str, width: u32, height: u32, scale: u32, posx_offset: i32)  -> Screen {
+        let mut window = video.window(title, width * scale, height * scale)
             .position_centered()
             .build()
             .unwrap();
 
+        let (x, y) = window.position();
+        window.set_position(WindowPos::Positioned(x+posx_offset), WindowPos::Positioned(y));
+
         let mut canvas = window.into_canvas().build().unwrap();
 
         canvas.set_draw_color(Color::RGB(0, 0, 0));
-        canvas.set_scale(4.0, 4.0).unwrap();
+        canvas.set_scale(scale as f32, scale as f32).unwrap();
         canvas.clear();
 
-        Screen { canvas }
+        Screen { canvas, width, height }
     }
 
     pub(crate) fn render(&mut self, frame: Frame) {
         self.canvas.clear();
 
-        for x in 0..SCREEN_WIDTH {
-            for y in 0..SCREEN_HEIGHT {
-                let pixel = frame[x + y * SCREEN_WIDTH];
-                self.canvas.set_draw_color(Screen::color(pixel));
+        for x in 0..self.width as usize {
+            for y in 0..self.height as usize {
+                let pixel = frame[x + y * (self.width as usize)];
+                self.canvas.set_draw_color(Color::from(pixel));
                 let point = Point::new(x as i32, y as i32);
                 self.canvas.draw_point(point).unwrap();
             }

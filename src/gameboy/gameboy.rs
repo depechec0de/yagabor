@@ -1,11 +1,8 @@
-use std::io::{Error, ErrorKind};
+use std::io::{Error};
 use std::fmt;
-
-use crate::debug::TileDataFrame;
 
 use super::cartridge::Cartridge;
 use super::cpu::cpu::{CPU, ClockCycles};
-use super::io::interrupts::Interrupts;
 use super::io::io::IO;
 use super::io::lcd::{LCD, Frame};
 use super::mmu::MMU;
@@ -45,8 +42,7 @@ impl GameBoy {
         // if self.cpu.pc == 0x100 {
         //     return Err(Error::new(ErrorKind::Other, "test"));
         // }
-        println!("{}", self);
-
+        
         if let Some(data) = CPU::send_serial(self){
             output.serial = Some(data);
             IO::ack_sent_serial(self);
@@ -58,11 +54,15 @@ impl GameBoy {
     }
 
     pub(crate) fn frame(&mut self) -> Frame {
-        LCD::read_framebuffer(self)
+        LCD::read_screenbuffer(self)
     }
 
-    pub(crate) fn tiledata(&mut self) -> TileDataFrame {
+    pub(crate) fn tiledata(&mut self) -> Frame {
         LCD::read_tiledata(self)
+    }
+
+    pub(crate) fn background(&mut self) -> Frame {
+        LCD::read_background(self)
     }
 
     pub(crate) fn joypad_down(&mut self) {

@@ -21,7 +21,7 @@ impl Default for TilePixelValue {
     }
 }
 
-type Tile = [[TilePixelValue; 8]; 8];
+pub(crate) type Tile = [[TilePixelValue; 8]; 8];
 
 fn empty_tile() -> Tile {
     [[TilePixelValue::Zero; 8]; 8]
@@ -30,7 +30,7 @@ fn empty_tile() -> Tile {
 pub(crate) struct PPU{
     pub(crate) vram: [u8; VRAM_SIZE],
     pub(crate) oam: [u8; OAM_SIZE],
-    pub(crate) tile_set: [Tile; 384],
+    pub(crate) tile_set: Vec<Tile>,
 }
 
 impl PPU {
@@ -38,12 +38,12 @@ impl PPU {
         PPU { 
             vram: [0x0; VRAM_SIZE], 
             oam: [0; OAM_SIZE],
-            tile_set: [[[TilePixelValue::Zero; 8]; 8]; 384] 
+            tile_set: vec![[[TilePixelValue::Zero; 8]; 8]; 384] 
         }
     }
 
-    pub(crate) fn tile_set(gb: &GameBoy) -> [Tile; 384] {
-        gb.ppu.tile_set
+    pub(crate) fn tile_set(gb: &GameBoy) -> &Vec<Tile> {
+        &gb.ppu.tile_set
     }
     
 
