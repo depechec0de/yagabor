@@ -7,7 +7,7 @@ use super::{mmu::*, gameboy::GameBoy, io::lcd::ColoredPixel};
 pub(crate) const BGMAP0_ADDRESS: Address = 0x9800;
 pub(crate) const BGMAP1_ADDRESS: Address = 0x9C00;
 
-#[derive(Copy,Clone)]
+#[derive(Copy,Clone,Debug)]
 pub(crate) enum TilePixelValue {
     Zero,
     One,
@@ -135,7 +135,6 @@ impl PPU {
 
             gb.ppu.tile_set[tile_index][row_index][pixel_index] = value;
         }
-
     }
 }
 

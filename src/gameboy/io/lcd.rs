@@ -73,11 +73,11 @@ impl std::convert::From<ColoredPixel> for u8 {
 
 impl std::convert::From<u8> for ColoredPixel {
     fn from(byte: u8) -> Self {
-        if byte & 0b11 == 0b00 {
+        if (byte & 0b11) == 0 {
             ColoredPixel::White
-        }else if byte & 0b11 == 0b01 {
+        }else if (byte & 0b11) == 1 {
             ColoredPixel::LightGray
-        } else if byte & 0b11 == 0b10 {
+        } else if (byte & 0b11) == 2 {
             ColoredPixel::DarkGray
         } else {
             ColoredPixel::Black
@@ -98,7 +98,7 @@ pub(crate) enum LCDControl {
 // Given a Pixel index we map it to a color
 #[derive(Clone, Copy)]
 pub(crate) struct Palette {
-    index0: ColoredPixel, index1: ColoredPixel, index2: ColoredPixel, index3: ColoredPixel
+    index3: ColoredPixel, index2: ColoredPixel, index1: ColoredPixel, index0: ColoredPixel
 }
 
 impl Palette {
@@ -245,30 +245,13 @@ impl LCD {
     }
 
     pub(crate) fn read_tiledata(gb: &GameBoy) -> Frame {
-        let lcd = &gb.io.lcd;
         let tiles = PPU::tile_set(gb);
-        
-        let mut tdbuffer = vec![ColoredPixel::White; TILEDATA_WIDTH as usize * TILEDATA_HEIGHT as usize];
-        
-        for x in 0..TILEDATA_WIDTH as usize {
-            for y in 0..TILEDATA_HEIGHT as usize {
-                let pidx = x + y*TILEDATA_WIDTH as usize;
-                // How many tiles per width/height
-                let tx = x / 8;
-                let ty = y / 8;
-                let tidx = tx + ty*TILEDATA_COLS;
-                // Index inside a tile is just modulo
-                let px = x % 8;
-                let py = y % 8;
-                tdbuffer[pidx] = lcd.bgpalette.apply(tiles[tidx][py][px]);
-            }
-        }
+        let tdbuffer = LCD::tiles_to_buffer(gb, &tiles, TILEDATA_WIDTH, TILEDATA_HEIGHT);
 
         LCD::buffer_to_frame(&tdbuffer, TILEDATA_WIDTH, TILEDATA_HEIGHT)
     }
 
     pub(crate) fn read_background(gb: &GameBoy) -> Frame {
-
         let tiles = PPU::tile_set(gb);
         let mut tiles_bg = vec![[[TilePixelValue::Zero; 8]; 8]; BACKGROUND_COLS*BACKGROUND_ROWS];
 
@@ -285,22 +268,21 @@ impl LCD {
         let bgbuffer = LCD::tiles_to_buffer(gb, &tiles_bg, BACKGROUND_WIDTH, BACKGROUND_HEIGHT);
 
         LCD::buffer_to_frame(&bgbuffer, BACKGROUND_WIDTH, BACKGROUND_HEIGHT)
-
     }
 
     pub(crate) fn tiles_to_buffer(gb: &GameBoy, tiles: &Vec<[[TilePixelValue; 8]; 8]>, width: u32, height: u32) -> Vec<ColoredPixel> {
         let mut buffer = vec![ColoredPixel::White; width as usize * height as usize];
-
+        
         for x in 0..width as usize {
             for y in 0..height as usize {
                 let pidx = x + y*width as usize;
                 // How many tiles per width/height
-                let tx = x / 8;
-                let ty = y / 8;
-                let tidx = tx + ty*(width/8) as usize;
+                let tx = x / TILE_SIZE as usize;
+                let ty = y / TILE_SIZE as usize;
+                let tidx = tx + ty*(width/TILE_SIZE) as usize;
                 // Index inside a tile is just modulo
-                let px = x % 8;
-                let py = y % 8;
+                let px = x % TILE_SIZE as usize;
+                let py = y % TILE_SIZE as usize;
                 buffer[pidx] = gb.io.lcd.bgpalette.apply(tiles[tidx][py][px]);
             }
         }

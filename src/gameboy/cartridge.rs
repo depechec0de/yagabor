@@ -79,7 +79,8 @@ impl Cartridge {
     }   
 
     pub fn empty() -> Cartridge {
-        Cartridge { data: vec![0; CARTRIDGE_SIZE], title: "empty".to_string(), ctype: CartridgeType::ROM(ROMVersion::Empty) }
+        // An empty cartridge reads 0xFF
+        Cartridge { data: vec![0xFF; CARTRIDGE_SIZE], title: "empty".to_string(), ctype: CartridgeType::ROM(ROMVersion::Empty) }
     }
 
     pub fn title(&self) -> String {
