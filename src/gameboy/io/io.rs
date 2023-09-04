@@ -4,7 +4,7 @@ use pretty_hex::*;
 
 use crate::gameboy::{mmu::{Address, IO_SIZE, IO_BEGIN, IO_END, MMU}, cpu::cpu::ClockCycles, gameboy::GameBoy};
 
-use super::{interrupts::{Interruption, Interrupts}, lcd::LCD, timers::Timers};
+use super::{interrupts::{Interruption, Interrupts}, lcd::LCD, timers::Timers, joypad::Joypad};
 
 pub(crate) const JOYPAD_INPUT_ADDRESS: Address = 0xFF00;
 pub(crate) const SERIAL_DATA_ADDRESS: Address = 0xFF01;
@@ -27,6 +27,7 @@ pub(crate) struct IO {
     pub(crate) interrupts: Interrupts,
     pub(crate) lcd: LCD,
     pub(crate) timers: Timers,
+    pub(crate) joypad: Joypad,
     data: [u8; IO_SIZE],
 }
 
@@ -36,12 +37,14 @@ impl IO {
              interrupts: Interrupts::new(),
              lcd: LCD::new(),
              timers: Timers::new(),
+             joypad: Joypad::new(),
              data:[0; IO_SIZE] 
         }
     }
 
     pub(crate) fn read_byte(gb: &GameBoy, address: Address) -> u8 {
         match address {
+            JOYPAD_INPUT_ADDRESS => Joypad::read(gb),
             LCD_BEGIN ..= LCD_END => LCD::read_byte(gb, address),
             INTERRUPT_FLAG_ADDRESS => Interrupts::read_flag(gb),
             // DIV value is 8 upper bits
@@ -52,6 +55,7 @@ impl IO {
 
     pub(crate) fn write_byte(gb: &mut GameBoy, address: Address, value: u8) {
         match address {
+            JOYPAD_INPUT_ADDRESS => Joypad::write(gb, value),
             DIV_ADDRESS => {
                 // Writing DIV reset it
                 gb.io.data[(DIV_ADDRESS - IO_BEGIN) as usize] = 0;

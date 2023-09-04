@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use sdl2::{VideoSubsystem, render::Canvas, video::{Window, WindowPos}, pixels::Color, rect::Point};
 
 use crate::gameboy::io::lcd::{ColoredPixel, Frame, SCREEN_WIDTH, SCREEN_HEIGHT};
@@ -38,7 +40,7 @@ impl Screen {
         Screen { canvas, width, height }
     }
 
-    pub(crate) fn render(&mut self, frame: Frame) {
+    pub(crate) fn render(&mut self, frame: Rc<Frame>) {
         self.canvas.clear();
 
         for x in 0..self.width as usize {

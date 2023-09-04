@@ -78,11 +78,6 @@ impl Cartridge {
         Ok(Cartridge { data, title, ctype })
     }   
 
-    pub fn empty() -> Cartridge {
-        // An empty cartridge reads 0xFF
-        Cartridge { data: vec![0xFF; CARTRIDGE_SIZE], title: "empty".to_string(), ctype: CartridgeType::ROM(ROMVersion::Empty) }
-    }
-
     pub fn title(&self) -> String {
         self.title.clone()
     }
@@ -92,7 +87,13 @@ impl Cartridge {
     }
 
     pub(crate) fn read_byte(gb: &GameBoy, address: u16) -> u8 {
-        gb.cartridge.data[address as usize]
+        if let Some(cartridge) = &gb.cartridge {
+            cartridge.data[address as usize]
+        }else{
+            // Reading ROM area without cartridge
+            0xFF
+        }
+        
     }
 
     pub fn cpu_instrs_01() -> Cartridge {

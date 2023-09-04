@@ -2,7 +2,7 @@ use crate::gameboy::{cartridge::Cartridge, cpu::{cpu::CPU, instructions::{instru
 
 #[test]
 fn add_without_carry() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
 
     gb.cpu.pc = 0x100;
     gb.cpu.regs.a = 0b00000001;    
@@ -22,7 +22,7 @@ fn add_without_carry() {
 
 #[test]
 fn add_with_half_carry() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
 
     gb.cpu.pc = 0x100;
     gb.cpu.regs.a = 0b00001111;
@@ -41,7 +41,7 @@ fn add_with_half_carry() {
 }
 #[test]
 fn add_with_carry() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
 
     gb.cpu.pc = 0x100;
     gb.cpu.regs.a = 0b11111111;
@@ -61,7 +61,7 @@ fn add_with_carry() {
 
 #[test]
 fn adc_with_carry() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
 
     gb.cpu.pc = 0x100;
     gb.cpu.regs.a = 0b11111110;
@@ -82,7 +82,7 @@ fn adc_with_carry() {
 
 #[test]
 fn adc_with_half_carry() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
 
     gb.cpu.pc = 0x100;
     gb.cpu.regs.a = 0b00001110;
@@ -103,7 +103,7 @@ fn adc_with_half_carry() {
 
 #[test]
 fn sub_with_carry() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
 
     gb.cpu.pc = 0x100;
     gb.cpu.regs.a = 0b00001111;
@@ -123,7 +123,7 @@ fn sub_with_carry() {
 
 #[test]
 fn sub_with_half_carry() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
 
     gb.cpu.pc = 0x100;
     gb.cpu.regs.a = 0x1;
@@ -143,7 +143,7 @@ fn sub_with_half_carry() {
 
 #[test]
 fn sbc_with_carry() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
 
     gb.cpu.pc = 0x100;
     gb.cpu.regs.a = 0b00001111;
@@ -165,7 +165,7 @@ fn sbc_with_carry() {
 
 #[test]
 fn sbc_with_half_carry() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
 
     gb.cpu.pc = 0x100;
     gb.cpu.regs.a = 0x0;
@@ -185,7 +185,7 @@ fn sbc_with_half_carry() {
 
 #[test]
 fn get_af() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
 
     gb.cpu.pc = 0x100;
 
@@ -200,7 +200,7 @@ fn get_af() {
 
 #[test]
 fn set_af() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
 
     gb.cpu.pc = 0x100;
     gb.cpu.regs.set_af(0b0101010101010000);
@@ -214,7 +214,7 @@ fn set_af() {
 
 #[test]
 fn stack_push() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
 
     gb.cpu.pc = 0x100;
     let init_sp = 0xDFFF;
@@ -236,7 +236,7 @@ fn stack_push() {
 
 #[test]
 fn stack_push_pop() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
     gb.cpu.sp = 0xDFFF;
     gb.cpu.pc = 0x100;
 
@@ -254,7 +254,7 @@ fn stack_push_pop() {
 
 #[test]
 fn rla() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
 
     gb.cpu.pc = 0x100;
 
@@ -288,7 +288,7 @@ fn rla() {
 
 #[test]
 fn rlca() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
 
     gb.cpu.pc = 0x100;
 
@@ -322,7 +322,7 @@ fn rlca() {
 
 #[test]
 fn srl() {
-    let mut gb = GameBoy::new(Cartridge::empty());
+    let mut gb = GameBoy::new(None);
 
     gb.cpu.pc = 0x100;
 
@@ -362,7 +362,7 @@ fn srl() {
 }
 
 fn assert_serial_result(cartridge: Cartridge) {
-    let mut gb: GameBoy = GameBoy::new(cartridge);
+    let mut gb: GameBoy = GameBoy::new(Some(cartridge));
     let mut serial = Vec::<char>::new();
     loop {
         match gb.tick() {

@@ -1,9 +1,12 @@
 use std::io::{Error, ErrorKind};
 use std::fmt;
+use std::rc::Rc;
 
 use super::cartridge::Cartridge;
 use super::cpu::cpu::{CPU, ClockCycles};
+use super::io::interrupts::{Interrupts, Interruption};
 use super::io::io::IO;
+use super::io::joypad::{Button, Joypad};
 use super::io::lcd::{LCD, Frame};
 use super::mmu::MMU;
 use super::ppu::PPU;
@@ -13,7 +16,7 @@ pub(crate) struct GameBoy {
     pub(crate) mmu: MMU,
     pub(crate) ppu: PPU,
     pub(crate) io: IO,
-    pub(crate) cartridge: Cartridge
+    pub(crate) cartridge: Option<Cartridge>
 }
 
 pub(crate) struct GBStep {
@@ -26,7 +29,7 @@ pub(crate) struct GBOutput {
 }
 
 impl GameBoy {
-    pub(crate) fn new(cartridge: Cartridge) -> Self {
+    pub(crate) fn new(cartridge: Option<Cartridge>) -> Self {
         let io = IO::new();
         let mmu = MMU::new();
         let cpu = CPU::new();
@@ -53,21 +56,29 @@ impl GameBoy {
         Ok(GBStep{cycles,output})
     }
 
-    pub(crate) fn frame(&mut self) -> Frame {
-        LCD::read_screenbuffer(self)
+    pub(crate) fn frame(&mut self) -> Rc<Frame> {
+        LCD::screen_buffer(self)
     }
 
-    pub(crate) fn tiledata(&mut self) -> Frame {
-        LCD::read_tiledata(self)
+    pub(crate) fn tiledata(&mut self) -> Rc<Frame> {
+        LCD::tiledata_buffer(self)
     }
 
-    pub(crate) fn background(&mut self) -> Frame {
-        LCD::read_background(self)
+    pub(crate) fn background(&mut self) -> Rc<Frame> {
+        LCD::background_buffer(self)
     }
 
-    pub(crate) fn joypad_down(&mut self) {
-        
-    }    
+    pub(crate) fn button_pressed(&mut self, b: Button) {
+        println!("pressed");
+        Joypad::button_pressed(self, b);
+        Interrupts::turnon(self, Interruption::Joypad);
+    } 
+
+    pub(crate) fn button_released(&mut self, b: Button) {
+        println!("released");
+        Joypad::button_released(self, b);
+    } 
+ 
 }
 
 impl fmt::Display for GameBoy {

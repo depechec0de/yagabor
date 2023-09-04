@@ -1,4 +1,4 @@
-use std::{time::{Duration, Instant}, io::Error, backtrace};
+use std::{time::{Duration, Instant}, io::Error, backtrace, rc::Rc};
 
 use crate::{gameboy::{gameboy::GameBoy, io::lcd::{Frame}}};
 
@@ -22,9 +22,9 @@ pub(crate) struct EmulationReport {
 }
 
 pub(crate) struct EmulationStep {
-    pub(crate) framebuffer: Frame,
-    pub(crate) tiledata: Frame,
-    pub(crate) background: Frame,
+    pub(crate) framebuffer: Rc<Frame>,
+    pub(crate) tiledata: Rc<Frame>,
+    pub(crate) background: Rc<Frame>,
 }
 
 impl Emulation {
@@ -64,6 +64,7 @@ impl Emulation {
         let framebuffer = self.gameboy.frame();
         let tiledata = self.gameboy.tiledata();
         let background = self.gameboy.background();
+
         Ok(EmulationStep { framebuffer, tiledata, background })  
     }
 }

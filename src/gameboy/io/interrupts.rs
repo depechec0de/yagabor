@@ -90,21 +90,21 @@ impl Interrupts {
 
     pub(crate) fn turnoff(gb: &mut GameBoy, interruption: Interruption) {
         match interruption {
-            Interruption::VBlank => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag &   0b11111110; },
-            Interruption::LCDStat => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag &  0b11111101; },
-            Interruption::Timer => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag &    0b11111011; },
-            Interruption::Serial => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag &   0b11110111; },            
-            Interruption::Joypad => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag &   0b11101111; },
+            Interruption::VBlank    => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag & 0b11111110; },
+            Interruption::LCDStat   => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag & 0b11111101; },
+            Interruption::Timer     => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag & 0b11111011; },
+            Interruption::Serial    => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag & 0b11110111; },            
+            Interruption::Joypad    => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag & 0b11101111; },
         };
     }
 
     pub(crate) fn turnon(gb: &mut GameBoy, interruption: Interruption) {
         match interruption {
-            Interruption::VBlank => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag |   0b00000001; },
-            Interruption::LCDStat => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag |  0b00000010; },
-            Interruption::Timer => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag |    0b00000100; },
-            Interruption::Serial => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag |   0b00001000; },            
-            Interruption::Joypad => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag |   0b00010000; },
+            Interruption::VBlank    => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag | 0b00000001; },
+            Interruption::LCDStat   => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag | 0b00000010; },
+            Interruption::Timer     => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag | 0b00000100; },
+            Interruption::Serial    => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag | 0b00001000; },            
+            Interruption::Joypad    => { gb.io.interrupts.interrupt_flag = gb.io.interrupts.interrupt_flag | 0b00010000; },
         };
     }
     

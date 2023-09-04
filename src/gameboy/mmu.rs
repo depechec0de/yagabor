@@ -86,7 +86,8 @@ impl MMU {
             VRAM_BEGIN ..= VRAM_END => PPU::read_byte(gb, address),
             EXTRAM_BEGIN ..= EXTRAM_END => MMU::read_eram(gb, address),
             WRAM_BEGIN ..= WRAM_END => MMU::read_wram(gb, address),
-            ERAM_BEGIN ..= ERAM_END => panic!("prohibited read 0x{:x} to echo ram", address),
+            // ERAM is mapped to WRAM, so we change its base
+            ERAM_BEGIN ..= ERAM_END => MMU::read_wram(gb, address-ERAM_BEGIN+WRAM_BEGIN),
             OAM_BEGIN ..= OAM_END => PPU::read_byte(gb, address),
             // https://gbdev.io/pandocs/Memory_Map.html#fea0-feff-range
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => 0xFF,
@@ -107,7 +108,8 @@ impl MMU {
             VRAM_BEGIN ..= VRAM_END => PPU::write_byte(gb, address, value),
             EXTRAM_BEGIN ..= EXTRAM_END => MMU::write_eram(gb, address, value),
             WRAM_BEGIN ..= WRAM_END => MMU::write_wram(gb, address, value),
-            ERAM_BEGIN ..= ERAM_END => panic!("prohibited write 0x{:x} to echo ram", address),
+            // ERAM is mapped to WRAM, so we change its base
+            ERAM_BEGIN ..= ERAM_END => MMU::write_wram(gb, address-ERAM_BEGIN+WRAM_BEGIN, value),
             OAM_BEGIN ..= OAM_END => PPU::write_byte(gb, address, value),
             NOTUSABLE_BEGIN ..= NOTUSABLE_END => {},
             IO_BEGIN ..= IO_END => IO::write_byte(gb, address, value),
