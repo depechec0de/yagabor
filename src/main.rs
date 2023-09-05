@@ -57,6 +57,8 @@ fn main() -> Result<(), Error> {
 
     emu.start();
 
+    let mut result_message: String = String::from("");
+
     'running: loop {
 
         for event in event_pump.poll_iter() {
@@ -64,7 +66,10 @@ fn main() -> Result<(), Error> {
                 Event::Quit {..} => break 'running,
                 Event::KeyDown { keycode, .. } => {
                     match keycode {
-                        Some(Keycode::Escape)   => break 'running,
+                        Some(Keycode::Escape)   => { 
+                            result_message = format!("User terminated emulation."); 
+                            break 'running 
+                        },
                         Some(Keycode::A)        => emu.gameboy.button_pressed(Button::A),
                         Some(Keycode::S)        => emu.gameboy.button_pressed(Button::B),
                         Some(Keycode::Return)   => emu.gameboy.button_pressed(Button::Start),
@@ -105,15 +110,12 @@ fn main() -> Result<(), Error> {
                     bgdebug.render(emustep.background);            
                 },
                 Err(error) => {
-                    break 'running println!("Emulation terminated in {} seconds,\
-                                            total executed cycles: {} with error {:?}", 
-                                            execution_time.as_secs_f32(), 
-                                            emu.total_cycles, 
-                                            error);
+                    result_message = format!("{:?}", error);
+                    break 'running
                 }
             }
 
-            std::thread::sleep(Duration::from_millis(1000/60));
+            std::thread::sleep(Duration::from_millis(10000/597));
 
             let elapsed = now.elapsed();
             execution_time += elapsed;
@@ -122,7 +124,7 @@ fn main() -> Result<(), Error> {
     
     }
 
-    println!("Emulation terminated normally in {} seconds, total executed cycles: {} and {} frames", execution_time.as_secs_f32() , emu.total_cycles, displayed_frames );
+    println!("Emulation terminated in {} seconds, total executed cycles: {} and {} frames. Reason: {}", execution_time.as_secs_f32() , emu.total_cycles, displayed_frames, result_message );
     
     Ok(())
 }
