@@ -1,8 +1,6 @@
-use std::rc::Rc;
-
 use sdl2::{VideoSubsystem, render::Canvas, video::{Window, WindowPos}, pixels::Color, rect::Point};
 
-use crate::gameboy::io::lcd::{ColoredPixel, Frame, SCREEN_WIDTH, SCREEN_HEIGHT};
+use crate::gameboy::io::lcd::{ColoredPixel, Frame};
 
 pub struct Screen {
     canvas: Canvas<Window>,
@@ -40,12 +38,12 @@ impl Screen {
         Screen { canvas, width, height }
     }
 
-    pub(crate) fn render(&mut self, frame: Rc<Frame>) {
+    pub(crate) fn render(&mut self, frame: Frame) {
         self.canvas.clear();
 
         for x in 0..self.width as usize {
             for y in 0..self.height as usize {
-                let pixel = frame[x + y * (self.width as usize)];
+                let pixel = frame.buffer[x + y * (self.width as usize)];
                 self.canvas.set_draw_color(Color::from(pixel));
                 let point = Point::new(x as i32, y as i32);
                 self.canvas.draw_point(point).unwrap();

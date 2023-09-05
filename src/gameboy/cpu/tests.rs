@@ -1,4 +1,8 @@
-use crate::gameboy::{cartridge::Cartridge, cpu::{cpu::CPU, instructions::{instructions::{Instruction}, decode::{InstructionType, RegistersIndDir, StackTarget, RegistersIndirect}}}, gameboy::GameBoy, mmu::MMU};
+#[cfg(test)]
+use std::path::PathBuf;
+
+#[cfg(test)]
+use crate::gameboy::{cartridge::Cartridge, cpu::instructions::decode::{Instruction, RegistersIndDir, StackTarget, RegistersIndirect}, gameboy::GameBoy, mmu::MMU};
 
 #[test]
 fn add_without_carry() {
@@ -9,7 +13,7 @@ fn add_without_carry() {
     gb.cpu.regs.b = 0b00000001;
 
     // ADD A, B
-    let inst = Instruction::new(InstructionType::ADD(RegistersIndDir::B), Some(0x0));
+    let inst = Instruction::ADD(RegistersIndDir::B);
 
     let _ = inst.execute(&mut gb);
 
@@ -29,7 +33,7 @@ fn add_with_half_carry() {
     gb.cpu.regs.b = 0b00000001;
 
     // ADD A, B
-    let inst = Instruction::new(InstructionType::ADD(RegistersIndDir::B), None);
+    let inst = Instruction::ADD(RegistersIndDir::B);
 
     let _ = inst.execute(&mut gb);
 
@@ -48,7 +52,7 @@ fn add_with_carry() {
     gb.cpu.regs.b = 0b1;
 
     // ADD A, B
-    let inst = Instruction::new(InstructionType::ADD(RegistersIndDir::B), None);
+    let inst = Instruction::ADD(RegistersIndDir::B);
 
     let _ = inst.execute(&mut gb);
 
@@ -69,7 +73,7 @@ fn adc_with_carry() {
     gb.cpu.regs.flags.carry = true;
 
     // ADC A, B
-    let inst = Instruction::new(InstructionType::ADC(RegistersIndDir::B), None);
+    let inst = Instruction::ADC(RegistersIndDir::B);
 
     let _ = inst.execute(&mut gb);
 
@@ -90,7 +94,7 @@ fn adc_with_half_carry() {
     gb.cpu.regs.flags.carry = true;
 
     // ADC A, B
-    let inst = Instruction::new(InstructionType::ADC(RegistersIndDir::B), None);
+    let inst = Instruction::ADC(RegistersIndDir::B);
 
     let _ = inst.execute(&mut gb);
 
@@ -110,7 +114,7 @@ fn sub_with_carry() {
     gb.cpu.regs.b = 0b10000000;
 
     // SUB B
-    let inst = Instruction::new(InstructionType::SUB(RegistersIndDir::B), None);
+    let inst = Instruction::SUB(RegistersIndDir::B);
 
     let _ = inst.execute(&mut gb);
 
@@ -130,7 +134,7 @@ fn sub_with_half_carry() {
     gb.cpu.regs.b = 0xF;
 
     // SUB B
-    let inst = Instruction::new(InstructionType::SUB(RegistersIndDir::B), None);
+    let inst = Instruction::SUB(RegistersIndDir::B);
 
     let _ = inst.execute(&mut gb);
 
@@ -152,7 +156,7 @@ fn sbc_with_carry() {
     gb.cpu.regs.flags.carry = true;
 
     // SBC B
-    let inst = Instruction::new(InstructionType::SBC(RegistersIndDir::B), None);
+    let inst = Instruction::SBC(RegistersIndDir::B);
 
     let _ = inst.execute(&mut gb);
 
@@ -172,7 +176,7 @@ fn sbc_with_half_carry() {
 
     gb.cpu.regs.flags.carry = true;
 
-    let inst = Instruction::new(InstructionType::SBC(RegistersIndDir::B), None);
+    let inst = Instruction::SBC(RegistersIndDir::B);
 
     let _ = inst.execute(&mut gb);
 
@@ -226,7 +230,7 @@ fn stack_push() {
 
     gb.cpu.regs.set_bc(test_value);
 
-    let inst = Instruction::new(InstructionType::PUSH(StackTarget::BC), None);
+    let inst = Instruction::PUSH(StackTarget::BC);
     let _ = inst.execute(&mut gb);
 
     assert_eq!(gb.cpu.sp, init_sp-2);
@@ -244,9 +248,9 @@ fn stack_push_pop() {
 
     gb.cpu.regs.set_bc(test_value);
 
-    let inst = Instruction::new(InstructionType::PUSH(StackTarget::BC), None);
+    let inst = Instruction::PUSH(StackTarget::BC);
     let _ = inst.execute(&mut gb);
-    let inst = Instruction::new(InstructionType::POP(StackTarget::HL), None);
+    let inst = Instruction::POP(StackTarget::HL);
     let _ = inst.execute(&mut gb);
 
     assert_eq!(gb.cpu.regs.get_hl(), gb.cpu.regs.get_bc());
@@ -262,7 +266,7 @@ fn rla() {
 
     gb.cpu.regs.flags.carry = true;
 
-    let inst = Instruction::new(InstructionType::RLA, None);
+    let inst = Instruction::RLA;
 
     let _ = inst.execute(&mut gb);
 
@@ -296,7 +300,7 @@ fn rlca() {
 
     gb.cpu.regs.flags.carry = false;
 
-    let inst = Instruction::new(InstructionType::RLCA, None);
+    let inst = Instruction::RLCA;
 
     let _ = inst.execute(&mut gb);
 
@@ -333,7 +337,7 @@ fn srl() {
     gb.cpu.regs.flags.half_carry = false;
     gb.cpu.regs.flags.subtract = false;
 
-    let inst = Instruction::new(InstructionType::SRL(RegistersIndirect::B), None);
+    let inst = Instruction::SRL(RegistersIndirect::B);
 
     let _ = inst.execute(&mut gb);
 
@@ -361,13 +365,14 @@ fn srl() {
 
 }
 
+#[cfg(test)]
 fn assert_serial_result(cartridge: Cartridge) {
     let mut gb: GameBoy = GameBoy::new(Some(cartridge));
     let mut serial = Vec::<char>::new();
     loop {
         match gb.tick() {
-            Ok(gbstep) => {
-                if let Some(data) = gbstep.output.serial {   
+            Ok(_) => {
+                if let Some(data) = gb.read_serial() {   
                     serial.push(data as char);
                     let result_str = serial.iter().cloned().collect::<String>();
                     if result_str.contains("Passed") {
@@ -388,67 +393,67 @@ fn assert_serial_result(cartridge: Cartridge) {
 
 #[test]
 fn cpu_instrs_01() {
-    let cartridge = Cartridge::cpu_instrs_01();    
+    let cartridge = Cartridge::new(PathBuf::from("assets/gb-test-roms/cpu_instrs/individual/01-special.gb")).unwrap();    
     assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_02() {
-    let cartridge = Cartridge::cpu_instrs_02();
+    let cartridge = Cartridge::new(PathBuf::from("assets/gb-test-roms/cpu_instrs/individual/02-interrupts.gb")).unwrap();
     assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_03() {
-    let cartridge = Cartridge::cpu_instrs_03();
+    let cartridge = Cartridge::new(PathBuf::from("assets/gb-test-roms/cpu_instrs/individual/03-op sp,hl.gb")).unwrap();
     assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_04() {
-    let cartridge = Cartridge::cpu_instrs_04();
+    let cartridge = Cartridge::new(PathBuf::from("assets/gb-test-roms/cpu_instrs/individual/04-op r,imm.gb")).unwrap();
     assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_05() {
-    let cartridge = Cartridge::cpu_instrs_05();
+    let cartridge = Cartridge::new(PathBuf::from("assets/gb-test-roms/cpu_instrs/individual/05-op rp.gb")).unwrap();
     assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_06() {
-    let cartridge = Cartridge::cpu_instrs_06();
+    let cartridge = Cartridge::new(PathBuf::from("assets/gb-test-roms/cpu_instrs/individual/06-ld r,r.gb")).unwrap();
     assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_07() {
-    let cartridge = Cartridge::cpu_instrs_07();
+    let cartridge = Cartridge::new(PathBuf::from("assets/gb-test-roms/cpu_instrs/individual/07-jr,jp,call,ret,rst.gb")).unwrap();
     assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_08() {
-    let cartridge = Cartridge::cpu_instrs_08();
+    let cartridge = Cartridge::new(PathBuf::from("assets/gb-test-roms/cpu_instrs/individual/08-misc instrs.gb")).unwrap();
     assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_09() {
-    let cartridge = Cartridge::cpu_instrs_09();
+    let cartridge = Cartridge::new(PathBuf::from("assets/gb-test-roms/cpu_instrs/individual/09-op r,r.gb")).unwrap();
     assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_10() {
-    let cartridge = Cartridge::cpu_instrs_10();
+    let cartridge = Cartridge::new(PathBuf::from("assets/gb-test-roms/cpu_instrs/individual/10-bit ops.gb")).unwrap();
     assert_serial_result(cartridge);
 }
 
 #[test]
 fn cpu_instrs_11() {
-    let cartridge = Cartridge::cpu_instrs_11();
+    let cartridge = Cartridge::new(PathBuf::from("assets/gb-test-roms/cpu_instrs/individual/11-op a,(hl).gb")).unwrap();
     assert_serial_result(cartridge);
 }
 

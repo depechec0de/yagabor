@@ -1,8 +1,4 @@
-use core::fmt;
-
-use pretty_hex::*;
-
-use crate::gameboy::{mmu::{Address, IO_SIZE, IO_BEGIN, IO_END, MMU}, cpu::cpu::ClockCycles, gameboy::GameBoy};
+use crate::gameboy::{mmu::{Address, IO_SIZE, IO_BEGIN, MMU}, gameboy::GameBoy};
 
 use super::{interrupts::{Interruption, Interrupts}, lcd::LCD, timers::Timers, joypad::Joypad};
 

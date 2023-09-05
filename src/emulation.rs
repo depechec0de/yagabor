@@ -1,6 +1,6 @@
-use std::{time::{Duration, Instant}, io::Error, backtrace, rc::Rc};
+use std::io::Error;
 
-use crate::{gameboy::{gameboy::GameBoy, io::lcd::{Frame}}};
+use crate::gameboy::{gameboy::GameBoy, io::lcd::Frame};
 
 pub const CPU_CLOCK_HZ: usize = 4_194_304;
 pub const FPS: f32 = 59.7;
@@ -10,30 +10,21 @@ pub const CPU_CYCLES_PER_FRAME: usize = (CPU_CLOCK_HZ as f32 / FPS) as usize;
 pub struct Emulation {
     pub(crate) gameboy: GameBoy,
     pub(crate) running: bool,
-    pub(crate) total_cycles: u64,
-    debug: bool
-}
-
-#[derive(Debug)]
-pub(crate) struct EmulationReport {
-    pub(crate) execution_time: Duration,
-    pub(crate) total_cycles: u64,
-    pub(crate) result: Result<(), Error>,
+    pub(crate) total_cycles: u64
 }
 
 pub(crate) struct EmulationStep {
-    pub(crate) framebuffer: Rc<Frame>,
-    pub(crate) tiledata: Rc<Frame>,
-    pub(crate) background: Rc<Frame>,
+    pub(crate) framebuffer: Frame,
+    pub(crate) tiledata: Frame,
+    pub(crate) background: Frame,
 }
 
 impl Emulation {
-    pub(crate) fn new(gameboy: GameBoy, debug: bool) -> Self {
+    pub(crate) fn new(gameboy: GameBoy) -> Self {
         Emulation { 
             gameboy,
             running: false,
-            total_cycles: 0,
-            debug
+            total_cycles: 0
         }
     }
 
@@ -49,8 +40,8 @@ impl Emulation {
             let gb_step_res = self.gameboy.tick();
 
             match gb_step_res {
-                Ok(gb_step) => {
-                    let executed_cycles = u64::from(gb_step.cycles);
+                Ok(cycles) => {
+                    let executed_cycles = u64::from(cycles);
                     frame_cycles += executed_cycles as usize;
                     self.total_cycles += executed_cycles;
                     

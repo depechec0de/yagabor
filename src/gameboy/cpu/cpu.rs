@@ -1,14 +1,13 @@
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 
 use crate::gameboy::gameboy::GameBoy;
-use crate::gameboy::io::interrupts::{Interruption, Interrupts};
+use crate::gameboy::io::interrupts::Interrupts;
 use crate::gameboy::io::io::{SERIAL_CONTROL_ADDRESS, SERIAL_DATA_ADDRESS, SerialTransferMode};
 use crate::gameboy::io::timers::Timers;
-use crate::gameboy::{mmu::{MMU, Address}, io::io::{INTERRUPT_FLAG_ADDRESS}};
+use crate::gameboy::mmu::{MMU, Address};
 
-use super::instructions::decode::{InstructionType, InstructionSize};
-use super::instructions::instructions::{Instruction};
-use super::{registers::Registers};
+use super::instructions::decode::Instruction;
+use super::registers::Registers;
 
 pub(crate) type ProgramCounter = Address;
 pub(crate) type StackPointer = Address;
@@ -55,7 +54,6 @@ impl CPU {
     pub(super) fn fetch_decode(gb: &GameBoy) -> Result<Instruction, Error> {
         let instruction_byte = MMU::read_byte(gb, gb.cpu.pc);
         let byte0 = MMU::read_byte(gb, gb.cpu.pc+1);
-        let byte1 = MMU::read_byte(gb, gb.cpu.pc+2);
 
         let prefixed = instruction_byte == 0xCB;
         let mut instruction_byte = instruction_byte;
@@ -63,25 +61,11 @@ impl CPU {
             instruction_byte = byte0;
         }
 
-        let inst_type: Option<InstructionType>;
-
         if prefixed {
-            inst_type = InstructionType::from_byte_prefixed(instruction_byte)
+            Instruction::from_byte_prefixed(instruction_byte)
         } else {
-            inst_type = InstructionType::from_byte_not_prefixed(instruction_byte)
-        }
-
-        if let Some(op) = inst_type {
-            let payload = match op.size() {
-                InstructionSize::OneByte => None,
-                InstructionSize::TwoBytes => Some(byte0 as u16),
-                InstructionSize::ThreeBytes => Some(((byte0 as u16) << 8) | byte1 as u16),
-            };
-
-            Ok(Instruction::new(op, payload))
-        }else{
-            Err(Error::new(ErrorKind::Other, format!("Unkown instruction {:x} {:x} found", instruction_byte, byte0)))
-        }        
+            Instruction::from_byte_not_prefixed(instruction_byte)
+        }      
     }
 
     pub(crate) fn send_serial(gb: &mut GameBoy) -> Option<u8> {
@@ -131,13 +115,12 @@ impl CPU {
 // We use machine cycles for reference, but in the translation we multiply by 4
 #[derive(Debug, Clone)]
 pub(crate) enum MachineCycles {
-    Zero, One, Two, Three, Four, Five, Six
+    One, Two, Three, Four, Five, Six
 }
 
 impl std::convert::From<MachineCycles> for u8  {
     fn from(cycles: MachineCycles) -> u8 {
         let machine_cycles = match cycles {
-            MachineCycles::Zero => 0,
             MachineCycles::One => 1,
             MachineCycles::Two => 2,
             MachineCycles::Three => 3,

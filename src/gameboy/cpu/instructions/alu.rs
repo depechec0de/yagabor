@@ -1,8 +1,8 @@
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 
-use crate::gameboy::{cpu::cpu::{CPU, ProgramCounter, MachineCycles}, gameboy::GameBoy, mmu::MMU};
+use crate::gameboy::{cpu::cpu::MachineCycles, gameboy::GameBoy, mmu::MMU};
 
-use super::{instructions::{Instruction}, decode::{RegistersIndDir, WordRegister, RegistersIndirect, BitType, RotateDirection, BitTarget, ResSetType}};
+use super::decode::{RegistersIndDir, WordRegister, RegistersIndirect, BitType, RotateDirection, BitTarget, ResSetType, Instruction};
 
 impl Instruction {
 
@@ -18,7 +18,7 @@ impl Instruction {
         // than the addition caused a carry from the lower nibble to the upper nibble.
         gb.cpu.regs.flags.half_carry = (gb.cpu.regs.a & 0xF).wrapping_add(value & 0xF) > 0xF;
         gb.cpu.regs.a = new_value;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         match target {
             RegistersIndDir::HLI => Ok(MachineCycles::Two),
             RegistersIndDir::D8 => Ok(MachineCycles::Two),
@@ -36,7 +36,7 @@ impl Instruction {
         gb.cpu.regs.flags.carry = (gb.cpu.sp & 0xFF).wrapping_add(value & 0xFF) > 0xFF;
         gb.cpu.regs.flags.half_carry = (gb.cpu.sp & 0xF).wrapping_add(value & 0xF) > 0xF; 
         gb.cpu.sp = new_value;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::Four)
     }
 
@@ -54,7 +54,7 @@ impl Instruction {
         // This works for 16 bit
         gb.cpu.regs.flags.half_carry = (gb.cpu.regs.get_hl() & 0xfff).wrapping_add(value & 0xfff) > 0xfff; 
         gb.cpu.regs.set_hl(new_value);
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::Two)
     }
 
@@ -69,7 +69,7 @@ impl Instruction {
         gb.cpu.regs.flags.half_carry = ((gb.cpu.regs.a & 0xF) + (value & 0xF) > 0xF) || ((new_value1 & 0xF) + (gb.cpu.regs.flags.carry as u8) > 0xF);
         gb.cpu.regs.flags.carry = did_overflow1 || did_overflow2;      
         gb.cpu.regs.a = new_value2;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
 
         match target {
             RegistersIndDir::HLI => Ok(MachineCycles::Two),
@@ -88,7 +88,7 @@ impl Instruction {
         let (new_value_low, _) = (gb.cpu.regs.a & 0xF).overflowing_sub(value & 0xF);
         gb.cpu.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
         gb.cpu.regs.a = new_value;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
 
         match target {
             RegistersIndDir::HLI => Ok(MachineCycles::Two),
@@ -113,7 +113,7 @@ impl Instruction {
         gb.cpu.regs.flags.carry = did_overflow1 || did_overflow2;
         
         gb.cpu.regs.a = new_value2;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
 
         match target {
             RegistersIndDir::HLI => Ok(MachineCycles::Two),
@@ -130,7 +130,7 @@ impl Instruction {
         gb.cpu.regs.flags.subtract = false;
         gb.cpu.regs.flags.half_carry = true;
         gb.cpu.regs.flags.carry = false;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
 
         match target {
             RegistersIndDir::HLI => Ok(MachineCycles::Two),
@@ -147,7 +147,7 @@ impl Instruction {
         gb.cpu.regs.flags.subtract = false;
         gb.cpu.regs.flags.half_carry = false;
         gb.cpu.regs.flags.carry = false;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
 
         match target {
             RegistersIndDir::HLI => Ok(MachineCycles::Two),
@@ -164,7 +164,7 @@ impl Instruction {
         gb.cpu.regs.flags.subtract = false;
         gb.cpu.regs.flags.half_carry = false;
         gb.cpu.regs.flags.carry = false;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
 
         match target {
             RegistersIndDir::HLI => Ok(MachineCycles::Two),
@@ -182,7 +182,7 @@ impl Instruction {
         let (new_value_low, _) = (gb.cpu.regs.a & 0xF).overflowing_sub(value & 0xF);
         gb.cpu.regs.flags.half_carry = (new_value_low & 0x10) == 0x10;
         gb.cpu.regs.flags.carry = did_overflow;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
 
         match target {
             RegistersIndDir::HLI => Ok(MachineCycles::Two),
@@ -239,7 +239,7 @@ impl Instruction {
             }
         };
   
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
 
         match target {
             RegistersIndirect::HLI => Ok(MachineCycles::Three),
@@ -295,7 +295,7 @@ impl Instruction {
             }
         };
   
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
 
         match target {
             RegistersIndirect::HLI => Ok(MachineCycles::Three),
@@ -310,7 +310,7 @@ impl Instruction {
             WordRegister::HL => gb.cpu.regs.set_hl(gb.cpu.regs.get_hl().wrapping_add(1)),
             WordRegister::SP => gb.cpu.sp = gb.cpu.sp.wrapping_add(1),
         };
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::Two)
     }
 
@@ -321,7 +321,7 @@ impl Instruction {
             WordRegister::HL => gb.cpu.regs.set_hl(gb.cpu.regs.get_hl().wrapping_sub(1)),
             WordRegister::SP => gb.cpu.sp = gb.cpu.sp.wrapping_sub(1),
         };
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::Two)
     }
 
@@ -337,7 +337,7 @@ impl Instruction {
         gb.cpu.regs.flags.zero = !bit_value;
         gb.cpu.regs.flags.subtract = false;
         gb.cpu.regs.flags.half_carry = true;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
 
         match source {
             RegistersIndirect::HLI => Ok(MachineCycles::Three),
@@ -350,28 +350,28 @@ impl Instruction {
     pub(super) fn rla(&self, gb: &mut GameBoy) -> Result<MachineCycles, Error> {
         bitwise_rotate(gb, &RegistersIndirect::A, RotateDirection::Left, false);
         gb.cpu.regs.flags.zero = false;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::One)
     }
 
     pub(super) fn rlca(&self, gb: &mut GameBoy) -> Result<MachineCycles, Error> {
         bitwise_rotate(gb, &RegistersIndirect::A, RotateDirection::Left, true);
         gb.cpu.regs.flags.zero = false;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::One)
     }
 
     pub(super) fn rra(&self, gb: &mut GameBoy) -> Result<MachineCycles, Error> {
         bitwise_rotate(gb, &RegistersIndirect::A, RotateDirection::Right, false);
         gb.cpu.regs.flags.zero = false;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::One)
     }
 
     pub(super) fn rrca(&self, gb: &mut GameBoy) -> Result<MachineCycles, Error> {
         bitwise_rotate(gb, &RegistersIndirect::A, RotateDirection::Right, true);
         gb.cpu.regs.flags.zero = false;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::One)
     }
 
@@ -379,7 +379,7 @@ impl Instruction {
         bitwise_rotate(gb, &target, RotateDirection::Left, true);
         res_set(gb, ResSetType::Registers(BitTarget::Zero, target.clone()), false);
         set_flag_zero(gb, &target);
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         
         match target {
             RegistersIndirect::HLI => Ok(MachineCycles::Four),
@@ -394,7 +394,7 @@ impl Instruction {
         bitwise_rotate(gb, &target, RotateDirection::Right, true);
         res_set(gb, ResSetType::Registers(BitTarget::Seven, target.clone()), bit7);
         set_flag_zero(gb, &target);
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
 
         match target {
             RegistersIndirect::HLI => Ok(MachineCycles::Four),
@@ -406,7 +406,7 @@ impl Instruction {
         bitwise_rotate(gb, &target, RotateDirection::Right, true);
         res_set(gb, ResSetType::Registers(BitTarget::Seven, target.clone()), false);
         set_flag_zero(gb, &target);
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         
         match target {
             RegistersIndirect::HLI => Ok(MachineCycles::Four),
@@ -417,7 +417,7 @@ impl Instruction {
     pub(super) fn rr(&self, gb: &mut GameBoy, target: RegistersIndirect) -> Result<MachineCycles, Error> {
         bitwise_rotate(gb, &target, RotateDirection::Right, false);
         set_flag_zero(gb, &target);
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         
         match target {
             RegistersIndirect::HLI => Ok(MachineCycles::Four),
@@ -428,7 +428,7 @@ impl Instruction {
     pub(super) fn rrc(&self, gb: &mut GameBoy, target: RegistersIndirect) -> Result<MachineCycles, Error> {
         bitwise_rotate(gb, &target, RotateDirection::Right, true);
         set_flag_zero(gb, &target);
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
 
         match target {
             RegistersIndirect::HLI => Ok(MachineCycles::Four),
@@ -439,7 +439,7 @@ impl Instruction {
     pub(super) fn rl(&self, gb: &mut GameBoy, target: RegistersIndirect) -> Result<MachineCycles, Error> {
         bitwise_rotate(gb, &target, RotateDirection::Left, false);
         set_flag_zero(gb, &target);
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
 
         match target {
             RegistersIndirect::HLI => Ok(MachineCycles::Four),
@@ -450,7 +450,7 @@ impl Instruction {
     pub(super) fn rlc(&self, gb: &mut GameBoy, target: RegistersIndirect) -> Result<MachineCycles, Error> {
         bitwise_rotate(gb, &target, RotateDirection::Left, true);
         set_flag_zero(gb, &target);
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
 
         match target {
             RegistersIndirect::HLI => Ok(MachineCycles::Four),
@@ -483,17 +483,17 @@ impl Instruction {
         gb.cpu.regs.flags.half_carry = false;
         gb.cpu.regs.flags.carry = false;
         set_flag_zero(gb, &target);
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::Two)
     }
 
     pub(super) fn res(&self, gb: &mut GameBoy, target: ResSetType) -> Result<MachineCycles, Error> {
 
-        let ResSetType::Registers(bt, register) = target.clone();
+        let ResSetType::Registers(_, register) = target.clone();
 
         res_set(gb, target, false);
         
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         
         match register {
             RegistersIndirect::HLI => Ok(MachineCycles::Four),
@@ -503,11 +503,11 @@ impl Instruction {
 
     pub(super) fn set(&self, gb: &mut GameBoy, target: ResSetType) -> Result<MachineCycles, Error> {
 
-        let ResSetType::Registers(bt, register) = target.clone();
+        let ResSetType::Registers(_, register) = target.clone();
 
         res_set(gb, target, true);
         
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         
         match register {
             RegistersIndirect::HLI => Ok(MachineCycles::Four),

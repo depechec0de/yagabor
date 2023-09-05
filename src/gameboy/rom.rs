@@ -1,4 +1,4 @@
-use std::{path::PathBuf, fmt};
+use std::fmt;
 
 use pretty_hex::*;
 
@@ -12,10 +12,6 @@ pub(crate) struct ROM {
 }
 
 impl ROM {
-    pub fn empty() -> ROM {
-        ROM { data: [0; BOOT_SIZE] }
-    }
-
     pub fn new(buffer: Vec<u8>) -> ROM {
         let mut d = [0; BOOT_SIZE];
 
@@ -29,21 +25,11 @@ impl ROM {
         ROM { data: d }
     }
 
-    pub fn from_file(file: PathBuf) -> Result<ROM, std::io::Error> {
-        let buffer = std::fs::read(file)?;
-
-        Ok(ROM::new(buffer))
-    }
-
     pub fn dmg() -> ROM {
         let data = include_bytes!("../../assets/dmgrom.bin");
         let buffer = data.to_vec();
 
         ROM::new(buffer)
-    }
-
-    pub fn size(&self) -> u16 {
-        self.data.len() as u16
     }
 
     pub fn read_byte(&self, address: u16) -> u8 {

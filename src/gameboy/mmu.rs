@@ -1,7 +1,3 @@
-use std::fmt;
-
-use pretty_hex::*;
-
 use crate::gameboy::{ppu::*, rom::*, cartridge::Cartridge};
 
 use super::{io::{io::IO, interrupts::Interrupts}, gameboy::GameBoy};
@@ -10,11 +6,11 @@ pub(crate) type Address = u16;
 
 pub(crate) const GAMEROM_0_BEGIN: Address = 0x0000;
 pub(crate) const GAMEROM_0_END: Address = 0x3FFF;
-pub(crate) const GAMEROM_0_SIZE: usize = (GAMEROM_0_END - GAMEROM_0_BEGIN + 1) as usize;
+//pub(crate) const GAMEROM_0_SIZE: usize = (GAMEROM_0_END - GAMEROM_0_BEGIN + 1) as usize;
 
 pub(crate) const GAMEROM_N_BEGIN: Address = 0x4000;
 pub(crate) const GAMEROM_N_END: Address = 0x7FFF;
-pub(crate) const GAMEROM_N_SIZE: usize = (GAMEROM_N_END - GAMEROM_N_BEGIN + 1) as usize;
+//pub(crate) const GAMEROM_N_SIZE: usize = (GAMEROM_N_END - GAMEROM_N_BEGIN + 1) as usize;
 
 pub(crate) const VRAM_BEGIN: Address = 0x8000;
 pub(crate) const VRAM_END: Address = 0x9FFF;

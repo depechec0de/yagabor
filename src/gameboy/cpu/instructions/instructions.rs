@@ -1,78 +1,65 @@
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 
 use crate::gameboy::{cpu::cpu::{MachineCycles, CPU}, mmu::MMU, gameboy::GameBoy, io::interrupts::Interrupts};
 
-use super::{alu::*, decode::{InstructionType, JumpTest, BitTarget, LoadType, RegistersIndDir, RegistersIndirect, WordRegister, LoadIndirectSource, LoadFFType, StackTarget, InstructionSize}};
-
-#[derive(Debug, Clone)]
-pub(crate) struct Instruction {
-    pub(crate) op: InstructionType,
-    pub(crate) size: InstructionSize,
-    pub(crate) payload: Option<u16>
-}
+use super::decode::*;
 
 impl Instruction {
 
-    pub(crate) fn new(op: InstructionType, payload: Option<u16>) -> Instruction {
-        let size = op.size();
-
-        Instruction { op, size, payload: payload }
-    }
-
     pub(crate) fn execute(&self, gb: &mut GameBoy) -> Result<MachineCycles, Error> {
-        match self.op.clone() {
-            InstructionType::CALL(test) => self.call(gb, test),
-            InstructionType::RET(test) => self.ret(gb, test),
-            InstructionType::JP(test) => self.jump(gb, test),
-            InstructionType::JR(test) => self.jump_relative(gb, test),
-            InstructionType::JPHL => self.jump_hl(gb),
-            InstructionType::NOP => self.nop(gb),
-            InstructionType::HALT => self.halt(gb),
-            InstructionType::SCF => self.scf(gb),
-            InstructionType::CCF => self.ccf(gb),
-            InstructionType::CPL => self.cpl(gb),
-            InstructionType::ADD(target) => self.add(gb, target),
-            InstructionType::ADC(target) => self.adc(gb, target),
-            InstructionType::INC(target) => self.inc(gb, target),
-            InstructionType::DEC(target) => self.dec(gb, target),
-            InstructionType::ADD16(target) => self.add16(gb, target),
-            InstructionType::INC16(target) => self.inc16(gb, target),
-            InstructionType::DEC16(target) => self.dec16(gb, target),
-            InstructionType::ADDSPS8 => self.addsps8(gb),
-            InstructionType::SUB(target) => self.sub(gb, target),
-            InstructionType::SBC(target) => self.sbc(gb, target),
-            InstructionType::AND(target) => self.and(gb, target),
-            InstructionType::XOR(target) => self.xor(gb, target),
-            InstructionType::OR(target) => self.or(gb, target),
-            InstructionType::CP(target) => self.cp(gb, target),
-            InstructionType::LD(load_type) => self.load(gb, load_type),
-            InstructionType::LDHLSPD8 => self.ldhlspd8(gb),
-            InstructionType::LDSPHL => self.ldsphl(gb),
-            InstructionType::LDSPA16 => self.ldspa16(gb),
-            InstructionType::LDFF(load_type) => self.ldff(gb, load_type),
-            InstructionType::PUSH(target) => self.push(gb, target),
-            InstructionType::POP(target) => self.pop(gb, target),
-            InstructionType::RST(target) => self.rst(gb, target),
-            InstructionType::BIT(bit_type) => self.bit(gb, bit_type),
-            InstructionType::RETI => self.reti(gb),
-            InstructionType::DAA => self.daa(gb),
-            InstructionType::RL(target) => self.rl(gb, target),
-            InstructionType::RLC(target) => self.rlc(gb, target),
-            InstructionType::RR(target) => self.rr(gb, target),
-            InstructionType::RRC(target) => self.rrc(gb, target),
-            InstructionType::RLA => self.rla(gb),
-            InstructionType::RLCA => self.rlca(gb),
-            InstructionType::RRA => self.rra(gb),
-            InstructionType::RRCA => self.rrca(gb),
-            InstructionType::SRA(target) => self.sra(gb, target),
-            InstructionType::SLA(target) => self.sla(gb, target),
-            InstructionType::SRL(target) => self.srl(gb, target),
-            InstructionType::SWAP(target) => self.swap(gb, target),
-            InstructionType::EI => self.ei(gb),
-            InstructionType::DI => self.di(gb),
-            InstructionType::RES(target) => self.res(gb, target),
-            InstructionType::SET(target) => self.set(gb, target),
-            InstructionType::STOP => panic!("STOP instruction"),
+        match self.clone() {
+            Instruction::CALL(test)             => self.call(gb, test),
+            Instruction::RET(test)              => self.ret(gb, test),
+            Instruction::JP(test)               => self.jump(gb, test),
+            Instruction::JR(test)               => self.jump_relative(gb, test),
+            Instruction::JPHL                             => self.jump_hl(gb),
+            Instruction::NOP                              => self.nop(gb),
+            Instruction::HALT                             => self.halt(gb),
+            Instruction::SCF                              => self.scf(gb),
+            Instruction::CCF                              => self.ccf(gb),
+            Instruction::CPL                              => self.cpl(gb),
+            Instruction::ADD(target)     => self.add(gb, target),
+            Instruction::ADC(target)     => self.adc(gb, target),
+            Instruction::INC(target)   => self.inc(gb, target),
+            Instruction::DEC(target)   => self.dec(gb, target),
+            Instruction::ADD16(target)      => self.add16(gb, target),
+            Instruction::INC16(target)      => self.inc16(gb, target),
+            Instruction::DEC16(target)      => self.dec16(gb, target),
+            Instruction::ADDSPS8                          => self.addsps8(gb),
+            Instruction::SUB(target)     => self.sub(gb, target),
+            Instruction::SBC(target)     => self.sbc(gb, target),
+            Instruction::AND(target)     => self.and(gb, target),
+            Instruction::XOR(target)     => self.xor(gb, target),
+            Instruction::OR(target)      => self.or(gb, target),
+            Instruction::CP(target)      => self.cp(gb, target),
+            Instruction::LD(load_type)          => self.load(gb, load_type),
+            Instruction::LDHLSPD8                         => self.ldhlspd8(gb),
+            Instruction::LDSPHL                           => self.ldsphl(gb),
+            Instruction::LDSPA16                          => self.ldspa16(gb),
+            Instruction::LDFF(load_type)      => self.ldff(gb, load_type),
+            Instruction::PUSH(target)        => self.push(gb, target),
+            Instruction::POP(target)         => self.pop(gb, target),
+            Instruction::RST(target)           => self.rst(gb, target),
+            Instruction::BIT(bit_type)           => self.bit(gb, bit_type),
+            Instruction::RETI                             => self.reti(gb),
+            Instruction::DAA                              => self.daa(gb),
+            Instruction::RL(target)    => self.rl(gb, target),
+            Instruction::RLC(target)   => self.rlc(gb, target),
+            Instruction::RR(target)    => self.rr(gb, target),
+            Instruction::RRC(target)   => self.rrc(gb, target),
+            Instruction::RLA                              => self.rla(gb),
+            Instruction::RLCA                             => self.rlca(gb),
+            Instruction::RRA                              => self.rra(gb),
+            Instruction::RRCA                             => self.rrca(gb),
+            Instruction::SRA(target)   => self.sra(gb, target),
+            Instruction::SLA(target)   => self.sla(gb, target),
+            Instruction::SRL(target)   => self.srl(gb, target),
+            Instruction::SWAP(target)  => self.swap(gb, target),
+            Instruction::EI                               => self.ei(gb),
+            Instruction::DI                               => self.di(gb),
+            Instruction::RES(target)          => self.res(gb, target),
+            Instruction::SET(target)          => self.set(gb, target),
+            Instruction::STOP                             => self.nop(gb),
         }
     }    
 
@@ -88,7 +75,7 @@ impl Instruction {
     
             Ok(MachineCycles::Four)
         } else {
-            gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+            gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
             Ok(MachineCycles::Three)
         }
     }
@@ -102,7 +89,7 @@ impl Instruction {
     
             Ok(MachineCycles::Three)
         } else {
-            gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+            gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
             Ok(MachineCycles::Two) 
         }
     }
@@ -113,19 +100,19 @@ impl Instruction {
     }   
         
     fn nop(&self, gb: &mut GameBoy) -> Result<MachineCycles, Error> {
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::One)
     }
     
     fn ei(&self, gb: &mut GameBoy ) -> Result<MachineCycles, Error> {
         gb.cpu.ime = true;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::One)
     }
     
     fn di(&self, gb: &mut GameBoy ) -> Result<MachineCycles, Error> {
         gb.cpu.ime = false;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::One)
     }
     
@@ -133,7 +120,7 @@ impl Instruction {
         gb.cpu.regs.flags.carry = true;
         gb.cpu.regs.flags.subtract = false;
         gb.cpu.regs.flags.half_carry = false;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::One)
     }
     
@@ -141,7 +128,7 @@ impl Instruction {
         gb.cpu.regs.a = !gb.cpu.regs.a; 
         gb.cpu.regs.flags.subtract = true;
         gb.cpu.regs.flags.half_carry = true;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::One)
     }
     
@@ -149,7 +136,7 @@ impl Instruction {
         gb.cpu.regs.flags.carry = !gb.cpu.regs.flags.carry;
         gb.cpu.regs.flags.subtract = false;
         gb.cpu.regs.flags.half_carry = false;
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::One)
     }
     
@@ -174,7 +161,7 @@ impl Instruction {
         // these flags are always updated
         gb.cpu.regs.flags.zero = gb.cpu.regs.a == 0; // the usual z flag
         gb.cpu.regs.flags.half_carry = false; // h flag is always cleared
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::One)
     }
     
@@ -183,12 +170,12 @@ impl Instruction {
 
         if should_jump {
             let jump_addr = MMU::read_next_word(gb, gb.cpu.pc);
-            gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+            gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
             CPU::push_stack(gb, gb.cpu.pc);
             gb.cpu.pc = jump_addr;
             Ok(MachineCycles::Six)
         } else {
-            gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+            gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
             Ok(MachineCycles::Three)
         }
     }
@@ -199,7 +186,7 @@ impl Instruction {
             gb.cpu.pc = CPU::pop_stack(gb, );
             Ok(MachineCycles::Five) 
         } else {
-            gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+            gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
             Ok(MachineCycles::Two) 
         }
     }
@@ -211,7 +198,7 @@ impl Instruction {
     }
     
     fn rst(&self, gb: &mut GameBoy , target: BitTarget) -> Result<MachineCycles, Error> {
-        CPU::push_stack(gb, gb.cpu.pc.wrapping_add(u16::from(self.op.size())));
+        CPU::push_stack(gb, gb.cpu.pc.wrapping_add(u16::from(self.size())));
     
         let address: u16 = match target {
             BitTarget::Zero => 0x0000,
@@ -238,13 +225,13 @@ impl Instruction {
         gb.cpu.regs.flags.half_carry = (gb.cpu.sp & 0xF) + (value as u16 & 0xF) > 0xF;
     
         gb.cpu.regs.set_hl(new_value);
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::Three)        
     }
     
     fn ldsphl(&self, gb: &mut GameBoy ) -> Result<MachineCycles, Error> {
         gb.cpu.sp = gb.cpu.regs.get_hl();
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::Two) 
     }
     
@@ -256,7 +243,7 @@ impl Instruction {
 
         MMU::write_byte(gb, address, lsb);
         MMU::write_byte(gb, address.wrapping_add(1), msb);
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::Five) 
     }
     
@@ -360,7 +347,7 @@ impl Instruction {
             }
         }
 
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
     
         // Result
         match load_type {
@@ -380,25 +367,25 @@ impl Instruction {
             LoadFFType::AtoFFC => { 
                 let addr: u16 = 0xFF00 + gb.cpu.regs.c as u16;       
                 MMU::write_byte(gb, addr, gb.cpu.regs.a);
-                gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+                gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
                 Ok(MachineCycles::Two) 
             },
             LoadFFType::FFCtoA => {
                 let addr: u16 = 0xFF00 + gb.cpu.regs.c as u16;        
                 gb.cpu.regs.a = MMU::read_byte(gb, addr);
-                gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+                gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
                 Ok(MachineCycles::Two) 
             },
             LoadFFType::AtoFFa8 => {
                 let addr: u16 = 0xFF00 + MMU::read_next_byte(gb, gb.cpu.pc) as u16;        
                 MMU::write_byte(gb, addr, gb.cpu.regs.a);
-                gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+                gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
                 Ok(MachineCycles::Three)
             },
             LoadFFType::FFa8toA => {
                 let addr: u16 = 0xFF00 + MMU::read_next_byte(gb, gb.cpu.pc) as u16;        
                 gb.cpu.regs.a = MMU::read_byte(gb, addr);
-                gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+                gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
                 Ok(MachineCycles::Three)
             }
         }
@@ -412,7 +399,7 @@ impl Instruction {
             StackTarget::AF => gb.cpu.regs.get_af(),
         };
         CPU::push_stack(gb, value);
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::Four)
     }
     
@@ -424,7 +411,7 @@ impl Instruction {
             StackTarget::HL => gb.cpu.regs.set_hl(result),
             StackTarget::AF => gb.cpu.regs.set_af(result),
         };
-        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+        gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         Ok(MachineCycles::Three)
     }
     
@@ -434,11 +421,11 @@ impl Instruction {
                 // Halt bug, no PC increment
             }else{
                 // We ignore the halting
-                gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+                gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
             }
         }else{
             gb.cpu.is_halted = true;
-            gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.op.size()));
+            gb.cpu.pc = gb.cpu.pc.wrapping_add(u16::from(self.size()));
         }
         
         Ok(MachineCycles::One)

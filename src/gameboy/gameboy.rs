@@ -1,6 +1,5 @@
-use std::io::{Error, ErrorKind};
+use std::io::Error;
 use std::fmt;
-use std::rc::Rc;
 
 use super::cartridge::Cartridge;
 use super::cpu::cpu::{CPU, ClockCycles};
@@ -16,15 +15,7 @@ pub(crate) struct GameBoy {
     pub(crate) mmu: MMU,
     pub(crate) ppu: PPU,
     pub(crate) io: IO,
-    pub(crate) cartridge: Option<Cartridge>
-}
-
-pub(crate) struct GBStep {
-    pub(crate) cycles: ClockCycles,
-    pub(crate) output: GBOutput
-}
-
-pub(crate) struct GBOutput {
+    pub(crate) cartridge: Option<Cartridge>,
     pub(crate) serial: Option<u8>
 }
 
@@ -35,11 +26,10 @@ impl GameBoy {
         let cpu = CPU::new();
         let ppu = PPU::new();
 
-        GameBoy { cpu, mmu, ppu, io, cartridge }
+        GameBoy { cpu, mmu, ppu, io, cartridge, serial: None }
     }
     
-    pub(crate) fn tick(&mut self) -> Result<GBStep, Error> {
-        let mut output = GBOutput{ serial: None };
+    pub(crate) fn tick(&mut self) -> Result<ClockCycles, Error> {
         let cycles = CPU::step(self)? as ClockCycles;
 
         // if self.cpu.pc == 0x100 {
@@ -47,35 +37,39 @@ impl GameBoy {
         // }
         
         if let Some(data) = CPU::send_serial(self){
-            output.serial = Some(data);
+            self.serial = Some(data);
             IO::ack_sent_serial(self);
+        }else{
+            self.serial = None;
         }
 
         LCD::tick(self, cycles);
 
-        Ok(GBStep{cycles,output})
+        Ok(cycles)
     }
 
-    pub(crate) fn frame(&mut self) -> Rc<Frame> {
+    pub(crate) fn read_serial(&self) -> Option<u8> {
+        self.serial
+    }
+
+    pub(crate) fn frame(&self) -> Frame {
         LCD::screen_buffer(self)
     }
 
-    pub(crate) fn tiledata(&mut self) -> Rc<Frame> {
+    pub(crate) fn tiledata(&self) -> Frame {
         LCD::tiledata_buffer(self)
     }
 
-    pub(crate) fn background(&mut self) -> Rc<Frame> {
+    pub(crate) fn background(&self) -> Frame {
         LCD::background_buffer(self)
     }
 
     pub(crate) fn button_pressed(&mut self, b: Button) {
-        println!("pressed");
         Joypad::button_pressed(self, b);
         Interrupts::turnon(self, Interruption::Joypad);
     } 
 
     pub(crate) fn button_released(&mut self, b: Button) {
-        println!("released");
         Joypad::button_released(self, b);
     } 
  
