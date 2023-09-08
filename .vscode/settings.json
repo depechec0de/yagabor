@@ -1,0 +1,6 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "./web-gui/Cargo.toml",
+        "./desktop-gui/Cargo.toml"
+    ]
+}

@@ -1,5 +1,4 @@
 mod emulation;
-mod gameboy;
 mod screen;
 
 use std::{io::Error, time::{Duration, Instant}};

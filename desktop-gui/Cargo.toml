@@ -1,0 +1,10 @@
+[package]
+name = "desktop-gui"
+version = "0.1.0"
+edition = "2021"
+authors = ["Patricio Inzaghi <p@inzaghi.ar>"]
+
+[dependencies]
+clap = { version = "4.0", features = ["derive"] }
+sdl2 = { version = "0.35.2" }
+gameboy = { path = "../gameboy" }
