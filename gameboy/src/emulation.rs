@@ -1,6 +1,11 @@
 use std::io::Error;
 
-use crate::gameboy::{gameboy::GameBoy, io::lcd::Frame};
+use crate::cartridge::Cartridge;
+use crate::{Button, gameboy, cartridge};
+use crate::gameboy::GameBoy;
+use crate::io::interrupts::{Interrupts, Interruption};
+use crate::io::joypad::Joypad;
+use crate::io::lcd::Frame;
 
 pub const CPU_CLOCK_HZ: usize = 4_194_304;
 pub const FPS: f32 = 59.7;
@@ -20,7 +25,8 @@ pub(crate) struct EmulationStep {
 }
 
 impl Emulation {
-    pub(crate) fn new(gameboy: GameBoy) -> Self {
+    pub fn new(cartridge: Option<Cartridge>) -> Self {
+        let gameboy = GameBoy::new(cartridge);
         Emulation { 
             gameboy,
             running: false,
@@ -28,7 +34,7 @@ impl Emulation {
         }
     }
 
-    pub(crate) fn start(&mut self) {
+    pub fn start(&mut self) {
         self.running = true;
     }
 
@@ -57,5 +63,14 @@ impl Emulation {
         let background = self.gameboy.background();
 
         Ok(EmulationStep { framebuffer, tiledata, background })  
+    }
+
+    pub fn button_pressed(&mut self, b: Button) {
+        Joypad::button_pressed(&mut self.gameboy, b);
+        Interrupts::turnon(&mut self.gameboy, Interruption::Joypad);
+    } 
+
+    pub fn button_released(&mut self, b: Button) {
+        Joypad::button_released(&mut self.gameboy, b);
     }
 }

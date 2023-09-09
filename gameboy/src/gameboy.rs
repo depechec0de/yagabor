@@ -5,12 +5,11 @@ use super::cartridge::Cartridge;
 use super::cpu::cpu::{CPU, ClockCycles};
 use super::io::interrupts::{Interrupts, Interruption};
 use super::io::io::IO;
-use super::io::joypad::{Button, Joypad};
 use super::io::lcd::{LCD, Frame};
 use super::mmu::MMU;
 use super::ppu::PPU;
 
-pub(crate) struct GameBoy {
+pub struct GameBoy {
     pub(crate) cpu: CPU,
     pub(crate) mmu: MMU,
     pub(crate) ppu: PPU,
@@ -20,7 +19,7 @@ pub(crate) struct GameBoy {
 }
 
 impl GameBoy {
-    pub(crate) fn new(cartridge: Option<Cartridge>) -> Self {
+    pub fn new(cartridge: Option<Cartridge>) -> Self {
         let io = IO::new();
         let mmu = MMU::new();
         let cpu = CPU::new();
@@ -62,15 +61,6 @@ impl GameBoy {
 
     pub(crate) fn background(&self) -> Frame {
         LCD::background_buffer(self)
-    }
-
-    pub(crate) fn button_pressed(&mut self, b: Button) {
-        Joypad::button_pressed(self, b);
-        Interrupts::turnon(self, Interruption::Joypad);
-    } 
-
-    pub(crate) fn button_released(&mut self, b: Button) {
-        Joypad::button_released(self, b);
     } 
  
 }

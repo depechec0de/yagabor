@@ -1,4 +1,4 @@
-use crate::gameboy::{mmu::{Address, IO_SIZE, IO_BEGIN, MMU}, gameboy::GameBoy};
+use crate::{mmu::{Address, IO_SIZE, IO_BEGIN, MMU}, gameboy::GameBoy};
 
 use super::{interrupts::{Interruption, Interrupts}, lcd::LCD, timers::Timers, joypad::Joypad};
 

@@ -1,4 +1,4 @@
-use crate::gameboy::{mmu::Address, gameboy::GameBoy};
+use crate::{mmu::Address, gameboy::GameBoy};
 
 const VBLANK_INT_HANDLER: Address = 0x0040;
 const LCD_INT_HANDLER: Address = 0x0048;

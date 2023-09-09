@@ -1,6 +1,6 @@
 use std::io::Error;
 
-use crate::gameboy::{cpu::cpu::{MachineCycles, CPU}, mmu::MMU, gameboy::GameBoy, io::interrupts::Interrupts};
+use crate::{cpu::cpu::{MachineCycles, CPU}, mmu::MMU, gameboy::GameBoy, io::interrupts::Interrupts};
 
 use super::decode::*;
 

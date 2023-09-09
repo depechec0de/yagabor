@@ -1,6 +1,6 @@
 use std::io::Error;
 
-use crate::gameboy::{cpu::cpu::MachineCycles, gameboy::GameBoy, mmu::MMU};
+use crate::{cpu::cpu::MachineCycles, gameboy::GameBoy, mmu::MMU};
 
 use super::decode::{RegistersIndDir, WordRegister, RegistersIndirect, BitType, RotateDirection, BitTarget, ResSetType, Instruction};
 

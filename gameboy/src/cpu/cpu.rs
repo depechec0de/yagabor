@@ -1,10 +1,10 @@
 use std::io::Error;
 
-use crate::gameboy::gameboy::GameBoy;
-use crate::gameboy::io::interrupts::Interrupts;
-use crate::gameboy::io::io::{SERIAL_CONTROL_ADDRESS, SERIAL_DATA_ADDRESS, SerialTransferMode};
-use crate::gameboy::io::timers::Timers;
-use crate::gameboy::mmu::{MMU, Address};
+use crate::gameboy::GameBoy;
+use crate::io::interrupts::Interrupts;
+use crate::io::io::{SERIAL_CONTROL_ADDRESS, SERIAL_DATA_ADDRESS, SerialTransferMode};
+use crate::io::timers::Timers;
+use crate::mmu::{MMU, Address};
 
 use super::instructions::decode::Instruction;
 use super::registers::Registers;

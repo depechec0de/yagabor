@@ -2,7 +2,7 @@
 use std::path::PathBuf;
 
 #[cfg(test)]
-use crate::gameboy::{cartridge::Cartridge, cpu::instructions::decode::{Instruction, RegistersIndDir, StackTarget, RegistersIndirect}, gameboy::GameBoy, mmu::MMU};
+use crate::{cartridge::Cartridge, cpu::instructions::decode::{Instruction, RegistersIndDir, StackTarget, RegistersIndirect}, gameboy::GameBoy, mmu::MMU};
 
 #[test]
 fn add_without_carry() {

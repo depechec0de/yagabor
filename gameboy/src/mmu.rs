@@ -1,4 +1,4 @@
-use crate::gameboy::{ppu::*, rom::*, cartridge::Cartridge};
+use crate::{ppu::*, rom::*, cartridge::Cartridge};
 
 use super::{io::{io::IO, interrupts::Interrupts}, gameboy::GameBoy};
 

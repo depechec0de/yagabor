@@ -1,4 +1,4 @@
-use crate::gameboy::gameboy::GameBoy;
+use crate::{gameboy::GameBoy, Button};
 
 #[derive(Debug)]
 pub(crate) struct Joypad {
@@ -19,10 +19,6 @@ pub(crate) struct JoypadState{
     down: bool, 
     left: bool, 
     right: bool
-}
-
-pub(crate) enum Button {
-    Up, Down, Left, Right, Start, Select, A, B
 }
 
 impl Joypad {

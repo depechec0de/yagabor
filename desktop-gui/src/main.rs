@@ -1,15 +1,14 @@
-mod emulation;
 mod screen;
 
 use std::{io::Error, time::{Duration, Instant}};
 
 use clap::Parser;
-use emulation::Emulation;
+use gameboy::{emulation::Emulation, cartridge::Cartridge, SCREEN_WIDTH, SCREEN_HEIGHT, TILEDATA_WIDTH};
 use sdl2::{event::Event, keyboard::Keycode};
 
-use crate::gameboy::io::joypad::Button;
-use crate::gameboy::io::lcd::{SCREEN_HEIGHT, TILEDATA_WIDTH, BACKGROUND_WIDTH, TILEDATA_HEIGHT, BACKGROUND_HEIGHT};
-use crate::{gameboy::{cartridge::Cartridge, gameboy::GameBoy, io::lcd::SCREEN_WIDTH}, screen::Screen};
+use gameboy::*;
+
+use crate::screen::Screen;
 
 #[derive(Parser)]
 struct Cli {
@@ -36,10 +35,8 @@ fn main() -> Result<(), Error> {
     // }else{
     //     gui = false;
     // }
-    
-    let gb: GameBoy = GameBoy::new(cartridge);
 
-    let mut emu = Emulation::new(gb);
+    let mut emu = Emulation::new(cartridge);
 
     let sdl_context = sdl2::init().unwrap();
     let mut event_pump = sdl_context.event_pump().unwrap();
@@ -69,28 +66,28 @@ fn main() -> Result<(), Error> {
                             result_message = format!("User terminated emulation."); 
                             break 'running 
                         },
-                        Some(Keycode::A)        => emu.gameboy.button_pressed(Button::A),
-                        Some(Keycode::S)        => emu.gameboy.button_pressed(Button::B),
-                        Some(Keycode::Return)   => emu.gameboy.button_pressed(Button::Start),
-                        Some(Keycode::Space)    => emu.gameboy.button_pressed(Button::Select),
-                        Some(Keycode::Up)       => emu.gameboy.button_pressed(Button::Up),
-                        Some(Keycode::Down)     => emu.gameboy.button_pressed(Button::Down),
-                        Some(Keycode::Left)     => emu.gameboy.button_pressed(Button::Left),
-                        Some(Keycode::Right)    => emu.gameboy.button_pressed(Button::Right),
+                        Some(Keycode::A)        => emu.button_pressed(Button::A),
+                        Some(Keycode::S)        => emu.button_pressed(Button::B),
+                        Some(Keycode::Return)   => emu.button_pressed(Button::Start),
+                        Some(Keycode::Space)    => emu.button_pressed(Button::Select),
+                        Some(Keycode::Up)       => emu.button_pressed(Button::Up),
+                        Some(Keycode::Down)     => emu.button_pressed(Button::Down),
+                        Some(Keycode::Left)     => emu.button_pressed(Button::Left),
+                        Some(Keycode::Right)    => emu.button_pressed(Button::Right),
                         _                       => {},
                     }
                     
                 },
                 Event::KeyUp { keycode, .. } => {
                     match keycode {
-                        Some(Keycode::A)        => emu.gameboy.button_released(Button::A),
-                        Some(Keycode::S)        => emu.gameboy.button_released(Button::B),
-                        Some(Keycode::Return)   => emu.gameboy.button_released(Button::Start),
-                        Some(Keycode::Space)    => emu.gameboy.button_released(Button::Select),
-                        Some(Keycode::Up)       => emu.gameboy.button_released(Button::Up),
-                        Some(Keycode::Down)     => emu.gameboy.button_released(Button::Down),
-                        Some(Keycode::Left)     => emu.gameboy.button_released(Button::Left),
-                        Some(Keycode::Right)    => emu.gameboy.button_released(Button::Right),
+                        Some(Keycode::A)        => emu.button_released(Button::A),
+                        Some(Keycode::S)        => emu.button_released(Button::B),
+                        Some(Keycode::Return)   => emu.button_released(Button::Start),
+                        Some(Keycode::Space)    => emu.button_released(Button::Select),
+                        Some(Keycode::Up)       => emu.button_released(Button::Up),
+                        Some(Keycode::Down)     => emu.button_released(Button::Down),
+                        Some(Keycode::Left)     => emu.button_released(Button::Left),
+                        Some(Keycode::Right)    => emu.button_released(Button::Right),
                         _                       => {},
                     }
                     

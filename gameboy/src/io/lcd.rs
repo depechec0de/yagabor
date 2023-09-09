@@ -1,4 +1,4 @@
-use crate::gameboy::{mmu::{Address, VRAM_BEGIN, MMU}, cpu::cpu::ClockCycles, gameboy::GameBoy, ppu::{PPU, BGMAP0_ADDRESS, BGMAP1_ADDRESS, TilePixelValue}};
+use crate::{mmu::{Address, VRAM_BEGIN, MMU}, cpu::cpu::ClockCycles, gameboy::GameBoy, ppu::{PPU, BGMAP0_ADDRESS, BGMAP1_ADDRESS, TilePixelValue}, SCREEN_WIDTH, SCREEN_HEIGHT, TILEDATA_HEIGHT, TILEDATA_WIDTH, BACKGROUND_HEIGHT, BACKGROUND_WIDTH};
 
 use super::interrupts::{Interrupts, Interruption};
 
@@ -12,15 +12,6 @@ pub(crate) const BACKGROUND_ROWS: usize = 32;
 
 pub(crate) const SCREEN_COLS: usize = 20;
 pub(crate) const SCREEN_ROWS: usize = 18;
-
-pub(crate) const SCREEN_WIDTH: u32 = 20 * TILE_SIZE;
-pub(crate) const SCREEN_HEIGHT: u32 = 144;
-
-pub(crate) const BACKGROUND_WIDTH: u32 = BACKGROUND_COLS as u32 * TILE_SIZE;
-pub(crate) const BACKGROUND_HEIGHT: u32 = BACKGROUND_ROWS as u32 * TILE_SIZE;
-
-pub(crate) const TILEDATA_WIDTH: u32 = TILEDATA_COLS as u32 * TILE_SIZE;
-pub(crate) const TILEDATA_HEIGHT: u32 = TILEDATA_ROWS as u32 * TILE_SIZE;
 
 pub(crate) const LCD_CONTROL_ADDRESS: Address = 0xFF40;
 pub(crate) const LCD_STATUS_ADDRESS: Address = 0xFF41;

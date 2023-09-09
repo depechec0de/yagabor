@@ -1,4 +1,4 @@
-use crate::gameboy::gameboy::GameBoy;
+use crate::gameboy::GameBoy;
 
 use super::{io::IO, interrupts::{Interruption, Interrupts}};
 

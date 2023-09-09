@@ -1,6 +1,6 @@
 use sdl2::{VideoSubsystem, render::Canvas, video::{Window, WindowPos}, pixels::Color, rect::Point};
 
-use crate::gameboy::io::lcd::{ColoredPixel, Frame};
+use gameboy::io::lcd::{ColoredPixel, Frame};
 
 pub struct Screen {
     canvas: Canvas<Window>,
