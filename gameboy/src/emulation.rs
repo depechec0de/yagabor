@@ -14,14 +14,14 @@ pub const CPU_CYCLES_PER_FRAME: usize = (CPU_CLOCK_HZ as f32 / FPS) as usize;
 
 pub struct Emulation {
     pub(crate) gameboy: GameBoy,
-    pub(crate) running: bool,
-    pub(crate) total_cycles: u64
+    pub running: bool,
+    pub total_cycles: u64
 }
 
-pub(crate) struct EmulationStep {
-    pub(crate) framebuffer: Frame,
-    pub(crate) tiledata: Frame,
-    pub(crate) background: Frame,
+pub struct EmulationStep {
+    pub framebuffer: Frame,
+    pub tiledata: Frame,
+    pub background: Frame,
 }
 
 impl Emulation {
@@ -38,7 +38,7 @@ impl Emulation {
         self.running = true;
     }
 
-    pub(crate) fn step(&mut self) -> Result<EmulationStep,Error> {
+    pub fn step(&mut self) -> Result<EmulationStep,Error> {
 
         let mut frame_cycles = 0;           
         

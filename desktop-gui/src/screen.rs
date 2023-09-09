@@ -1,6 +1,5 @@
-use sdl2::{VideoSubsystem, render::Canvas, video::{Window, WindowPos}, pixels::Color, rect::Point};
-
 use gameboy::io::lcd::{ColoredPixel, Frame};
+use sdl2::{VideoSubsystem, render::Canvas, video::{Window, WindowPos}, pixels::Color, rect::Point};
 
 pub struct Screen {
     canvas: Canvas<Window>,
@@ -8,14 +7,12 @@ pub struct Screen {
     height: u32,
 }
 
-impl std::convert::From<ColoredPixel> for Color {
-    fn from(pixel: ColoredPixel) -> Self {
-        match pixel {
-            ColoredPixel::White => Color::RGB(255, 255, 255),
-            ColoredPixel::LightGray => Color::RGB(192, 192, 192),
-            ColoredPixel::DarkGray => Color::RGB(96, 96, 96),
-            ColoredPixel::Black => Color::RGB(0, 0, 0),
-        }
+fn color_from_pixel(pixel: ColoredPixel) -> Color {
+    match pixel {
+        ColoredPixel::White => Color::RGB(255, 255, 255),
+        ColoredPixel::LightGray => Color::RGB(192, 192, 192),
+        ColoredPixel::DarkGray => Color::RGB(96, 96, 96),
+        ColoredPixel::Black => Color::RGB(0, 0, 0),
     }
 }
 
@@ -44,7 +41,7 @@ impl Screen {
         for x in 0..self.width as usize {
             for y in 0..self.height as usize {
                 let pixel = frame.buffer[x + y * (self.width as usize)];
-                self.canvas.set_draw_color(Color::from(pixel));
+                self.canvas.set_draw_color(color_from_pixel(pixel));
                 let point = Point::new(x as i32, y as i32);
                 self.canvas.draw_point(point).unwrap();
             }

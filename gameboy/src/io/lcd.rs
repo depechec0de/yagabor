@@ -46,10 +46,10 @@ pub(crate) struct LCD {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct Frame {
-    pub(crate) width: u32,
-    pub(crate) height: u32,
-    pub(crate) buffer: Vec<ColoredPixel>
+pub struct Frame {
+    pub width: u32,
+    pub height: u32,
+    pub buffer: Vec<ColoredPixel>
 }
 
 impl Frame {
@@ -59,7 +59,7 @@ impl Frame {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum ColoredPixel {
+pub enum ColoredPixel {
     White, DarkGray, LightGray, Black
 }
 
