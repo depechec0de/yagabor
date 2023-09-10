@@ -1,4 +1,4 @@
 [workspace]
-members = ["gameboy", "desktop-gui", "web-gui"]
+members = ["gameboy", "desktop-gui", "web-api"]
 
 workspace.resolver = "2"
