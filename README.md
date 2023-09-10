@@ -12,6 +12,14 @@ A Game Boy (DMG) emulator writen in Rust for educational purposes. The current s
 | Serial           | ⬜      |
 | Interrupts       | ✅      |
 
+# Interfaces
+
+It is planned to support two interfaces, a desktop and a web version. Currently only the desktop GUI is implemented.
+
+## Desktop
+
+Simply run ```cargo run --release --bin desktop-gui [rom.gb]``` to start the desktop GUI.
+
 # Tests
 
 To run the tests, execute the following commands:

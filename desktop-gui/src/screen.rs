@@ -1,4 +1,4 @@
-use gameboy::io::lcd::{ColoredPixel, Frame};
+use gameboy::{ColoredPixel, GameBoyFrame};
 use sdl2::{VideoSubsystem, render::Canvas, video::{Window, WindowPos}, pixels::Color, rect::Point};
 
 pub struct Screen {
@@ -17,7 +17,14 @@ fn color_from_pixel(pixel: ColoredPixel) -> Color {
 }
 
 impl Screen {
-    pub fn new(video: &VideoSubsystem, title: &str, width: u32, height: u32, scale: u32, posx_offset: i32)  -> Screen {
+    pub fn new(
+        video: &VideoSubsystem, 
+        title: &str, 
+        width: u32, 
+        height: u32, 
+        scale: u32, 
+        posx_offset: i32
+    ) -> Screen {
         let mut window = video.window(title, width * scale, height * scale)
             .position_centered()
             .build()
@@ -35,7 +42,7 @@ impl Screen {
         Screen { canvas, width, height }
     }
 
-    pub(crate) fn render(&mut self, frame: Frame) {
+    pub(crate) fn render(&mut self, frame: GameBoyFrame) {
         self.canvas.clear();
 
         for x in 0..self.width as usize {

@@ -1,11 +1,12 @@
 use std::io::{Error, ErrorKind};
 use std::fmt;
 
+use crate::GameBoyFrame;
+
 use super::cartridge::Cartridge;
 use super::cpu::cpu::{CPU, ClockCycles};
-use super::io::interrupts::{Interrupts, Interruption};
 use super::io::io::IO;
-use super::io::lcd::{LCD, Frame};
+use super::io::lcd::LCD;
 use super::mmu::MMU;
 use super::ppu::PPU;
 
@@ -51,15 +52,15 @@ impl GameBoy {
         self.serial
     }
 
-    pub(crate) fn frame(&self) -> Frame {
+    pub(crate) fn frame(&self) -> GameBoyFrame {
         LCD::screen_buffer(self)
     }
 
-    pub(crate) fn tiledata(&self) -> Frame {
+    pub(crate) fn tiledata(&self) -> GameBoyFrame {
         LCD::tiledata_buffer(self)
     }
 
-    pub(crate) fn background(&self) -> Frame {
+    pub(crate) fn background(&self) -> GameBoyFrame {
         LCD::background_buffer(self)
     } 
  

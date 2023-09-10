@@ -1,11 +1,10 @@
 use std::io::Error;
 
 use crate::cartridge::Cartridge;
-use crate::{Button, gameboy, cartridge};
+use crate::{Button, GameBoyFrame};
 use crate::gameboy::GameBoy;
 use crate::io::interrupts::{Interrupts, Interruption};
 use crate::io::joypad::Joypad;
-use crate::io::lcd::Frame;
 
 pub const CPU_CLOCK_HZ: usize = 4_194_304;
 pub const FPS: f32 = 59.7;
@@ -19,9 +18,9 @@ pub struct Emulation {
 }
 
 pub struct EmulationStep {
-    pub framebuffer: Frame,
-    pub tiledata: Frame,
-    pub background: Frame,
+    pub framebuffer: GameBoyFrame,
+    pub tiledata: GameBoyFrame,
+    pub background: GameBoyFrame,
 }
 
 impl Emulation {

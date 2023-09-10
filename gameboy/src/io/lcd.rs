@@ -1,4 +1,4 @@
-use crate::{mmu::{Address, VRAM_BEGIN, MMU}, cpu::cpu::ClockCycles, gameboy::GameBoy, ppu::{PPU, BGMAP0_ADDRESS, BGMAP1_ADDRESS, TilePixelValue}, SCREEN_WIDTH, SCREEN_HEIGHT, TILEDATA_HEIGHT, TILEDATA_WIDTH, BACKGROUND_HEIGHT, BACKGROUND_WIDTH};
+use crate::{mmu::{Address, VRAM_BEGIN, MMU}, cpu::cpu::ClockCycles, gameboy::GameBoy, ppu::{PPU, BGMAP0_ADDRESS, BGMAP1_ADDRESS, TilePixelValue}, SCREEN_WIDTH, SCREEN_HEIGHT, TILEDATA_HEIGHT, TILEDATA_WIDTH, BACKGROUND_HEIGHT, BACKGROUND_WIDTH, ColoredPixel, GameBoyFrame};
 
 use super::interrupts::{Interrupts, Interruption};
 
@@ -40,27 +40,15 @@ pub(crate) struct LCD {
     scx: u8,
     bgpalette: Palette,
     // Renders
-    screen: Frame,
-    tiledata: Frame,
-    background: Frame
+    screen: GameBoyFrame,
+    tiledata: GameBoyFrame,
+    background: GameBoyFrame
 }
 
-#[derive(Clone, Debug)]
-pub struct Frame {
-    pub width: u32,
-    pub height: u32,
-    pub buffer: Vec<ColoredPixel>
-}
-
-impl Frame {
+impl GameBoyFrame {
     pub(crate) fn new(width: u32, height: u32, buffer: Vec<ColoredPixel>) -> Self {
-        Frame { width, height, buffer }
+        GameBoyFrame { width, height, buffer }
     }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub enum ColoredPixel {
-    White, DarkGray, LightGray, Black
 }
 
 impl std::convert::From<ColoredPixel> for u8 {
@@ -148,10 +136,10 @@ impl LCD {
             scy: 0, 
             scx: 0, 
             bgpalette: Palette::from(0), 
-            screen: Frame::new(SCREEN_WIDTH, SCREEN_HEIGHT, vec![ColoredPixel::Black; (SCREEN_WIDTH*SCREEN_HEIGHT) as usize]),
+            screen: GameBoyFrame::new(SCREEN_WIDTH, SCREEN_HEIGHT, vec![ColoredPixel::Black; (SCREEN_WIDTH*SCREEN_HEIGHT) as usize]),
             // For debug
-            tiledata: Frame::new(SCREEN_WIDTH, SCREEN_HEIGHT, vec![ColoredPixel::Black; (TILEDATA_WIDTH*TILEDATA_HEIGHT) as usize]),
-            background: Frame::new(SCREEN_WIDTH, SCREEN_HEIGHT, vec![ColoredPixel::Black; (BACKGROUND_WIDTH*BACKGROUND_HEIGHT) as usize]),
+            tiledata: GameBoyFrame::new(SCREEN_WIDTH, SCREEN_HEIGHT, vec![ColoredPixel::Black; (TILEDATA_WIDTH*TILEDATA_HEIGHT) as usize]),
+            background: GameBoyFrame::new(SCREEN_WIDTH, SCREEN_HEIGHT, vec![ColoredPixel::Black; (BACKGROUND_WIDTH*BACKGROUND_HEIGHT) as usize]),
         }
     }
 
@@ -264,15 +252,15 @@ impl LCD {
         
     }
 
-    pub(crate) fn screen_buffer(gb: &GameBoy) -> Frame {
+    pub(crate) fn screen_buffer(gb: &GameBoy) -> GameBoyFrame {
         gb.io.lcd.screen.clone()
     }
 
-    pub(crate) fn tiledata_buffer(gb: &GameBoy) -> Frame {
+    pub(crate) fn tiledata_buffer(gb: &GameBoy) -> GameBoyFrame {
         gb.io.lcd.tiledata.clone()
     }
 
-    pub(crate) fn background_buffer(gb: &GameBoy) -> Frame {
+    pub(crate) fn background_buffer(gb: &GameBoy) -> GameBoyFrame {
         gb.io.lcd.background.clone()
     }
 
@@ -280,7 +268,7 @@ impl LCD {
         let tiles = PPU::tile_set(gb);
         let tdbuffer = LCD::tiles_to_buffer(gb, &tiles, TILEDATA_WIDTH, TILEDATA_HEIGHT);
 
-        gb.io.lcd.tiledata = Frame::new(TILEDATA_WIDTH, TILEDATA_HEIGHT, tdbuffer);
+        gb.io.lcd.tiledata = GameBoyFrame::new(TILEDATA_WIDTH, TILEDATA_HEIGHT, tdbuffer);
     }
 
     pub(crate) fn render_background(gb: &mut GameBoy) {
@@ -299,7 +287,7 @@ impl LCD {
 
         let bgbuffer = LCD::tiles_to_buffer(gb, &tiles_bg, BACKGROUND_WIDTH, BACKGROUND_HEIGHT);
 
-        gb.io.lcd.background = Frame::new(BACKGROUND_WIDTH, BACKGROUND_HEIGHT, bgbuffer);
+        gb.io.lcd.background = GameBoyFrame::new(BACKGROUND_WIDTH, BACKGROUND_HEIGHT, bgbuffer);
     }
 
     pub(crate) fn tiles_to_buffer(gb: &GameBoy, tiles: &Vec<[[TilePixelValue; 8]; 8]>, width: u32, height: u32) -> Vec<ColoredPixel> {

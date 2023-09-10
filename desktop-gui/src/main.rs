@@ -10,6 +10,8 @@ use gameboy::*;
 
 use crate::screen::Screen;
 
+const FRAME_TIME: u128 = 1000/60;
+
 #[derive(Parser)]
 struct Cli {
     cartridge: Option<std::path::PathBuf>
@@ -110,8 +112,12 @@ fn main() -> Result<(), Error> {
                     break 'running
                 }
             }
+            let elapsed_processing = now.elapsed();
+            let time_to_sleep = FRAME_TIME - elapsed_processing.as_millis();
 
-            std::thread::sleep(Duration::from_millis(10000/597));
+            if elapsed_processing.as_millis() < FRAME_TIME {
+                spin_sleep::sleep(Duration::from_millis(time_to_sleep as u64));
+            }            
 
             let elapsed = now.elapsed();
             execution_time += elapsed;
