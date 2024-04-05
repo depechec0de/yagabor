@@ -22,7 +22,7 @@ pub enum Button {
 
 #[derive(Clone, Copy, Debug)]
 pub enum ColoredPixel {
-    White, DarkGray, LightGray, Black
+    White, LightGray, DarkGray, Black
 }
 
 #[derive(Clone, Debug)]
