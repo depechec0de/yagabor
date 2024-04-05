@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
 
-  import { ColoredPixel } from "$lib/pkg/gameboy_emu";
+  import { ColoredPixel } from "$lib/pkg/gameboy";
   import { SCREEN_WIDTH, SCREEN_HEIGHT } from "$lib/constants";
 
   export let screenbuffer : Uint8Array;
@@ -38,12 +38,7 @@
       canvasContext.fillStyle = color;
     }
     canvasContext?.fillRect(x*pixelWidth, y*pixelHeight, pixelWidth, pixelHeight);
-    
   }
-
-  const getIndex = (row: number, column: number) => {
-    return row * SCREEN_WIDTH + column;
-  };
 
   function render(screen: Uint8Array | undefined){
     if(screen == null){
@@ -52,10 +47,9 @@
 
     canvasContext?.clearRect(0, 0, canvas.width, canvas.height);
  
-    for (let row = 0; row < SCREEN_HEIGHT; row++) {
-      for (let col = 0; col < SCREEN_WIDTH; col++) {
-        const idx = getIndex(row, col);
-        drawPixel(col, row, screen[idx])
+    for (let x = 0; x < SCREEN_WIDTH; x++) {
+      for (let y = 0; y < SCREEN_HEIGHT; y++) {
+        drawPixel(x, y, screen[x + SCREEN_WIDTH * y])
       }
     }
   }

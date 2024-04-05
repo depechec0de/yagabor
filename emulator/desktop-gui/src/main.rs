@@ -3,7 +3,7 @@ mod screen;
 use std::{io::Error, time::{Duration, Instant}};
 
 use clap::Parser;
-use gameboy::{emulation::Emulation, cartridge::Cartridge, SCREEN_WIDTH, SCREEN_HEIGHT, TILEDATA_WIDTH};
+use gameboy::{Emulation, cartridge::Cartridge, SCREEN_WIDTH, SCREEN_HEIGHT, TILEDATA_WIDTH};
 use sdl2::{event::Event, keyboard::Keycode};
 
 use gameboy::*;

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
 
-  import initWasm, { Emulation, type InitOutput } from "$lib/pkg/gameboy_emu";
+  import initWasm, { EmulationWasm, type InitOutput } from "$lib/pkg/gameboy";
 
   import { 
     SCREEN_WIDTH, 
@@ -11,7 +11,7 @@
   import KeyPad from "./KeyPad.svelte";
   import Screen from "./Screen.svelte";
 
-  let emu : Emulation | undefined;
+  let emu : EmulationWasm | undefined;
   let wasmInstance : InitOutput | undefined;
   let screenPtr : number | undefined;
   let powerstatus : boolean;
@@ -27,24 +27,30 @@
     initWasm().then((instance) => {
       wasmInstance = instance;
 
-      emu = Emulation.new();
-      screenPtr = emu.screen();
+      emu = EmulationWasm.new();
     }); 
 
     return () => cancelAnimationFrame(animationFrame)
   });
 
   function step(timestamp : number){
-    if(powerstatus && wasmInstance != null){
+    screenPtr = emu?.screen();
+    //console.log(screenPtr)
+    if(wasmInstance != null){
+      screenbuffer = new Uint8Array(wasmInstance.memory.buffer, screenPtr, SCREEN_WIDTH * SCREEN_HEIGHT);
+      //console.log(`${screenbuffer}`)
+    }
+  
+    if(powerstatus){
       if (lastTimestamp == null) {
         lastTimestamp = timestamp;
       }
       const elapsed = timestamp - lastTimestamp;
-
+      
       if (elapsed > MS_BETWEEN_FRAMES) {
-        emu?.tick();
-        screenbuffer = new Uint8Array(wasmInstance.memory.buffer, screenPtr, SCREEN_WIDTH * SCREEN_HEIGHT);
-
+        
+        let cycles = emu?.step();
+        //console.log(cycles)
         lastTimestamp = timestamp;
       } 
 
@@ -56,7 +62,13 @@
   
   $: if(powerstatus){
     animationFrame = requestAnimationFrame(step);
+  }else{
+    if(emu != null){
+      emu = EmulationWasm.new();
+    }
   }
+
+  //$: console.log(screenbuffer)
 
 </script>
 

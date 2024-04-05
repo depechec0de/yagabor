@@ -20,6 +20,10 @@ It is planned to support two interfaces, a desktop and a web version. Currently 
 
 Simply run ```cargo run --release --bin desktop-gui [rom.gb]``` to start the desktop GUI.
 
+## Web GUI
+
+wasm-pack build --target web
+
 # Tests
 
 To run the tests, execute the following commands:
