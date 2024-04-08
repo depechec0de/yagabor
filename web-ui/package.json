@@ -3,8 +3,9 @@
 	"version": "0.0.1",
 	"private": true,
 	"scripts": {
-		"dev": "vite dev",
-		"build": "vite build",
+    "wasm": "wasm-pack build ./../emulator/gameboy --out-dir ../../web-ui/src/lib/wasm --out-name gameboy --target web",
+		"dev": "npm run wasm && vite dev",
+		"build": "npm run wasm && vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",

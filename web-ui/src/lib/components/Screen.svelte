@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
 
-  import { ColoredPixel } from "$lib/pkg/gameboy";
+  import { ColoredPixel } from "$lib/wasm/gameboy";
   import { SCREEN_WIDTH, SCREEN_HEIGHT } from "$lib/constants";
 
   export let screenbuffer : Uint8Array;

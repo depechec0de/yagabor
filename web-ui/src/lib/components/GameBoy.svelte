@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
 
-  import initWasm, { EmulationWasm, type InitOutput } from "$lib/pkg/gameboy";
+  import initWasm, { EmulationWasm, type InitOutput } from "$lib/wasm/gameboy";
 
   import { 
     SCREEN_WIDTH, 
