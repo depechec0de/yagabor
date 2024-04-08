@@ -3,9 +3,10 @@
 	"version": "0.0.1",
 	"private": true,
 	"scripts": {
-    "wasm": "wasm-pack build ./../emulator/gameboy --out-dir ../../web-ui/src/lib/wasm --out-name gameboy --target web",
-		"dev": "npm run wasm && vite dev",
-		"build": "./deploy/build1.sh && ./deploy/build2.sh && npm run wasm && vite build",
+    "dev:wasm": "wasm-pack build ./../emulator/gameboy --out-dir ../../web-ui/src/lib/wasm --out-name gameboy --target web",
+		"dev": "npm run dev:wasm && vite dev",
+    "build:wasm": "~/.cargo/bin/wasm-pack build ./../emulator/gameboy --out-dir ../../web-ui/src/lib/wasm --out-name gameboy --target web",
+		"build": "./deploy/build1.sh && ./deploy/build2.sh && npm run build:wasm && vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
