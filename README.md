@@ -1,6 +1,10 @@
 # YAGABOR - Yet Another GAme BOy emulator in Rust
 
-A Game Boy (DMG) emulator writen in Rust for educational purposes. The current state of the implemented features:
+A Game Boy (DMG) emulator writen in Rust for educational purposes. It is under development, so it has missing features.
+
+A live demo is available here: https://yagabor.vercel.app
+
+The current state of the implemented features:
 
 | Module           | Status  |
 | ---------------- |:-------:|
@@ -8,29 +12,35 @@ A Game Boy (DMG) emulator writen in Rust for educational purposes. The current s
 | Timers           | ✅      |
 | Keypad           | ⬜      |
 | Sound            | ⬜      |
-| Graphics         | ⬜      |
+| Graphics         | ✅      |
 | Serial           | ⬜      |
 | Interrupts       | ✅      |
 
 # Interfaces
 
-It is planned to support two interfaces, a desktop and a web version. Currently only the desktop GUI is implemented.
+You can run the emulator either locally or with a web GUI.
 
-## Desktop
+## Local execution
 
 Simply run ```cargo run --release --bin desktop-gui [rom.gb]``` to start the desktop GUI.
 
 ## Web GUI
 
-wasm-pack build --target web
+Execute the following commands and open the local URL.
+
+```
+cd web-gui/
+npm run dev
+```
 
 # Tests
 
 To run the tests, execute the following commands:
 
-```git submodule update --init```
-
-```cargo test```
+```
+git submodule update --init
+cargo test
+```
 
 This will run the following tests:
 
