@@ -3,9 +3,9 @@
 	"version": "0.0.1",
 	"private": true,
 	"scripts": {
-    "dev:wasm": "wasm-pack build ./../emulator/gameboy --out-dir ../../web-ui/src/lib/wasm --out-name gameboy --target web",
+		"dev:wasm": "wasm-pack build ./../emulator/gameboy --out-dir ../../web-ui/src/lib/wasm --out-name gameboy --target web",
 		"dev": "npm run dev:wasm && vite dev",
-    "build:wasm": "~/.cargo/bin/wasm-pack build ./../emulator/gameboy --out-dir ../../web-ui/src/lib/wasm --out-name gameboy --target web",
+		"build:wasm": "~/.cargo/bin/wasm-pack build ./../emulator/gameboy --out-dir ../../web-ui/src/lib/wasm --out-name gameboy --target web",
 		"build": "scripts/build_vercel.sh",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -14,6 +14,7 @@
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^3.0.0",
+		"@sveltejs/adapter-vercel": "^5.2.0",
 		"@sveltejs/kit": "^2.0.0",
 		"@sveltejs/vite-plugin-svelte": "^3.0.0",
 		"@types/eslint": "^8.56.0",
