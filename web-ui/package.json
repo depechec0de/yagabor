@@ -6,7 +6,7 @@
     "dev:wasm": "wasm-pack build ./../emulator/gameboy --out-dir ../../web-ui/src/lib/wasm --out-name gameboy --target web",
 		"dev": "npm run dev:wasm && vite dev",
     "build:wasm": "~/.cargo/bin/wasm-pack build ./../emulator/gameboy --out-dir ../../web-ui/src/lib/wasm --out-name gameboy --target web",
-		"build": "../scripts/build_vercel.sh",
+		"build": "scripts/build_vercel.sh",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
